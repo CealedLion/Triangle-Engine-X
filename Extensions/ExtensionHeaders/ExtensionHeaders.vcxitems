@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{15a16771-5ca4-4044-b20f-fb4e2528b217}</ItemsProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)Audio.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Chemistry.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)GraphicsEffects.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)GraphicsShaders.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)GUI.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Formats.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Object.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Graphics.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Network.h" />
+  </ItemGroup>
+</Project>
