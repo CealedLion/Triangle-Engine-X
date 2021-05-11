@@ -753,11 +753,8 @@ TEXRESULT Find_Allocation(pObjectBuffer pBuffer, ObjectBufferType Type, uint64_t
 		}
 
 		uint64_t size = (pArenaAllocaterLargest->Size - (pointer));
-
 		if (size > pArenaAllocaterLargest->Size / 2)
-		{
 			size = pArenaAllocaterLargest->Size / 2;
-		}
 
 		pArenaAllocater->StartPtr = pArenaAllocaterLargest->EndPtr - size;
 		pArenaAllocater->EndPtr = pArenaAllocaterLargest->EndPtr;
@@ -3265,7 +3262,7 @@ TEXRESULT Initialise_Objects()
 {
 	memset(&Utils, NULL, sizeof(Utils));
 	memset(&Config, NULL, sizeof(Config));
-	Config.InitialParametersMax = 10024;
+	Config.InitialParametersMax = 1024;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures

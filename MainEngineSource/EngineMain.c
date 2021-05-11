@@ -2733,9 +2733,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	//stupid endian test
 	unsigned int x = 0x76543210;
 	char* c = (char*)&x;
-	if (*c == 0x10) {
-	}
-	else //big endian, unsupported.
+	if (!(*c == 0x10)) //big endian, unsupported.
 		return 1;
 
 	Utils.Instance = hInstance;

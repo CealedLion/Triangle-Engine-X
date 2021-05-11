@@ -426,9 +426,8 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 
 			if (CurrentCodePoint == 0x0D || CurrentCodePoint == 0x0A)
 			{
-				pGPU_effect->Size[0] = ((float)((pEffect->FontSize * Utils.DPI) / 72) / (float)pGraphicsWindow->CurrentExtentWidth) / 4;
-				pGPU_effect->Size[1] = ((float)((pEffect->FontSize * Utils.DPI) / 72) / (float)pGraphicsWindow->CurrentExtentHeight) / 4;
-
+				pGPU_effect->Size[0] = 0;
+				pGPU_effect->Size[1] = 0;
 
 				pGPU_effect->Position[0] = (pEffect->Position[0] - pEffect->Size[0]) + pGPU_effect->Size[0] + ((AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
 				pGPU_effect->Position[1] = ((pEffect->Position[1] - pEffect->Size[1]) - pGPU_effect->Size[1]) + ((AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
@@ -445,10 +444,8 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 					GPU_GraphicsEffectText* pGPU_effect = &pEffect->GPU_GraphicsEffectInfos[pEffect->GPU_GraphicsEffectInfosSize];
 					pEffect->GPU_GraphicsEffectInfosSize += 1;
 
-
-					pGPU_effect->Size[0] = ((float)((pEffect->FontSize * Utils.DPI) / 72) / (float)pGraphicsWindow->CurrentExtentWidth) / 4;
-					pGPU_effect->Size[1] = ((float)((pEffect->FontSize * Utils.DPI) / 72) / (float)pGraphicsWindow->CurrentExtentHeight) / 4;
-
+					pGPU_effect->Size[0] = 0;
+					pGPU_effect->Size[1] = 0;
 
 					pGPU_effect->Position[0] = (pEffect->Position[0] - pEffect->Size[0]) + pGPU_effect->Size[0] + ((AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
 					pGPU_effect->Position[1] = ((pEffect->Position[1] - pEffect->Size[1]) - pGPU_effect->Size[1]) + ((AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);

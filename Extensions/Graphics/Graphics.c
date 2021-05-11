@@ -823,6 +823,8 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		//dynamic halfing
 		if (pArenaAllocater->Size == 0)
 		{
+			Engine_Ref_FunctionError("GPUmalloc()", "HALFING", pArenaAllocater);
+
 			//take half of largest mutex remaining capacity and assign to this arena allocater.
 			GPU_ArenaAllocater* pArenaAllocaterLargest = &TargetBuffer->ArenaAllocaters[0];
 			for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
@@ -834,11 +836,8 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 			uint64_t size = (pArenaAllocaterLargest->Size - (pArenaAllocaterLargest->Allocations[pArenaAllocaterLargest->AllocationsSize - 2].Pointer +
 				pArenaAllocaterLargest->Allocations[pArenaAllocaterLargest->AllocationsSize - 2].SizeBytes));
 			
-			if (size > pArenaAllocaterLargest->Size / 2)
-			{
+			if (size < pArenaAllocaterLargest->Size / 2)
 				size = pArenaAllocaterLargest->Size / 2;
-			}
-			//size = pArenaAllocaterLargest->Size / 2;
 
 			pArenaAllocater->Allocations[0].Pointer = pArenaAllocaterLargest->Allocations[pArenaAllocaterLargest->AllocationsSize - 1].Pointer - size;
 			pArenaAllocater->Allocations[pArenaAllocater->AllocationsSize - 1].Pointer = pArenaAllocaterLargest->Allocations[pArenaAllocaterLargest->AllocationsSize - 1].Pointer;
@@ -1654,13 +1653,11 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	bool MemoryQueueFamily_Found = false;
 	bool ComputeQueueFamily_Found = false;
 
-
 	for (size_t i1 = 0; i1 < pPhysicalDevice->QueueFamilyPropertiesSize; i1++)
 	{
 		if ((pPhysicalDevice->QueueFamilyProperties[i1].queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			&& GraphicsQueueFamily_Found == false)
 		{
-
 			DeviceQueueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 			DeviceQueueCreateInfos[0].pQueuePriorities = NULL;
 			DeviceQueueCreateInfos[0].queueFamilyIndex = i1;
@@ -1676,7 +1673,6 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 			(pPhysicalDevice->QueueFamilyProperties[i1].queueFlags == (VK_QUEUE_TRANSFER_BIT | VK_QUEUE_SPARSE_BINDING_BIT)))
 			&& MemoryQueueFamily_Found == false)
 		{
-
 			DeviceQueueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 			DeviceQueueCreateInfos[1].pQueuePriorities = NULL;
 			DeviceQueueCreateInfos[1].queueFamilyIndex = i1;
@@ -1733,10 +1729,20 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	DeviceQueueCreateInfos[0].pQueuePriorities = (float*)calloc(DeviceQueueCreateInfos[0].queueCount, sizeof(float));
 	DeviceQueueCreateInfos[1].pQueuePriorities = (float*)calloc(DeviceQueueCreateInfos[1].queueCount, sizeof(float));
 	DeviceQueueCreateInfos[2].pQueuePriorities = (float*)calloc(DeviceQueueCreateInfos[2].queueCount, sizeof(float));
+	if (DeviceQueueCreateInfos[0].pQueuePriorities == NULL || DeviceQueueCreateInfos[1].pQueuePriorities == NULL || DeviceQueueCreateInfos[2].pQueuePriorities == NULL)
+	{
+		Engine_Ref_FunctionError("Create_LogicalDevice()", "Out Of Memory. ", NULL);
+		return (TEXRESULT)(Out_Of_Memory_Result);
+	}
 
 	pLogicalDevice->GraphicsQueueMutexes = calloc(DeviceQueueCreateInfos[0].queueCount, sizeof(*pLogicalDevice->GraphicsQueueMutexes));
 	pLogicalDevice->MemoryQueueMutexes = calloc(DeviceQueueCreateInfos[1].queueCount, sizeof(*pLogicalDevice->MemoryQueueMutexes));
 	pLogicalDevice->ComputeQueueMutexes = calloc(DeviceQueueCreateInfos[2].queueCount, sizeof(*pLogicalDevice->ComputeQueueMutexes));
+	if (pLogicalDevice->GraphicsQueueMutexes == NULL || pLogicalDevice->MemoryQueueMutexes == NULL || pLogicalDevice->ComputeQueueMutexes == NULL)
+	{
+		Engine_Ref_FunctionError("Create_LogicalDevice()", "Out Of Memory. ", NULL);
+		return (TEXRESULT)(Out_Of_Memory_Result);
+	}
 
 	for (size_t i = 0; i < pLogicalDevice->GraphicsQueueFamilySize; i++)
 		Engine_Ref_Create_Mutex(pLogicalDevice->GraphicsQueueMutexes[i], MutexType_Plain);
@@ -1763,7 +1769,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 		Info.pEnabledFeatures = pEnabledFeatures;
 		Info.flags = NULL;
 		Info.pNext = NULL;
-
+		
 		if ((res = vkCreateDevice(pLogicalDevice->pPhysicalDevice->VkPhysicalDevice, &Info, NULL, &pLogicalDevice->VkLogicalDevice)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDevice Failed With Error == ", res);
@@ -1777,7 +1783,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 
 	memset(&pLogicalDevice->SrcBuffer, NULL, sizeof(pLogicalDevice->SrcBuffer));
 	memset(&pLogicalDevice->DstBuffer, NULL, sizeof(pLogicalDevice->DstBuffer));
-
+	
 	Create_GPU_MemoryBuffer(&pLogicalDevice->SrcBuffer, pLogicalDevice, Config.InitialGPUBufferMax, TargetMemory_Src);
 	Create_GPU_MemoryBuffer(&pLogicalDevice->DstBuffer, pLogicalDevice, Config.InitialGPUBufferMax, TargetMemory_Dst);
 
@@ -6574,15 +6580,15 @@ TEXRESULT Initialise_Graphics()
 #ifndef NDEBUG
 	Config.ValidationLayersEnabledSize = 1;
 #else
-	Config.ValidationLayersEnabledSize = 1;
+	Config.ValidationLayersEnabledSize = 0;
 #endif
 
 	Config.ValidationLayersEnabled[0] = (char*)"VK_LAYER_KHRONOS_validation";
 
-	Config.InitialElementsMax = 5024;
-	Config.InitialHeadersMax = 5024;
+	Config.InitialElementsMax = 1024;
+	Config.InitialHeadersMax = 1024;
 
-	Config.InitialGPUBufferMax = MebiBytes(200);
+	Config.InitialGPUBufferMax = MebiBytes(50);
 
 	Config.Samples = VK_SAMPLE_COUNT_1_BIT;
 	Config.MaxAnisotropy = 16;
@@ -7019,14 +7025,16 @@ TEXRESULT Initialise_Graphics()
 	/////////////////////////////////////////////////////////////////////
 	//DEVICES
 	/////////////////////////////////////////////////////////////////////
-
+	
 	Get_PhysicalDevices((PhysicalDevice**)&Utils.PhysicalDevices, (uint32_t*)&Utils.DevicesSize);
 	if (Utils.DevicesSize == NULL)
 	{
 		Engine_Ref_FunctionError("Initialise_Graphics()", "No Graphics Devices Were Found. Instance == ", Utils.Instance);
 		return (TEXRESULT)Failure;
 	}
+	
 	Utils.LogicalDevices = (LogicalDevice*)calloc(Utils.DevicesSize, sizeof(LogicalDevice));
+	
 	for (size_t i = 0; i < Utils.DevicesSize; i++)
 	{
 		if ((tres = Create_LogicalDevice((LogicalDevice*)&Utils.LogicalDevices[i], (PhysicalDevice*)&Utils.PhysicalDevices[i], (char**)Config.ValidationLayersEnabled, Config.ValidationLayersEnabledSize,

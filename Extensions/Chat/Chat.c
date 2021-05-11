@@ -78,7 +78,7 @@ TEXRESULT Initialise_Chat()
 		memset(&CreateInfo, NULL, sizeof(CreateInfo));
 		CreateInfo.TargetExtentWidth = 1000;
 		CreateInfo.TargetExtentHeight = 1000;
-		CreateInfo.TargetFrameBuffersSize = 8;
+		CreateInfo.TargetFrameBuffersSize = 2;
 		ResourceHeaderCreateInfo MainCreateInfo;
 		memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
 		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
@@ -103,8 +103,8 @@ TEXRESULT Initialise_Chat()
 	Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json",
 		(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
 
-	//Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\f6f\\scene.gltf",
-	//	(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
+	Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf",
+		(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
 
 
 
@@ -247,7 +247,7 @@ TEXRESULT Initialise_Chat()
 			CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)GUIEffect_Text;
 			CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &InfoText;
 
-			InfoText.Text = (UTF8*)"ifsfidksfdi";
+			InfoText.Text = (UTF8*)"FPS:";
 			InfoText.FontSize = 100;
 
 			InfoText.pFontsSize = 2;
@@ -281,14 +281,14 @@ TEXRESULT Initialise_Chat()
 				free(CreateInfoFont.Data.pData);
 			}
 
-			InfoText.Size[0] = 0.1f;
-			InfoText.Size[1] = 0.20f;
+			InfoText.Size[0] = 0.2f;
+			InfoText.Size[1] = 0.10f;
 
-			InfoText.Position[0] = 0.95f;
-			InfoText.Position[1] = 0.3f;
+			InfoText.Position[0] = 0.2f;
+			InfoText.Position[1] = 1.0f;
 
 			for (size_t i1 = 0; i1 < 2; i1++)
-				InfoText.BoundingBoxSize[i1] = InfoText.Size[i1] * 2;
+				InfoText.BoundingBoxSize[i1] = InfoText.Size[i1];
 
 			for (size_t i1 = 0; i1 < 2; i1++)
 				InfoText.BoundingBoxPosition[i1] = InfoText.Position[i1];
