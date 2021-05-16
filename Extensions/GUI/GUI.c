@@ -252,11 +252,11 @@ TEXRESULT Create_FontHeader(RHeaderFont* pResourceHeader, RHeaderFontCreateInfo*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Draw_Text(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, GraphicsEffectText* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, PushConstantsGeometry* PushConstants)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
 {	
 	for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 	{
-		VkBuffer vkBuffer = pGraphicsWindow->pLogicalDevice->SrcBuffer.VkBuffer;
+		VkBuffer vkBuffer = GPU_Buffers[0].Allocater.pArenaAllocater->VkBuffer;
 		VkDeviceSize VkOffset = GPU_Buffers[0].Pointer + GPU_BufferPointers[0];
 		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_GraphicsEffectInfos);
 
@@ -264,26 +264,23 @@ void Draw_Text(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObje
 
 		PushConstantsGeneric2D PushConstants2D;
 		memset(&PushConstants2D, NULL, sizeof(PushConstants2D));
+		glm_mat4_copy(CameraVP, PushConstants2D.VP);
 		PushConstants2D.pad = pEffect->GPU_GraphicsEffectInfos[i].mode;
 		PushConstants2D.pad1 = pEffect->GPU_GraphicsEffectInfos[i].selected;
-		uint8_t pushconstantbuffer[sizeof(PushConstantsGeneric2D) + sizeof(PushConstantsGeometry)];
-		memcpy(pushconstantbuffer, PushConstants, sizeof(*PushConstants));
-		memcpy((void*)((uint64_t)pushconstantbuffer + (uint64_t)sizeof(*PushConstants)), &PushConstants2D, sizeof(PushConstants2D));
-		vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pGraphicsWindow->pLogicalDevice->PipelineLayout2D, VK_SHADER_STAGE_ALL, 0,
-			pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, pushconstantbuffer);
+		vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, ((GraphicsUtils*)GraphicsRes.pUtils)->GenericResources[Graphics_Ref_Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout2D, VK_SHADER_STAGE_ALL, 0,
+			pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants2D);
 
 		VkDescriptorSet descriptorsets[1] = {
 			pMaterialHeader->VkMaterialDescriptorSets[FrameIndex]
 		};
 		uint32_t descriptorsetSize = 1;
-
+		
 		vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			pGraphicsWindow->pLogicalDevice->PipelineLayout2D, 0, descriptorsetSize, descriptorsets, 0, NULL);
+			((GraphicsUtils*)GraphicsRes.pUtils)->GenericResources[Graphics_Ref_Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout2D, 0, descriptorsetSize, descriptorsets, 0, NULL);
 
 		vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
 		vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 6, 1, 0, 0);
-		//vkCmdDrawIndirect(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer);
 	}
 }
 
@@ -301,9 +298,8 @@ void Update_Text(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pOb
 	else
 	{
 		if (pEffect->GPU_GraphicsEffectInfosSize != NULL)
-		{
-			memcpy((void*)((uint64_t)pGraphicsWindow->pLogicalDevice->SrcBufPointer + GPU_Buffers[0].Pointer + GPU_BufferPointers[0]),
-				pEffect->GPU_GraphicsEffectInfos, pEffect->GPU_GraphicsEffectInfosSize * sizeof(*pEffect->GPU_GraphicsEffectInfos));
+		{		
+			memcpy((void*)((uint64_t)GPU_BufferPointers[0]), pEffect->GPU_GraphicsEffectInfos, pEffect->GPU_GraphicsEffectInfosSize * sizeof(*pEffect->GPU_GraphicsEffectInfos));
 		}
 		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_GraphicsEffectInfos) * pEffect->GPU_GraphicsEffectInfosSize;
 	}
@@ -889,8 +885,8 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 		Info.pDepthStencilState = &DepthStencil; // Optional
 		Info.pColorBlendState = &ColourBlending;
 		Info.pDynamicState = &DynamicStates; // Optional
-		Info.layout = pGraphicsWindow->pLogicalDevice->PipelineLayout2D;
-		Info.renderPass = pGraphicsWindow->VkDeferredRenderPass;
+		Info.layout = ((GraphicsUtils*)GraphicsRes.pUtils)->GenericResources[Graphics_Ref_Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout2D;
+		Info.renderPass = pGraphicsWindow->VkRenderPassDeferred;
 		//Info.subpass = 1;
 		Info.basePipelineHandle = VK_NULL_HANDLE; // Optional
 		Info.basePipelineIndex = -1; // Optional

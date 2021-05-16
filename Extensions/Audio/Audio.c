@@ -1756,61 +1756,11 @@ TEXRESULT Initialise_Audio()
 		return (TEXRESULT)(Failure);
 	}
 	soundio_flush_events(Utils.AudioHandle);
-	
-	/*
-
-	ObjectAllocation gameobject;
-	{
-		ObjectCreateInfo CreateInfo = {};
-		CreateInfo.Identifier = (uint32_t)ObjectTypes::Generic;
-		Object_Ref_Create_Object(&gameobject, CreateInfo, NULL);
-	}
-
-
-	TEXA::HEADER* header = NULL;
-	Create_DummyTEXA(&header, Format::int16LE, 44100, 0);
-
-	ResourceHeaderAllocation iAudioSource;
-	{
-		ResourceHeaderCreateInfo MainCreateInfo = {};
-		MainCreateInfo.Identifier = (uint32_t)Audio::HeaderType::AudioSource;
-
-		RHeaderAudioSourceCreateInfo CreateInfo = {};
-		CreateInfo.AudioData = header;
-
-		Object_Ref_Create_ResourceHeader(&iAudioSource, MainCreateInfo, &CreateInfo);
-	}
-	Object_Ref_Add_Object_ResourceHeaderChild(iAudioSource, gameobject);
-
-	RHeaderAudioSource* pAudioSource = (RHeaderAudioSource*)Object_Ref_Get_ResourceHeaderPointer(iAudioSource);
-
-
-	ElementAllocation AudioElement;
-	{
-		ElementCreateInfo MainCreateInfo = {};
-		MainCreateInfo.Identifier = (uint32_t)Audio::AudioElementType::ElementAudioInput;
-
-		ElementAudioInputCreateInfo CreateInfo = {};
-		CreateInfo.pAudioProduct = pAudioSource;
-		CreateInfo.StartFrame = 0;
-		CreateInfo.RingBufferSize_Seconds = 20;
-
-		Object_Ref_Create_Element(&AudioElement, MainCreateInfo, &CreateInfo);
-	}
-	Object_Ref_Add_ResourceHeader_ElementChild(AudioElement, iAudioSource);
-
-	ElementAudioInput* pAudioElement = (ElementAudioInput*)Object_Ref_Get_ElementPointer(AudioElement);
-
-	Start_InputStream(pAudioElement);
-
-
-*/
 	return (TEXRESULT)(Success);
 }
 
 void Destroy_Audio()
 {
-
 	Object_Ref_Destroy_ElementBuffer(&Utils.ElementAudioBuffer);
 	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderAudioSourceBuffer);
 
@@ -1820,22 +1770,24 @@ void Destroy_Audio()
 	DeRegister_AudioEffectSignature(&Utils.VolumeSig);
 	DeRegister_AudioEffectSignature(&Utils.Audio3DSig);
 
-	if (Utils.AudioEffectSignatures != NULL)
+	if (Utils.AudioEffectSignatures != NULL && Utils.AudioEffectSignaturesSize != NULL)
 		free(Utils.AudioEffectSignatures);
-	Utils.AudioEffectSignaturesSize = (uint64_t)NULL;
+	Utils.AudioEffectSignatures = NULL;
+	Utils.AudioEffectSignaturesSize = NULL;
 
-	if (Utils.ConvertersToTEXASize != (uint64_t)NULL)
+	if (Utils.ConvertersToTEXA != NULL && Utils.ConvertersToTEXASize != NULL)
 		free(Utils.ConvertersToTEXA);
-	Utils.ConvertersToTEXASize = (uint64_t)NULL;
+	Utils.ConvertersToTEXA = NULL;
+	Utils.ConvertersToTEXASize = NULL;
 
-	if (Utils.ConvertersFromTEXASize != (uint64_t)NULL)
+	if (Utils.ConvertersFromTEXA != NULL && Utils.ConvertersFromTEXASize != NULL)
 		free(Utils.ConvertersFromTEXA);
-	Utils.ConvertersFromTEXASize = (uint64_t)NULL;
+	Utils.ConvertersFromTEXA = NULL;
+	Utils.ConvertersFromTEXASize = NULL;
 
 	Engine_Ref_Destroy_Mutex(Utils.ConvertersToTEXAMutex, MutexType_Plain);
 	Engine_Ref_Destroy_Mutex(Utils.ConvertersFromTEXAMutex, MutexType_Plain);
 	Engine_Ref_Destroy_Mutex(Utils.AudioEffectSignaturesMutex, MutexType_Plain);
-
 
 	soundio_destroy(Utils.AudioHandle);
 

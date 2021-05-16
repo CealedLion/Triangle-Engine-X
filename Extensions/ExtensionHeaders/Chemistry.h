@@ -256,32 +256,43 @@ const uint8_t ChemistryElementsElectrons[][8] = {
 //Structs
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 /*
 * Added in 1.0.0
+* Simplified Atom
+*/
+typedef struct GPU_Particle {
+	vec3 Position;
+	vec3 PositionVelocity;
+
+	versor Rotation;
+	versor RotationVelocity;
+
+	float Size;
+	float Charge;
+}GPU_Particle;
+/*
+* Added in 1.0.0
+* Simplified Atom
 */
 typedef struct GPU_Atom {
-	vec3 Colour;
-	
 	vec3 Position;
-	vec4 Rotation;
-
 	vec3 PositionVelocity;
-	vec4 RotationVelocity;
+
+	versor Rotation;
+	versor RotationVelocity;
 
 	ChemistryElementType AtomElementType;
-	uint32_t Charge;
 }GPU_Atom;
-
-
 /*
 * Added in 1.0.0
 */
-typedef struct CovalentBond {
-	uint32_t AtomIndices[2];
-	vec3 Position[2];
-}CovalentBond;
+typedef struct GPU_Electron {
+	vec3 Position;
+	vec3 PositionVelocity;
 
+	versor Rotation;
+	versor RotationVelocity;
+}GPU_Electron;
 /*
 * Added in 1.0.0
 */
@@ -299,22 +310,22 @@ typedef struct GPU_CovalentBond {
 */
 typedef enum ChemistryEffectsType {
 	ChemistryEffects_SimplifiedMolecular = 1000000,
-	ChemistryEffects_AdvancedMolecular = 1000001, //to be done
-	ChemistryEffects_AdvancedSubatomic = 1000002, //to be done
+	ChemistryEffects_QuantumAtomic = 1000001,
 }ChemistryEffectsType;
 /*
 * Added in 1.0.0
 */
 typedef struct PushConstantsSimplifiedMolecular {
+	mat4 VP;
 	vec3 Position;
 }PushConstantsSimplifiedMolecular;
 /*
 * Added in 1.0.0
 */
-typedef struct PushConstantsButterfly {
-	int32_t ButterflyStage;
-	int32_t PingPongIndex;
-}PushConstantsButterfly;
+typedef struct PushConstantsQuantumAtomic {
+	//mat4 VP;
+	mat4 CameraMatrix;
+}PushConstantsQuantumAtomic;
 /*
 * Added in 1.0.0
 * Renders Simplified Molecular Simulation Effect.
@@ -322,14 +333,42 @@ typedef struct PushConstantsButterfly {
 typedef struct ChemistryEffectCreateInfoSimplifiedMolecular {
 	vec3 Position; //optional
 
+	uint64_t ParticlesSize;
+	GPU_Particle* Particles;
+}ChemistryEffectCreateInfoSimplifiedMolecular;
+typedef struct ChemistryEffectSimplifiedMolecular {
+	GraphicsEffectTemplate Header;
+
+	vec3 Position;
+
+	uint64_t ParticlesSize;
+	GPU_Particle* Particles;
+
+	//every reinit
+#ifdef TEX_EXPOSE_GRAPHICS
+	VkPipeline VkPipelineParticle;
+	VkShaderModule VkShaderVertexParticle;
+	VkShaderModule VkShaderFragmentParticle;
+#else
+	void* VkPipelineParticle;
+	void* VkShaderVertexAtomParticle;
+	void* VkShaderFragmentAtomParticle;
+#endif
+}ChemistryEffectSimplifiedMolecular;
+/*
+* Added in 1.0.0
+*/
+typedef struct ChemistryEffectCreateInfoQuantumAtomic {
+	vec3 Position; //optional
+
 	uint64_t AtomsSize;
 	GPU_Atom* Atoms;
 
-	uint64_t CovalentBondsSize;
-	CovalentBond* CovalentBonds;
+	uint64_t ElectronsSize;
+	GPU_Electron* Electrons;
 
-}ChemistryEffectCreateInfoSimplifiedMolecular;
-typedef struct ChemistryEffectSimplifiedMolecular {
+}ChemistryEffectCreateInfoQuantumAtomic;
+typedef struct ChemistryEffectQuantumAtomic {
 	GraphicsEffectTemplate Header;
 
 	vec3 Position;
@@ -337,33 +376,40 @@ typedef struct ChemistryEffectSimplifiedMolecular {
 	uint64_t GPU_AtomsSize;
 	GPU_Atom* GPU_Atoms;
 
-	uint64_t CovalentBondsSize;
-	CovalentBond* CovalentBonds;
+	uint64_t GPU_ElectronsSize;
+	GPU_Electron* GPU_Electrons;
 
 	//every reinit
 #ifdef TEX_EXPOSE_GRAPHICS
-	VkPipeline VkPipelineAtom;
-	VkShaderModule VkShaderVertexAtom;
-	VkShaderModule VkShaderFragmentAtom;
+	VkPipeline VkPipelineQuantum;
+	VkPipelineLayout VkPipelineLayoutQuantum;
+	 
+	VkDescriptorSetLayout VkDescriptorSetLayoutQuantum;
+	VkDescriptorSet* VkDescriptorSetsQuantum;
+	VkDescriptorPool VkDescriptorPoolQuantum;
 
-	VkPipeline VkPipelineCovalentBond;
-	VkShaderModule VkShaderVertexCovalentBond;
-	VkShaderModule VkShaderFragmentCovalentBond;
+	VkShaderModule VkShaderVertexQuantum;
+	VkShaderModule VkShaderFragmentQuantum;
 #else
-	void* VkPipelineAtom;
-	void* VkShaderVertexAtom;
-	void* VkShaderFragmentAtom;
+	void* VkPipelineQuantum;
+	void* VkPipelineLayoutQuantum;
 
-	void* VkPipelineCovalentBond;
-	void* VkShaderVertexCovalentBond;
-	void* VkShaderFragmentCovalentBond;
+	void* VkDescriptorSetLayoutQuantum;
+	void** VkDescriptorSetsQuantum;
+	void* VkDescriptorPoolQuantum;
+
+	void* VkShaderVertexQuantum;
+	void* VkShaderFragmentQuantum;
 #endif
-}ChemistryEffectSimplifiedMolecular;
+}ChemistryEffectQuantumAtomic;
 
 
 #ifdef TEX_EXPOSE_CHEMISTRY
+#define ChemistrySimplifiedMolecularBuffersCount 1
+#define ChemistryQuantumAtomicBuffersCount 2
 typedef struct ChemistryUtils{
 	GraphicsEffectSignature SimplifiedMolecularSignature;
+	GraphicsEffectSignature QuantumAtomicSignature;
 }ChemistryUtils;
 #endif
 

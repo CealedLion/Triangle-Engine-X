@@ -1470,7 +1470,6 @@ VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT = 1000066013,*/
 typedef enum GraphicsElementType{
 	GraphicsElement_ElementGraphics = 1000
 }GraphicsElementType;
-
 /*
 * Added in 1.0.0
 * Graphics use enum from 1000
@@ -1492,8 +1491,13 @@ typedef enum GraphicsHeaderType{
 	GraphicsHeader_Buffer = 1015,
 	GraphicsHeader_Render = 1016,
 }GraphicsHeaderType;
-
+/*
+* Added in 1.0.0
+*/
 typedef uint64_t GraphicsEffectBufferIndex;
+/*
+* Added in 1.0.0
+*/
 typedef uint32_t GraphicsEffectIdentifier;
 /*
 * Added in 1.0.0
@@ -1503,7 +1507,6 @@ typedef enum GraphicsEffectsType {
 	GraphicsEffect_Generic3D = 1,
 	GraphicsEffect_Generic2D = 2,
 }GraphicsEffectsType;
-
 /*
 * Added in 1.0.0
 * Src Memory is the host accessible and coherent part of the GPU memory.
@@ -1516,7 +1519,6 @@ typedef enum TargetMemoryType{
 	TargetMemory_Src = 0,
 	TargetMemory_Dst = 1
 }TargetMemoryType;
-
 /*
 * Added in 1.0.0
 * AllocationType specifies how a allocation is allocated, Linear being in 1 giant buffer (better for speed and temporary allocations),
@@ -1526,7 +1528,6 @@ typedef enum AllocationType{
 	AllocationType_Linear = 0,
 	AllocationType_Discrite = 1
 }AllocationType;
-
 /*
 * Added in 1.0.0
 * Shader Alpha Mode, desribes how the alpha is processed on in the shader.
@@ -1539,7 +1540,6 @@ typedef enum AlphaMode{
 	AlphaMode_Mask = 1,
 	AlphaMode_Blend = 2
 }AlphaMode;
-
 /*
 * Added in 1.0.0
 * This determines the colourmode of a material.
@@ -1553,7 +1553,6 @@ typedef enum MaterialTextureMode{
 	MaterialMode_Alpha = 1,
 	MaterialMode_Solid = 2
 }MaterialTextureMode;
-
 /*
 * Added in 1.0.0
 * describes the interpolation of an animation
@@ -1563,7 +1562,6 @@ typedef enum InterpolationType{
 	InterpolationType_Step = 2,
 	InterpolationType_Cubicspline = 3
 }InterpolationType;
-
 /*
 * Added in 1.0.0
 * Defines what is animated by the animation
@@ -1574,7 +1572,6 @@ typedef enum AnimationTargetType{
 	AnimationTargetType_Scale = 3,
 	AnimationTargetType_Weights = 4
 }AnimationTargetType;
-
 /*
 * Added in 1.0.0
 * Once goes one direction and once finished stops.
@@ -1586,14 +1583,12 @@ typedef enum AnimationPlaybackMode{
 	AnimationPlaybackMode_Repeat = 1,
 	AnimationPlaybackMode_BackToFront = 2
 }AnimationPlaybackMode;
-
 /*
 * Added in 1.0.0
 * Type Of Attribute
 * Morphable with weights means that in the shader it is 
   weights * POSITION
   for example
-
 */
 typedef enum AttributeType{
 	AttributeType_TexCoord = 1,
@@ -1604,7 +1599,6 @@ typedef enum AttributeType{
 	AttributeType_Joints = 6,
 	AttributeType_SkinWeights = 7
 }AttributeType;
-
 /*
 * Added in 1.0.0
 * CameraType
@@ -1613,7 +1607,6 @@ typedef enum CameraType{
 	CameraType_Perspective = 0,
 	CameraType_Orthographic = 1
 }CameraType;
-
 /*
 * Added in 1.0.0
 * LightType
@@ -1623,9 +1616,7 @@ typedef enum LightType{
 	LightType_Directional,
 	LightType_Point
 }LightType;
-
 //Ports From Vulkan
-
 /*
 * Added in 1.0.0
 */
@@ -1634,7 +1625,6 @@ typedef enum TextureFilterMode {
 	TextureFilterMode_Linear = 1,
 	//TextureFilterMode_Cubic_Image = 1000015000
 }TextureFilterMode;
-
 /*
 * Added in 1.0.0
 */
@@ -1645,7 +1635,6 @@ typedef enum TextureAddressMode {
 	TextureAddressMode_ClampToBorder = 3,
 	TextureAddressMode_MirrorClampToEdge = 4
 }TextureAddressMode;
-
 /*
 * Added in 1.0.0
 */
@@ -1653,7 +1642,6 @@ typedef enum AttributeInputRate {
 	AttributeInputRate_Vertex = 0,
 	AttributeInputRate_Instance = 1,
 }AttributeInputRate;
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Flags
@@ -1675,7 +1663,6 @@ typedef enum TextureUsageFlags{   //vkcompatible
 	TextureUsage_ShadingRateBit = 0x00000100,
 	TextureUsage_FragmentDensityMapBit = 0x00000200
 }TextureUsageFlags;
-
 /*
 * Added in 1.0.0
 * Defined by VkBufferUsageFlagBits.
@@ -1701,6 +1688,31 @@ typedef enum BufferUsageFlags { //vkcompatible
 //Structs
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/*
+* Added in 1.0.0
+* Created with GPUmalloc and GPUfree, this is the custom GPU allocator for this API.
+*/
+struct GPU_ArenaAllocater;
+typedef struct GPU_Allocation{
+	uint64_t Pointer; //really just offset from the gpu memory buffer start to the allocation start
+	uint64_t SizeBytes;
+	TargetMemoryType TargetMemory;
+	AllocationType AllocationType;
+#ifdef TEX_EXPOSE_GRAPHICS
+	struct
+	{
+		struct GPU_ArenaAllocater* pArenaAllocater;
+		VkDeviceMemory VkMemory;
+	}Allocater;
+#else
+	struct
+	{
+		void* pArenaAllocater;
+		void* VkMemory;
+	}Allocater;
+#endif
+}GPU_Allocation;
+
 
 #define DeferredImageCount 7
 #define TotalDeferredFramebufferCount 9  //7 defferred framebuffers + 1 render target + 1 screen render target
@@ -1708,27 +1720,9 @@ typedef enum BufferUsageFlags { //vkcompatible
 #define StorageBufferBindings 5
 #define MaterialTextureBindings 5
 
-
-/*
-* Added in 1.0.0
-* Created with GPUmalloc and GPUfree, this is the custom GPU allocator for this API.
-*/
-typedef struct GPU_Allocation
-{
-	uint64_t Pointer; //really just offset from the gpu memory buffer start to the allocation start
-	uint64_t SizeBytes;
-	TargetMemoryType TargetMemory;
-	AllocationType AllocationType;
-#ifdef TEX_EXPOSE_GRAPHICS
-	VkDeviceMemory VkMemory;
-#else
-	void* VkMemory;
-#endif
-	void* pArenaAllocater;
-}GPU_Allocation;
-
 //for internal API use or low level API use.
 #ifdef TEX_EXPOSE_GRAPHICS
+
 
 const VkFormat DeferredFormats[DeferredImageCount] = {
 	VK_FORMAT_B8G8R8A8_UNORM, //ALBEDO
@@ -1758,52 +1752,54 @@ const VkImageAspectFlags DeferredImageAspects[DeferredImageCount] = {
 	VK_IMAGE_ASPECT_DEPTH_BIT
 };
 
-
 #define SwapChainPresentModePrioritySize 1
 const VkPresentModeKHR SwapChainPresentModePriority[SwapChainPresentModePrioritySize] = {
 	VK_PRESENT_MODE_IMMEDIATE_KHR
 };
-#define SwapChainFormatColourSpacePrioritySize 1
-const VkFormat SwapChainFormatPriority[SwapChainFormatColourSpacePrioritySize] = {
+#define SwapChainFormatAndColourSpacePrioritySize 1
+const VkFormat SwapChainFormatPriority[SwapChainFormatAndColourSpacePrioritySize] = {
 	VK_FORMAT_B8G8R8A8_UNORM
 };
-const VkColorSpaceKHR SwapChainColourSpacePriority[SwapChainFormatColourSpacePrioritySize] = {
+const VkColorSpaceKHR SwapChainColourSpacePriority[SwapChainFormatAndColourSpacePrioritySize] = {
 	VK_COLORSPACE_SRGB_NONLINEAR_KHR
 };
-
 #define TextureBackupFormatPrioritySize 2
 const GraphicsFormat TextureBackupFormatPriority[TextureBackupFormatPrioritySize] = {
 	GraphicsFormat_R8G8B8A8_SRGB,
 	GraphicsFormat_B8G8R8A8_SRGB,
 };
-
-
+/*
+* Added in 1.0.0
+*/
 const size_t LogicalDeviceExtensionsSize = 1;
 const char* LogicalDeviceExtensions[] = {
 	"VK_KHR_swapchain"
 };
-
-
 /*
 * Added in 1.0.0
 * for multithread safety GPU malloc
 */
 typedef struct GPU_ArenaAllocater {
+	uint64_t Size;
+	uint64_t Alignment;
+
+	Mutex mutex;
+
 	uint64_t AllocationsSize;
 	GPU_Allocation* Allocations;
-	uint64_t Size;
-	Mutex mutex;
+
+	VkBuffer VkBuffer;
+	VkDeviceMemory VkMemory;
+
+	void* MappedMemory;
 }GPU_ArenaAllocater;
 /*
 * Added in 1.0.0
 * for GPU malloc
 */
 typedef struct GPU_MemoryBuffer{
-	uint64_t Max;
+	uint64_t Size;
 	uint64_t Alignment;
-
-	VkBuffer VkBuffer;
-	VkDeviceMemory VkMemory;
 
 	GPU_ArenaAllocater* ArenaAllocaters; //size of CPU.MaxThreads
 	uint32_t* Indexes; //size of CPU.MaxThreads
@@ -1812,7 +1808,6 @@ typedef struct GPU_MemoryBuffer{
 * Added in 1.0.0
 */
 typedef struct PhysicalDevice{
-
 	VkPhysicalDevice VkPhysicalDevice;
 	VkPhysicalDeviceProperties Properties;
 	VkPhysicalDeviceFeatures Features;
@@ -1823,7 +1818,6 @@ typedef struct PhysicalDevice{
 
 	VkQueueFamilyProperties* QueueFamilyProperties;
 	uint32_t QueueFamilyPropertiesSize;
-
 }PhysicalDevice;
 /*
 * Added in 1.0.0
@@ -1831,42 +1825,22 @@ typedef struct PhysicalDevice{
 typedef struct LogicalDevice{
 	const PhysicalDevice* pPhysicalDevice;
 	VkDevice VkLogicalDevice;
-
 	//Graphics Command Queue
 	uint32_t GraphicsQueueFamilyIndex;
 	uint32_t GraphicsQueueFamilySize;
 	Mutex* GraphicsQueueMutexes;
-
 	//Memory Command Queue
 	uint32_t MemoryQueueFamilyIndex;
 	uint32_t MemoryQueueFamilySize;
 	Mutex* MemoryQueueMutexes;
-
 	//Compute Command Queue
 	uint32_t ComputeQueueFamilyIndex;
 	uint32_t ComputeQueueFamilySize;
 	Mutex* ComputeQueueMutexes;
-
 	//allocating related
 	GPU_MemoryBuffer SrcBuffer;
 	GPU_MemoryBuffer DstBuffer;
-	void* SrcBufPointer; //virtual pointer to srcbuffer as memcpy target
-
-	//deferred
-	VkDescriptorSetLayout DescriptorLayoutInputAttachment;
-	VkPipelineLayout PipelineLayoutDeferred;
-
-	//common
-	VkDescriptorSetLayout DescriptorLayoutStorageBuffers;
-	VkDescriptorSetLayout DescriptorLayoutMaterial;
-
-	//3d 
-	VkPipelineLayout PipelineLayout3D;
-	//2d
-	VkPipelineLayout PipelineLayout2D;
-
 }LogicalDevice;
-
 #endif
 
 /*
@@ -1895,7 +1869,6 @@ typedef TEXRESULT(ConvertXtoTEXI)(FileData*, TEXI_HEADER**); //conversion templa
 typedef TEXRESULT(ConvertTEXItoX)(TEXI_HEADER*, FileData*); //conversion template
 
 
-
 typedef uint32_t SPIRV;
 
 /*
@@ -1917,16 +1890,13 @@ typedef struct DeferredImage{
 */
 struct RHeaderGraphicsWindow;
 typedef struct SwapChainFrameBuffer{
-
 	struct RHeaderGraphicsWindow* pGraphicsWindow;
 	uint32_t FrameIndex;
 	uint32_t QueueIndex;
+	uint32_t ThreadIndex;
 	uint32_t SwapChainIndex;
 
-	c89atomic_flag RenderingFlag;
-	
-
-
+	c89atomic_flag RenderingFlag;	
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkSemaphore VkRenderFinishedSemaphore;
 	VkSemaphore VkImageAvailableSemaphore;
@@ -1951,13 +1921,11 @@ typedef struct SwapChainFrameBuffer{
 #endif
 	DeferredImage DeferredImages[DeferredImageCount];
 }SwapChainFrameBuffer;
-
 /*
 * Added in 1.0.0
 */
 typedef struct SwapChain{
 	SwapChainFrameBuffer* FrameBuffers;
-
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkSwapchainKHR VkSwapChain;
 #else
@@ -1967,46 +1935,38 @@ typedef struct SwapChain{
 }SwapChain;
 /*
 * Added in 1.0.0
-* Geometry pass push constants.
-*/
-typedef struct PushConstantsGeometry{
-	mat4 VP;
-}PushConstantsGeometry;
-/*
-* Added in 1.0.0
 * Deferred pass push constants.
 */
 typedef struct PushConstantsDeferred {
-	vec4 CameraPos;
-	vec2 CameraRotation;
-	float Fov;
-	uint32_t Resolution[2];
+	uint32_t pad;
 }PushConstantsDeferred;
 /*
 * Added in 1.0.0
 * additional pushconstants for Generic3D.
 */
 typedef struct PushConstantsGeneric3D{
+	mat4 VP;
 	uint32_t InfosOffset;
 	uint32_t WeightsOffset;
 	uint32_t JointsOffset;
 	uint32_t MatrixsOffset;
 }PushConstantsGeneric3D;
-
-typedef struct Generic3DInfo
-{
-	uint32_t TargetGroup;
-	uint32_t Bits;
-}Generic3DInfo;
 /*
 * Added in 1.0.0
 * additional pushconstants for Generic2D.
 */
 typedef struct PushConstantsGeneric2D{
+	mat4 VP;
 	uint32_t pad;
 	uint32_t pad1;
 }PushConstantsGeneric2D;
-
+/*
+* Added in 1.0.0
+*/
+typedef struct Generic3DInfo {
+	uint32_t TargetGroup;
+	uint32_t Bits;
+}Generic3DInfo;
 /*
 * Added in 1.0.0
 */
@@ -2095,9 +2055,7 @@ typedef struct GPU_Texture{
 	void* VkImageView;
 	void* VkSampler;
 #endif
-
 	GPU_Allocation Allocation;
-	GPU_Allocation SrcAllocation;
 }GPU_Texture;
 /*
 * Added in 1.0.0
@@ -2108,9 +2066,7 @@ typedef struct GPU_Buffer{
 #else
 	void* VkBuffer;
 #endif
-
 	GPU_Allocation Allocation;
-	GPU_Allocation SrcAllocation;
 }GPU_Buffer;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2125,7 +2081,6 @@ typedef struct RHeaderImageSourceCreateInfo{
 }RHeaderImageSourceCreateInfo;
 typedef struct RHeaderImageSource{
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
 	TEXI_HEADER* ImageData;
 }RHeaderImageSource;
@@ -2138,72 +2093,67 @@ typedef struct RHeaderGraphicsWindowCreateInfo {
 	uint32_t TargetFrameBuffersSize; //this is the target but rarely will be.
 	uint32_t TargetExtentHeight;
 	uint32_t TargetExtentWidth;
-
 }RHeaderGraphicsWindowCreateInfo;
 typedef struct RHeaderGraphicsWindow {
 	ResourceHeaderTEMPLATE Header;
-
+	
 	//custom
 	uint32_t TargetFrameBuffersSize;
 	uint32_t TargetExtentHeight;
 	uint32_t TargetExtentWidth;
-
+	
 	//every reinit
+	uint32_t CurrentFrameBuffersSize;
+	uint32_t CurrentExtentHeight;
+	uint32_t CurrentExtentWidth;
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkFormat CurrentSurfaceFormat;
 	VkColorSpaceKHR CurrentSurfaceColourSpace;
 	VkPresentModeKHR CurrentSurfacePresentMode;
+
+	LogicalDevice* pLogicalDevice;
+	VkSurfaceKHR VkSurface;
 #else
 	GraphicsFormat CurrentSurfaceFormat;
 	uint32_t CurrentSurfaceColourSpace;
 	uint32_t CurrentSurfacePresentMode;
-#endif
-	uint32_t CurrentFrameBuffersSize;
-	uint32_t CurrentExtentHeight;
-	uint32_t CurrentExtentWidth;
 
-	Window* pWindow; //pointer to glfw window
+	void* pLogicalDevice;
+	void* VkSurface;
+#endif
+	Window* pWindow;
 
 	SwapChain SwapChain;
 
 	uint32_t FrameIndex;
-	uint32_t FramesDone; //fps of sorts
+	uint32_t FramesDone;
 
 	c89atomic_flag RecreateFlag;
 	c89atomic_flag CloseFlag;
 
 	Mutex SwapChainAccessMutex;
-
 #ifdef TEX_EXPOSE_GRAPHICS
-	LogicalDevice* pLogicalDevice;
-
-	VkSurfaceKHR VkSurface;
-
 	VkShaderModule VkShaderVertexDeferred;
 	VkShaderModule VkShaderFragmentDeferred;
+
+	VkDescriptorSetLayout VkDescriptorSetLayoutInputAttachment;
+	VkDescriptorSet* VkDescriptorSetsInputAttachment;
+	VkDescriptorPool VkDescriptorPoolDeferred;
+
+	VkPipelineLayout VkPipelineLayoutDeferred;
+	VkRenderPass VkRenderPassDeferred;
+	VkPipeline VkPipelineDeferred;
 #else
-	void* pLogicalDevice;
-
-	void* VkSurface;
-
 	void* VkShaderVertexDeferred;
 	void* VkShaderFragmentDeferred;
-#endif
-	//irrelevent shit related to signatures
-#ifdef TEX_EXPOSE_GRAPHICS
-	VkDescriptorPool VkWindowDescriptorPool;
-	VkRenderPass VkDeferredRenderPass;
-	VkPipeline VkPipelineDeferred;
 
-	VkDescriptorSet* VkDescriptorSetsInputAttachment; //size of framebuffers
-	VkDescriptorSet* VkDescriptorSetsStorageBuffers; //size of framebuffers
-#else
-	void* VkWindowDescriptorPool;
-	void* VkDeferredRenderPass;
+	void* VkDescriptorSetLayoutInputAttachment;
+	void** VkDescriptorSetsInputAttachment;
+	void* VkDescriptorPoolDeferred;
+
+	void* VkPipelineLayoutDeferred;
+	void* VkRenderPassDeferred;
 	void* VkPipelineDeferred;
-
-	void** VkDescriptorSetsInputAttachment;  //size of framebuffers
-	void** VkDescriptorSetsStorageBuffers;  //size of framebuffers
 #endif
 }RHeaderGraphicsWindow;
 
@@ -2225,7 +2175,6 @@ typedef struct RHeaderTextureCreateInfo{
 	TextureUsageFlags TextureUsage;  //required VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
 
 	AllocationType AllocationType; //default linear
-
 }RHeaderTextureCreateInfo;
 typedef struct RHeaderTexture{
 	ResourceHeaderTEMPLATE Header;
@@ -2695,9 +2644,9 @@ typedef void(Update_GraphicsEffectTemplate)(ElementGraphics* pElement, ResourceH
 
 
 typedef void(DrawSignature_GraphicsEffectTemplate)(struct GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow,
-	uint32_t FrameIndex);
+	uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers);
 typedef void(Draw_GraphicsEffectTemplate)(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pGameObject, void* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, PushConstantsGeometry* PushConstants);
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP);
 
 
 /*
@@ -2841,25 +2790,36 @@ typedef struct GPU_GraphicsEffectGeneric2D {
 
 
 #ifdef TEX_EXPOSE_GRAPHICS
-typedef struct ConverterXtoTEXI
-{
+typedef struct ConverterXtoTEXI {
 	ConvertXtoTEXI* pFunction;
 	uint32_t Identifier;
 }ConverterXtoTEXI;
-typedef struct ConverterTEXItoX
-{
+typedef struct ConverterTEXItoX {
 	ConvertTEXItoX* pFunction;
 	uint32_t Identifier;
 }ConverterTEXItoX;
 
-typedef struct GraphicsUtils
-{
+
+typedef struct GraphicsGenericResources {
+	VkDescriptorSetLayout VkDescriptorSetLayoutMaterial;
+	//3d
+	VkDescriptorSetLayout VkDescriptorSetLayoutStorageBuffers;
+	VkDescriptorSet* VkDescriptorSetsStorageBuffers;
+	VkDescriptorPool VkDescriptorPool3D;
+	VkPipelineLayout PipelineLayout3D;
+	//2d	
+	VkPipelineLayout PipelineLayout2D;
+}GraphicsGenericResources;
+
+typedef struct GraphicsUtils {
 	VkInstance Instance;
 
 	//Devices
 	size_t DevicesSize;
 	PhysicalDevice* PhysicalDevices;
 	LogicalDevice* LogicalDevices;
+
+	GraphicsGenericResources* GenericResources; //devicessize
 
 	//Signatures
 	ElementBuffer ElementGraphicsBuffer;
@@ -2915,7 +2875,6 @@ typedef struct GraphicsUtils
 	GraphicsEffectSignature** GraphicsEffectSignatures;
 	uint64_t GraphicsEffectSignaturesSize;
 	Mutex GraphicsEffectSignaturesMutex;
-
 }GraphicsUtils;
 #endif
 
@@ -3127,11 +3086,6 @@ TEXRESULT Graphics_Convert_Ref_TEXItoX(TEXI_HEADER* Src, FileData* Dst, uint32_t
 	return function(Src, Dst, Identifier);
 }
 
-
-
-
-
-
 TEXRESULT Graphics_Effects_Ref_Register_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
 {
 	TEXRESULT(*function)(GraphicsEffectSignature * pSignature) =
@@ -3163,12 +3117,6 @@ TEXRESULT Graphics_Effects_Ref_Get_GraphicsEffect(ElementGraphics* pElement, Gra
 
 	return function(pElement, Identifier, pReturnEffect);
 }
-
-
-
-
-
-
 
 TEXRESULT Graphics_Ref_Create_DummyTEXI(TEXI_HEADER** pDst, GraphicsFormat Format, uint64_t Width, uint64_t Height, uint64_t Depth, uint64_t MipmapCount, uint64_t InitialSize, uint64_t ImageSize)
 {

@@ -121,6 +121,7 @@ TEXRESULT Find_ObjectSignature(ObjectIdentifier Identifier, ObjectSignature** pp
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+
 	for (uint64_t i = 0; i < Utils.ObjectSignaturesSize; i++)
 	{
 		if (Utils.ObjectSignatures[i]->Identifier == Identifier)
@@ -694,6 +695,7 @@ TEXRESULT Find_Allocation(pObjectBuffer pBuffer, ObjectBufferType Type, uint64_t
 	//dynamic halfing
 	if (pArenaAllocater->Size == 0)
 	{
+		Engine_Ref_FunctionError("Find_Allocation()", "HALFING", pArenaAllocater);
 		//take half of largest mutex remaining capacity and assign to this arena allocater.
 		ArenaAllocater* pArenaAllocaterLargest = &pGenericBuffer->ArenaAllocaters[0];
 		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
@@ -751,10 +753,7 @@ TEXRESULT Find_Allocation(pObjectBuffer pBuffer, ObjectBufferType Type, uint64_t
 			}
 			break;
 		}
-
-		uint64_t size = (pArenaAllocaterLargest->Size - (pointer));
-		if (size > pArenaAllocaterLargest->Size / 2)
-			size = pArenaAllocaterLargest->Size / 2;
+		uint64_t size = (pointer < (pArenaAllocaterLargest->Size / 2)) ? (pArenaAllocaterLargest->Size / 2) : (pArenaAllocaterLargest->Size - (pointer));
 
 		pArenaAllocater->StartPtr = pArenaAllocaterLargest->EndPtr - size;
 		pArenaAllocater->EndPtr = pArenaAllocaterLargest->EndPtr;
@@ -766,7 +765,6 @@ TEXRESULT Find_Allocation(pObjectBuffer pBuffer, ObjectBufferType Type, uint64_t
 
 		Engine_Ref_Unlock_Mutex(pArenaAllocaterLargest->mutex);
 	}
-	//newalloc.pArenaAllocater = pArenaAllocater;
 
 	uint64_t ResetCount = 0;
 	uint64_t FoundChunksCount = 0;
@@ -1323,7 +1321,25 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 	}
 
 	if (pObject->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
+	{
+		ArenaAllocater* pAllocater = NULL;
+		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+		{
+			if (Utils.InternalObjectBuffer.ArenaAllocaters[i].StartPtr <= pObject->Header.pDelayedInstances[ThreadIndex].Pointer &&
+				Utils.InternalObjectBuffer.ArenaAllocaters[i].EndPtr >= (pObject->Header.pDelayedInstances[ThreadIndex].Pointer + pObject->Header.AllocationSize))
+			{
+				pAllocater = &Utils.InternalObjectBuffer.ArenaAllocaters[i];
+			}
+		}
+		if (pAllocater == NULL)
+		{
+			Engine_Ref_FunctionError("Destroy_Object()", "Arena Allocater could not be found. ", pAllocater);
+			return;
+		}
+		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 		memset(&Utils.InternalObjectBuffer.Buffer[pObject->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pObject) * pObject->Header.AllocationSize);
+		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
+	}
 
 	c89atomic_store_32(&pObject->Header.pDelayedInstances[ThreadIndex].Pointer, UINT32_MAX);
 	c89atomic_store_8(&pObject->Header.pDelayedInstances[ThreadIndex].Latest, 0);
@@ -1333,10 +1349,10 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 		ArenaAllocater* pAllocater = NULL;
 		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
 		{
-			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr >= pObject->Header.Allocation.Pointer &&
-				pSignature->Buffer->ArenaAllocaters[i].EndPtr <= (pObject->Header.Allocation.Pointer + pObject->Header.AllocationSize))
+			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr <= pObject->Header.Allocation.Pointer &&
+				pSignature->Buffer->ArenaAllocaters[i].EndPtr >= (pObject->Header.Allocation.Pointer + pObject->Header.AllocationSize))
 			{
-				pAllocater = &pSignature->Buffer->ArenaAllocaters[i].StartPtr;
+				pAllocater = &pSignature->Buffer->ArenaAllocaters[i];
 			}
 		}
 		if (pAllocater == NULL)
@@ -1356,36 +1372,43 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 			}
 		}
 
-		for (size_t i = 0; i < pObject->Header.iChildrenSize; i++)
-		{
-			Object* pChild = Get_ObjectPointer(pObject->Header.iChildren[i]);
-			memset(&pChild->Header.iParent, NULL, sizeof(pChild->Header.iParent));
-		}
-
 		for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
 		{
 			ResourceHeader* pChild = Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i]);
 
-			uint64_t index = 0;
-			bool found = false;
-			for (size_t i = 0; i < pChild->Header.iParentsSize; i++)
+			if (pChild != NULL)
 			{
-				if (pChild->Header.iParents[i].Pointer == Allocation.Pointer)
+				uint64_t index = 0;
+				bool found = false;
+				for (size_t i = 0; i < pChild->Header.iParentsSize; i++)
 				{
-					index = i;
-					found = true;
+					if (pChild->Header.iParents[i].Pointer == Allocation.Pointer)
+					{
+						index = i;
+						found = true;
+					}
 				}
-			}
-			if (found == false)
-				return;
+				if (found == false)
+					break;
 
-			RemoveMember_Array((void**)&pChild->Header.iParents, pChild->Header.iParentsSize, index, sizeof(*pChild->Header.iParents), 1);
-			pChild->Header.iParentsSize = pChild->Header.iParentsSize - 1;
+				RemoveMember_Array((void**)&pChild->Header.iParents, pChild->Header.iParentsSize, index, sizeof(*pChild->Header.iParents), 1);
+				pChild->Header.iParentsSize = pChild->Header.iParentsSize - 1;
+			}
 		}
 
-		if (pObject->Header.iResourceHeaders != NULL)
+		for (size_t i = 0; i < pObject->Header.iChildrenSize; i++)
+		{
+			Object* pChild = Get_ObjectPointer(pObject->Header.iChildren[i]);
+			if (pChild != NULL)
+			{
+				memset(&pChild->Header.iParent, NULL, sizeof(pChild->Header.iParent));
+			}
+		}
+
+
+		if (pObject->Header.iResourceHeaders != NULL && pObject->Header.iResourceHeadersSize != NULL)
 			free(pObject->Header.iResourceHeaders);
-		if (pObject->Header.iChildren != NULL)
+		if (pObject->Header.iChildren != NULL  && pObject->Header.iChildrenSize != NULL)
 			free(pObject->Header.iChildren);
 		if (pObject->Header.Name != NULL)
 			free(pObject->Header.Name);
@@ -1427,7 +1450,25 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 	}
 	
 	if (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
+	{
+		ArenaAllocater* pAllocater = NULL;
+		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+		{
+			if (Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i].StartPtr <= pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer &&
+				Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i].EndPtr >= (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer + pResourceHeader->Header.AllocationSize))
+			{
+				pAllocater = &Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i];
+			}
+		}
+		if (pAllocater == NULL)
+		{
+			Engine_Ref_FunctionError("Destroy_ResourceHeader()", "Arena Allocater could not be found. ", pAllocater);
+			return;
+		}
+		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 		memset(&Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pResourceHeader) * pResourceHeader->Header.AllocationSize);
+		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
+	}
 
 	c89atomic_store_32(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer, UINT32_MAX);
 	c89atomic_store_8(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Latest, 0);
@@ -1437,10 +1478,10 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 		ArenaAllocater* pAllocater = NULL;
 		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
 		{
-			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr >= pResourceHeader->Header.Allocation.Pointer &&
-				pSignature->Buffer->ArenaAllocaters[i].EndPtr <= (pResourceHeader->Header.Allocation.Pointer + pResourceHeader->Header.AllocationSize))
+			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr <= pResourceHeader->Header.Allocation.Pointer &&
+				pSignature->Buffer->ArenaAllocaters[i].EndPtr >= (pResourceHeader->Header.Allocation.Pointer + pResourceHeader->Header.AllocationSize))
 			{
-				pAllocater = &pSignature->Buffer->ArenaAllocaters[i].StartPtr;
+				pAllocater = &pSignature->Buffer->ArenaAllocaters[i];
 			}
 		}
 		if (pAllocater == NULL)
@@ -1463,48 +1504,52 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 		for (size_t i = 0; i < pResourceHeader->Header.iElementsSize; i++)
 		{
 			Element* pChild = Get_ElementPointer(pResourceHeader->Header.iElements[i]);
-
-			uint64_t index = 0;
-			bool found = false;
-			for (size_t i = 0; i < pChild->Header.iParentsSize; i++)
+			if (pChild != NULL)
 			{
-				if (pChild->Header.iParents[i].Pointer == Allocation.Pointer)
+				uint64_t index = 0;
+				bool found = false;
+				for (size_t i = 0; i < pChild->Header.iParentsSize; i++)
 				{
-					index = i;
-					found = true;
+					if (pChild->Header.iParents[i].Pointer == Allocation.Pointer)
+					{
+						index = i;
+						found = true;
+					}
 				}
-			}
-			if (found == false)
-				return;
+				if (found == false)
+					break;
 
-			RemoveMember_Array((void**)&pChild->Header.iParents, pChild->Header.iParentsSize, index, sizeof(*pChild->Header.iParents), 1);
-			pChild->Header.iParentsSize = pChild->Header.iParentsSize - 1;
+				RemoveMember_Array((void**)&pChild->Header.iParents, pChild->Header.iParentsSize, index, sizeof(*pChild->Header.iParents), 1);
+				pChild->Header.iParentsSize = pChild->Header.iParentsSize - 1;
+			}
 		}
 
 		for (size_t i = 0; i < pResourceHeader->Header.iParentsSize; i++)
 		{
 			Object* pParent = Get_ObjectPointer(pResourceHeader->Header.iParents[i]);
-
-			uint64_t index = 0;
-			bool found = false;
-			for (size_t i = 0; i < pParent->Header.iResourceHeadersSize; i++)
+			if (pParent != NULL)
 			{
-				if (pParent->Header.iResourceHeaders[i].Pointer == Allocation.Pointer)
+				uint64_t index = 0;
+				bool found = false;
+				for (size_t i = 0; i < pParent->Header.iResourceHeadersSize; i++)
 				{
-					index = i;
-					found = true;
+					if (pParent->Header.iResourceHeaders[i].Pointer == Allocation.Pointer)
+					{
+						index = i;
+						found = true;
+					}
 				}
-			}
-			if (found == false)
-				return;
+				if (found == false)
+					break;
 
-			RemoveMember_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, index, sizeof(*pParent->Header.iResourceHeaders), 1);
-			pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize - 1;
+				RemoveMember_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, index, sizeof(*pParent->Header.iResourceHeaders), 1);
+				pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize - 1;
+			}
 		}
 
-		if (pResourceHeader->Header.iParents != NULL)
+		if (pResourceHeader->Header.iParents != NULL && pResourceHeader->Header.iParentsSize != NULL)
 			free(pResourceHeader->Header.iParents);
-		if (pResourceHeader->Header.iElements != NULL)
+		if (pResourceHeader->Header.iElements != NULL && pResourceHeader->Header.iElementsSize != NULL)
 			free(pResourceHeader->Header.iElements);
 		if (pResourceHeader->Header.Name != NULL)
 			free(pResourceHeader->Header.Name);
@@ -1546,7 +1591,25 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 	}
 	
 	if (pElement->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
+	{
+		ArenaAllocater* pAllocater = NULL;
+		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+		{
+			if (Utils.InternalElementBuffer.ArenaAllocaters[i].StartPtr <= pElement->Header.pDelayedInstances[ThreadIndex].Pointer &&
+				Utils.InternalElementBuffer.ArenaAllocaters[i].EndPtr >= (pElement->Header.pDelayedInstances[ThreadIndex].Pointer + pElement->Header.AllocationSize))
+			{
+				pAllocater = &Utils.InternalElementBuffer.ArenaAllocaters[i];
+			}
+		}
+		if (pAllocater == NULL)
+		{
+			Engine_Ref_FunctionError("Destroy_Element()", "Arena Allocater could not be found. ", pAllocater);
+			return;
+		}
+		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 		memset(&Utils.InternalElementBuffer.Buffer[pElement->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pElement) * pElement->Header.AllocationSize);
+		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
+	}
 
 	c89atomic_store_32(&pElement->Header.pDelayedInstances[ThreadIndex].Pointer, UINT32_MAX);
 	c89atomic_store_8(&pElement->Header.pDelayedInstances[ThreadIndex].Latest, 0);
@@ -1556,10 +1619,10 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 		ArenaAllocater* pAllocater = NULL;
 		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
 		{
-			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr >= pElement->Header.Allocation.Pointer &&
-				pSignature->Buffer->ArenaAllocaters[i].EndPtr <= (pElement->Header.Allocation.Pointer + pElement->Header.AllocationSize))
+			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr <= pElement->Header.Allocation.Pointer &&
+				pSignature->Buffer->ArenaAllocaters[i].EndPtr >= (pElement->Header.Allocation.Pointer + pElement->Header.AllocationSize))
 			{
-				pAllocater = &pSignature->Buffer->ArenaAllocaters[i].StartPtr;
+				pAllocater = &pSignature->Buffer->ArenaAllocaters[i];
 			}
 		}
 		if (pAllocater == NULL)
@@ -1582,24 +1645,26 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 		for (size_t i = 0; i < pElement->Header.iParentsSize; i++)
 		{
 			ResourceHeader* pParent = Get_ResourceHeaderPointer(pElement->Header.iParents[i]);
-
-			uint64_t index = 0;
-			bool found = false;
-			for (size_t i = 0; i < pParent->Header.iElementsSize; i++)
+			if (pParent != NULL)
 			{
-				if (pParent->Header.iElements[i].Pointer == Allocation.Pointer)
+				uint64_t index = 0;
+				bool found = false;
+				for (size_t i = 0; i < pParent->Header.iElementsSize; i++)
 				{
-					index = i;
-					found = true;
+					if (pParent->Header.iElements[i].Pointer == Allocation.Pointer)
+					{
+						index = i;
+						found = true;
+					}
 				}
-			}
-			if (found == false)
-				return;
+				if (found == false)
+					break;
 
-			RemoveMember_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, index, sizeof(*pParent->Header.iElements), 1);
-			pParent->Header.iElementsSize = pParent->Header.iElementsSize - 1;
+				RemoveMember_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, index, sizeof(*pParent->Header.iElements), 1);
+				pParent->Header.iElementsSize = pParent->Header.iElementsSize - 1;
+			}
 		}
-		if (pElement->Header.iParents != NULL)
+		if (pElement->Header.iParents != NULL && pElement->Header.iParentsSize != NULL)
 			free(pElement->Header.iParents);
 		if (pElement->Header.Name != NULL)
 			free(pElement->Header.Name);
@@ -1978,15 +2043,6 @@ void Destroy_ObjectBuffer(ObjectBuffer* pBuffer)
 		return;
 	}
 #endif
-
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-		}
-	}
-
 	for (size_t i = 0; i < pBuffer->Size;)
 	{
 		Object* pObject = (Object*)&pBuffer->Buffer[i];
@@ -2001,7 +2057,6 @@ void Destroy_ObjectBuffer(ObjectBuffer* pBuffer)
 		}
 	}
 
-
 	if (pBuffer->Indexes != NULL)
 		free(pBuffer->Indexes);
 	pBuffer->Indexes = NULL;
@@ -2009,7 +2064,6 @@ void Destroy_ObjectBuffer(ObjectBuffer* pBuffer)
 	pBuffer->Size = 0;
 	if (pBuffer->Buffer != NULL)
 		free(pBuffer->Buffer);
-
 
 	if (pBuffer->ArenaAllocaters != NULL)
 	{
@@ -2037,15 +2091,6 @@ void Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer)
 		return;
 	}
 #endif
-
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-		}
-	}
-
 	for (size_t i = 0; i < pBuffer->Size;)
 	{
 		ResourceHeader* pResourceHeader = (ResourceHeader*)&pBuffer->Buffer[i];
@@ -2060,7 +2105,6 @@ void Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer)
 		}
 	}
 
-
 	if (pBuffer->Indexes != NULL)
 		free(pBuffer->Indexes);
 	pBuffer->Indexes = NULL;
@@ -2068,7 +2112,6 @@ void Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer)
 	pBuffer->Size = 0;
 	if (pBuffer->Buffer != NULL)
 		free(pBuffer->Buffer);
-
 
 	if (pBuffer->ArenaAllocaters != NULL)
 	{
@@ -2096,15 +2139,6 @@ void Destroy_ElementBuffer(ElementBuffer* pBuffer)
 		return;
 	}
 #endif
-
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-		}
-	}
-
 	for (size_t i = 0; i < pBuffer->Size;)
 	{
 		Element* pElement = (Element*)&pBuffer->Buffer[i];
@@ -2127,8 +2161,7 @@ void Destroy_ElementBuffer(ElementBuffer* pBuffer)
 	if (pBuffer->Buffer != NULL)
 		free(pBuffer->Buffer);
 
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
+	if (pBuffer->ArenaAllocaters != NULL) {
 		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
 			Destroy_ArenaAllocater(&pBuffer->ArenaAllocaters[i]);
 		free(pBuffer->ArenaAllocaters);
@@ -3318,7 +3351,6 @@ TEXRESULT Initialise_Objects()
 
 void Destroy_Objects()
 {
-
 	Destroy_ElementBuffer(&Utils.GenericElementBuffer);
 	Destroy_ResourceHeaderBuffer(&Utils.GenericResourceHeaderBuffer);
 	Destroy_ObjectBuffer(&Utils.GenericObjectBuffer);
@@ -3327,9 +3359,9 @@ void Destroy_Objects()
 	DeRegister_ResourceHeaderSignature(&Utils.GenericResourceHeaderSig);
 	DeRegister_ObjectSignature(&Utils.GenericObjectSig);
 
-	Destroy_ElementBuffer(&Utils.InternalElementBuffer);
-	Destroy_ResourceHeaderBuffer(&Utils.InternalResourceHeaderBuffer);
-	Destroy_ObjectBuffer(&Utils.InternalObjectBuffer);
+	//Destroy_ElementBuffer(&Utils.InternalElementBuffer);
+	//Destroy_ResourceHeaderBuffer(&Utils.InternalResourceHeaderBuffer);
+	//Destroy_ObjectBuffer(&Utils.InternalObjectBuffer);
 
 	DeRegister_ElementSignature(&Utils.InternalElementSig);
 	DeRegister_ResourceHeaderSignature(&Utils.InternalResourceHeaderSig);

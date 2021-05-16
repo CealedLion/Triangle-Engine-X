@@ -69,13 +69,13 @@ TEXRESULT Create_WaterTexture(GPU_Texture* pGPU_Texture, LogicalDevice* pLogical
 	VkMemoryRequirements memRequirements;
 	vkGetImageMemoryRequirements(pLogicalDevice->VkLogicalDevice, pGPU_Texture->VkImage, &memRequirements);
 	pGPU_Texture->Allocation = Graphics_Ref_GPUmalloc(pLogicalDevice, memRequirements, TargetMemory_Dst, Type, ThreadIndex);
-	if (pGPU_Texture->Allocation.VkMemory == NULL)
+	if (pGPU_Texture->Allocation.SizeBytes == NULL)
 	{
 		Engine_Ref_FunctionError("Create_WaterTexture()", "Not Enough Space In GPU Memory!", NULL);
 		return (TEXRESULT)(Failure);
 	}
 
-	if ((res = vkBindImageMemory(pLogicalDevice->VkLogicalDevice, pGPU_Texture->VkImage, pGPU_Texture->Allocation.VkMemory, pGPU_Texture->Allocation.Pointer)) != VK_SUCCESS)
+	if ((res = vkBindImageMemory(pLogicalDevice->VkLogicalDevice, pGPU_Texture->VkImage, pGPU_Texture->Allocation.Allocater.VkMemory, pGPU_Texture->Allocation.Pointer)) != VK_SUCCESS)
 	{
 		Engine_Ref_FunctionError("Create_WaterTexture()", "vkBindImageMemory Failed, VkResult == ", res);
 		return (TEXRESULT)(Failure);
@@ -691,7 +691,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		Info.pPoolSizes = PoolSizes;
 		if ((res = vkCreateDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorPoolWater)) != VK_SUCCESS)
 		{
-			Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkCreateDescriptorPool, VkResult == ", res);
+			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorPool, VkResult == ", res);
 			return;
 		}
 	}
@@ -710,7 +710,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		Info.pNext = NULL;
 		if ((res = vkAllocateDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
 		{
-			Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkAllocateDescriptorSets, VkResult == ", res);
+			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkAllocateDescriptorSets, VkResult == ", res);
 			return;
 		}
 		pResourceHeader->VkDescriptorSeth0k = sets[0];
@@ -731,8 +731,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 		requirements.memoryTypeBits = NULL;
 		pResourceHeader->AllocationBitReversedIndices = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, requirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
-
-		int* targetbits = (int*)((void*)(((uint64_t)pGraphicsWindow->pLogicalDevice->SrcBufPointer + pResourceHeader->AllocationBitReversedIndices.Pointer)));
+		int* targetbits = (int*)((void*)(((uint64_t)pResourceHeader->AllocationBitReversedIndices.Allocater.pArenaAllocater->MappedMemory + pResourceHeader->AllocationBitReversedIndices.Pointer)));
 		for (int i = 0; i < pResourceHeader->WaterResolution; i++)
 		{
 			unsigned char x = reverse((unsigned char)i, 8);
@@ -762,7 +761,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pResourceHeader->VkDescriptorSetTwiddleFactors, 0, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, NULL, &ImageInfo);
 	} {
 		VkDescriptorBufferInfo BufferInfo;
-		BufferInfo.buffer = pGraphicsWindow->pLogicalDevice->SrcBuffer.VkBuffer;
+		BufferInfo.buffer = pResourceHeader->AllocationBitReversedIndices.Allocater.pArenaAllocater->VkBuffer;
 		BufferInfo.offset = pResourceHeader->AllocationBitReversedIndices.Pointer;
 		BufferInfo.range = AlignNumber(pResourceHeader->WaterResolution * sizeof(int), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minStorageBufferOffsetAlignment);
 		Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pResourceHeader->VkDescriptorSetTwiddleFactors, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &BufferInfo, NULL);
@@ -1183,7 +1182,7 @@ TEXRESULT Create_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderW
 //Graphics Effects
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex)
+void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
 {
 	for (size_t i = 0; i < Utils.RHeaderWaterRenderBuffer.Size;)
 	{
@@ -1746,6 +1745,8 @@ TEXRESULT Initialise_GraphicsEffects()
 
 void Destroy_GraphicsEffects()
 {
+	Engine_Ref_FunctionError("GRAPHICSEFFECTS", "START DESTROYING", 0);
+
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1761,6 +1762,8 @@ void Destroy_GraphicsEffects()
 
 	memset(&Utils, NULL, sizeof(Utils));
 	memset(&Config, NULL, sizeof(Config));
+
+	Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

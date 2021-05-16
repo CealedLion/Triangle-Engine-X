@@ -2552,7 +2552,6 @@ TEXRESULT Initialize()
 	sched_getaffinity(0, sizeof(cpuset), &cpuset);
 	Utils.CPU.MaxThreads = CPU_COUNT(&cpuset);
 #endif
-	
 
 	Create_Mutex(Utils.WindowsMutex, MutexType_Plain);
 
@@ -2670,7 +2669,6 @@ TEXRESULT Initialize()
 		
 		CommandLinePointer += it + 1;
 	}
-
 	//end
 	Recreate_Categories();
 	Resolve_Linkages();

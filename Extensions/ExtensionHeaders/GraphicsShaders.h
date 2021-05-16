@@ -53,194 +53,224 @@ SpvMagicNumber, SpvVersion, 'TEX ', Bound, 0,
 //Deferred
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+
 typedef enum VertexShaderDeferredVariables {
+	//VertexDeferredExtension_GLSL450,
+	VertexDeferredFunction_Main = 1,
+
+	VertexDeferredType_Void,
+	VertexDeferredType_Function,
+	VertexDeferredType_bool,
+
+	VertexDeferredType_float32,
+	VertexDeferredType_float32vec2,
+	VertexDeferredType_float32vec3,
+	VertexDeferredType_float32vec4,
+	VertexDeferredType_float32mat4,
+
+	VertexDeferredType_uint32,
+	VertexDeferredType_uint32vec2,
+	VertexDeferredType_uint32vec3,
+	VertexDeferredType_uint32vec4,
+
+	VertexDeferredType_int32,
+	VertexDeferredType_int32vec2,
+	VertexDeferredType_int32vec3,
+	VertexDeferredType_int32vec4,
+
+	//constants
+	VertexDeferredConstant_float32_0f,
+	VertexDeferredConstant_float32_1f,
+	VertexDeferredConstant_float32_N1f,
+
+	VertexDeferredConstant_uint_0,
+
+	VertexDeferredConstant_int_0,
+	VertexDeferredConstant_int_1,
+	VertexDeferredConstant_int_6,
+
+	VertexDeferredConstant_float32vec2_1f_0f,
+	VertexDeferredConstant_float32vec2_0f_1f,
+	VertexDeferredConstant_float32vec2_0f_0f,
+	VertexDeferredConstant_float32vec2_1f_1f,
+
+	VertexDeferredConstant_float32vec2_1f_N1f,
+	VertexDeferredConstant_float32vec2_N1f_N1f,
+	VertexDeferredConstant_float32vec2_N1f_1f,
+
+
+	//inputs
+	VertexDeferredType_InputPointer_int32,
+	VertexDeferredVariable_InputPointer_VertexIndex,
+	VertexDeferredVariable_InputPointer_InstanceIndex,
+
+	VertexDeferredType_struct_PushConstants,
+	VertexDeferredType_PushConstantPointer_struct_PushConstants,
+	VertexDeferredVariable_PushConstantPointer_struct_PushConstants,
+
+	//outputs
+	VertexDeferredType_OutputPointer_float32vec4,
+
+	VertexDeferredType_float32_Array_1,
+	VertexDeferredType_struct_BuiltIn,
+	VertexDeferredType_OutputPointer_struct_BuiltIn,
+	VertexDeferredVariable_OutputPointer_struct_BuiltIn,
+	VertexDeferredVariable_OutputPointer_float32vec4_Position,
+
+	VertexDeferredType_float32vec2_Array_6,
+	VertexDeferredType_FunctionPointer_float32vec2_Array_6,
+
+	VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_Positions,
+	VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_UVS,
+
+	VertexDeferredType_FunctionPointer_float32vec2,
+
+	VertexDeferredLabel_Start,
+
+	VertexDeferredLoadedVariable_float32vec2_Array_6_Positions,
+	VertexDeferredLoadedVariable_float32vec2_Array_6_UVS,
+
+	VertexDeferredLoadedVariable_int32_VertexIndex,
+	VertexDeferredLoadedVariable_int32_InstanceIndex,
+
+	VertexDeferredLoadedVariable_int32_op0,
+	VertexDeferredLoadedVariable_int32_index,
+
+	VertexDeferredVariable_FunctionPointer_float32vec2_IndexedPositions,
+	VertexDeferredVariable_FunctionPointer_float32vec2_IndexedUVS,
+
+	VertexDeferredLoadedVariable_float32vec2_op4,
+	VertexDeferredLoadedVariable_float32vec2_op5,
+	VertexDeferredLoadedVariable_float32vec2_op6,
+	VertexDeferredLoadedVariable_float32vec4_op7,
+
+	VertexDeferredVariables_MAX
 }VertexShaderDeferredVariables;
-#define VertexShaderDeferredSize (716 * sizeof(SPIRV))
+#define VertexShaderDeferredSize (352 * sizeof(SPIRV))
 #define VertexShaderDeferred() {\
-	SPIRV_Header(144)\
-	(2 << SpvWordCountShift) | SpvOpCapability, SpvCapabilityShader,\
-	(2 << SpvWordCountShift) | SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
-	(3 << SpvWordCountShift) | SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
-	(8 << SpvWordCountShift) | SpvOpEntryPoint, SpvExecutionModelVertex, 4, 'niam', '\0', 122, 124, 133,\
-	/*inputs*/\
-	(4 << SpvWordCountShift) | SpvOpDecorate,		122,    SpvDecorationBuiltIn, SpvBuiltInVertexIndex,\
-	(4 << SpvWordCountShift) | SpvOpDecorate,		124,	SpvDecorationBuiltIn, SpvBuiltInInstanceIndex,\
-	(5 << SpvWordCountShift) | SpvOpMemberDecorate, 131, 0,	SpvDecorationBuiltIn, SpvBuiltInPosition,\
-	(5 << SpvWordCountShift) | SpvOpMemberDecorate, 131, 1,	SpvDecorationBuiltIn, SpvBuiltInPointSize,\
-	(5 << SpvWordCountShift) | SpvOpMemberDecorate, 131, 2,	SpvDecorationBuiltIn, SpvBuiltInClipDistance,\
-	(5 << SpvWordCountShift) | SpvOpMemberDecorate, 131, 3,	SpvDecorationBuiltIn, SpvBuiltInCullDistance,\
-	(3 << SpvWordCountShift) | SpvOpDecorate, 131, SpvDecorationBlock,\
-	/*Main SpvStorageClassFunction*/\
-	(2 << SpvWordCountShift) | SpvOpTypeVoid,              2,\
-	(3 << SpvWordCountShift) | SpvOpTypeFunction,          3,      2,\
-	(3 << SpvWordCountShift) | SpvOpTypeFloat,             6,      32,\
-	(4 << SpvWordCountShift) | SpvOpTypeVector,            7,      6,  2,\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           8,      SpvStorageClassFunction, 7,\
-    /*declaring vec2 for scale.*/\
-	(4 << SpvWordCountShift) | SpvOpConstant, 6,           10,     1065353216,\
-	(5 << SpvWordCountShift) | SpvOpConstantComposite, 7,  11,       10, 10,\
-    /*declaring vec3 for position.*/\
-	(4 << SpvWordCountShift) | SpvOpTypeVector,            12,     6,  3,\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           13,     SpvStorageClassFunction, 12,\
-	(4 << SpvWordCountShift) | SpvOpConstant, 6,           15,     0,\
-	(6 << SpvWordCountShift) | SpvOpConstantComposite, 12, 16,      15, 15, 15,\
-    /*declaring int: how many verts in an instance.*/\
-	(4 << SpvWordCountShift) | SpvOpTypeInt,               17,     32, 0,\
-	(4 << SpvWordCountShift) | SpvOpConstant, 17,          18,     6,\
-    /*declaring vertex table*/\
-	(4 << SpvWordCountShift) | SpvOpTypeArray,             19,     12,   18,\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           20,     SpvStorageClassFunction, 19,\
-    /*int.*/\
-	(4 << SpvWordCountShift) | SpvOpConstant, 17,          22,     0,\
-    /*pointer to scale vec2*/\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           23,     SpvStorageClassFunction, 6,\
-    /*int.*/\
-	(4 << SpvWordCountShift) | SpvOpConstant, 17,          29,     1,\
-    /*int.*/\
-	(4 << SpvWordCountShift) | SpvOpConstant, 17,          36,     2,\
-    /*declaring constant vertex UV table*/\
-	(4 << SpvWordCountShift) | SpvOpTypeArray,             111,    7,  18,\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           112,    SpvStorageClassFunction, 111,\
-	(5 << SpvWordCountShift) | SpvOpConstantComposite, 7,  114,    10, 15,\
-	(5 << SpvWordCountShift) | SpvOpConstantComposite, 7,  115,    15, 10,\
-	(5 << SpvWordCountShift) | SpvOpConstantComposite, 7,  116,    15, 15,\
-	(9 << SpvWordCountShift) | SpvOpConstantComposite, 111,117,    114, 115, 116, 114, 11, 115,\
-    /*declaring int*/\
-	(4 << SpvWordCountShift) | SpvOpTypeInt,               118,    32,     1,\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           119,    SpvStorageClassFunction, 118,\
-    /*inputs*/\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           121,    SpvStorageClassInput, 118,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 121,         122,    SpvStorageClassInput,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 121,         124,    SpvStorageClassInput,\
-    /*declaring uint*/\
-	(4 << SpvWordCountShift) | SpvOpConstant, 118,         126,        6,\
-	(4 << SpvWordCountShift) | SpvOpTypeVector,            129,    6,      4,\
-    /*declaring float array*/\
-	(4 << SpvWordCountShift) | SpvOpTypeArray,             130,    6,      29,\
-    /*declaring struct*/\
-	(6 << SpvWordCountShift) | SpvOpTypeStruct,            131,    129, 6, 130, 130,\
-    /*pointer to struct*/\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           132,    SpvStorageClassOutput, 131,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 132,         133,    SpvStorageClassOutput,\
-	(4 << SpvWordCountShift) | SpvOpConstant, 118,         134,    0,\
-	(4 << SpvWordCountShift) | SpvOpTypePointer,           142,    SpvStorageClassOutput, 129,\
-	(5 << SpvWordCountShift) | SpvOpFunction, 2,           4,      SpvFunctionControlMaskNone, 3,\
-	(2 << SpvWordCountShift) | SpvOpLabel,                 5,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 8,           9,      SpvStorageClassFunction,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 13,          14,     SpvStorageClassFunction,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 20,          21,     SpvStorageClassFunction,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 112,         113,    SpvStorageClassFunction,\
-	(4 << SpvWordCountShift) | SpvOpVariable, 119,         120,    SpvStorageClassFunction,\
-	(3 << SpvWordCountShift) | SpvOpStore, 9, 11,\
-	(3 << SpvWordCountShift) | SpvOpStore, 14, 16,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       24, 9, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               25, 24,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       26, 14, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               27, 26,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               28, 25, 27,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       30, 9, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               31, 30,\
-	(4 << SpvWordCountShift) | SpvOpFNegate, 6,            32, 31,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       33, 14, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               34, 33,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               35, 32, 34,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       37, 14, 36,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               38, 37,\
-	(6 << SpvWordCountShift) | SpvOpCompositeConstruct, 12,39, 28, 35, 38,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       40, 9, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               41, 40,\
-	(4 << SpvWordCountShift) | SpvOpFNegate, 6,            42, 41,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       43, 14, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               44, 43,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               45, 42, 44,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       46, 9, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               47, 46,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       48, 14, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               49, 48,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               50, 47, 49,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       51, 14, 36,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               52, 51,\
-	(6 << SpvWordCountShift) | SpvOpCompositeConstruct, 12,53, 45, 50, 52,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       54, 9, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               55, 54,\
-	(4 << SpvWordCountShift) | SpvOpFNegate, 6,            56, 55,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       57, 14, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               58, 57,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               59, 56, 58,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       60, 9, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               61, 60,\
-	(4 << SpvWordCountShift) | SpvOpFNegate, 6,            62, 61,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       63, 14, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               64, 63,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               65, 62, 64,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       66, 14, 36,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               67, 66,\
-	(6 << SpvWordCountShift) | SpvOpCompositeConstruct, 12,68, 59, 65, 67,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       69, 9, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               70, 69,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       71, 14, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               72, 71,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               73, 70, 72,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       74, 9, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               75, 74,\
-	(4 << SpvWordCountShift) | SpvOpFNegate, 6,            76, 75,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       77, 14, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               78, 77,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               79, 76, 78,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       80, 14, 36,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               81, 80,\
-	(6 << SpvWordCountShift) | SpvOpCompositeConstruct, 12,82, 73, 79, 81,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       83, 9, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               84, 83,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       85, 14, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               86, 85,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               87, 84, 86,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       88, 9, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               89, 88,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       90, 14, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               91, 90,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               92, 89, 91,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       93, 14, 36,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               94, 93,\
-	(6 << SpvWordCountShift) | SpvOpCompositeConstruct, 12,95, 87, 92, 94,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       96, 9, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               97, 96,\
-	(4 << SpvWordCountShift) | SpvOpFNegate, 6,            98, 97,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       99, 14, 22,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               100, 99,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               101, 98, 100,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       102, 9, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               103, 102,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       104, 14, 29,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               105, 104,\
-	(5 << SpvWordCountShift) | SpvOpFAdd, 6,               106, 103, 105,\
-	(5 << SpvWordCountShift) | SpvOpAccessChain, 23,       107, 14, 36,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 6,               108, 107,\
-	(6 << SpvWordCountShift) | SpvOpCompositeConstruct, 12,109, 101, 106, 108,\
-	(9 << SpvWordCountShift) | SpvOpCompositeConstruct, 19,110, 39, 53, 68, 82, 95, 109,\
-	(3 << SpvWordCountShift) | SpvOpStore, 21, 110,\
-	(3 << SpvWordCountShift) | SpvOpStore, 113, 117,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 118,             123, 122,\
-	(4 << SpvWordCountShift) | SpvOpLoad, 118,             125, 124,\
-	(5 << SpvWordCountShift) | SpvOpIMul, 118,             127, 125, 126,\
-	(5 << SpvWordCountShift) | SpvOpISub, 118,             128, 123, 127,\
-	(3 <<SpvWordCountShift) | SpvOpStore, 120, 128,\
-	(4 <<SpvWordCountShift) | SpvOpLoad, 118,             135, 120,\
-	(5 <<SpvWordCountShift) | SpvOpAccessChain, 13,       136, 21, 135,\
-	(4 <<SpvWordCountShift) | SpvOpLoad, 12,              137, 136,\
-	(5 <<SpvWordCountShift) | SpvOpCompositeExtract, 6,   138, 137, 0,\
-	(5 <<SpvWordCountShift) | SpvOpCompositeExtract, 6,   139, 137, 1,\
-	(5<<SpvWordCountShift) | SpvOpCompositeExtract, 6,   140, 137, 2,\
-	(7<<SpvWordCountShift) | SpvOpCompositeConstruct,129,141, 138, 139, 140, 10,\
-	(5<<SpvWordCountShift) | SpvOpAccessChain, 142,      143, 133, 134,\
-	(3<<SpvWordCountShift) | SpvOpStore, 143, 141,\
-	(1<<SpvWordCountShift) | SpvOpReturn,\
-	(1<<SpvWordCountShift) | SpvOpFunctionEnd,\
+SPIRV_Header(VertexDeferredVariables_MAX)\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
+(3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
+(9<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelVertex, VertexDeferredFunction_Main, 'niam', '\0', VertexDeferredVariable_InputPointer_VertexIndex, VertexDeferredVariable_InputPointer_InstanceIndex, \
+VertexDeferredVariable_PushConstantPointer_struct_PushConstants, VertexDeferredVariable_OutputPointer_struct_BuiltIn,\
+/*DECORATION*/\
+/*INPUT*/\
+/*Built In*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexDeferredVariable_InputPointer_VertexIndex, SpvDecorationBuiltIn, SpvBuiltInVertexIndex,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexDeferredVariable_InputPointer_InstanceIndex, SpvDecorationBuiltIn, SpvBuiltInInstanceIndex,\
+/*pushconstants*/\
+(4<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_PushConstants, 0, SpvDecorationColMajor,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_PushConstants, 0, SpvDecorationOffset, 0,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_PushConstants, 0, SpvDecorationMatrixStride, 16,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_PushConstants, 1, SpvDecorationOffset, 64,\
+(3<<SpvWordCountShift)|SpvOpDecorate, VertexDeferredType_struct_PushConstants, SpvDecorationBlock,\
+/*OUTPUT*/\
+/*Built In*/\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_BuiltIn, 0, SpvDecorationBuiltIn, SpvBuiltInPosition,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_BuiltIn, 1, SpvDecorationBuiltIn, SpvBuiltInPointSize,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_BuiltIn, 2, SpvDecorationBuiltIn, SpvBuiltInClipDistance,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexDeferredType_struct_BuiltIn, 3, SpvDecorationBuiltIn, SpvBuiltInCullDistance,\
+(3<<SpvWordCountShift)|SpvOpDecorate, VertexDeferredType_struct_BuiltIn, SpvDecorationBlock,\
+/*TYPES*/\
+(2<<SpvWordCountShift)|SpvOpTypeVoid, VertexDeferredType_Void,\
+(3<<SpvWordCountShift)|SpvOpTypeFunction, VertexDeferredType_Function, VertexDeferredType_Void,\
+(2<<SpvWordCountShift)|SpvOpTypeBool, VertexDeferredType_bool,\
+/*floats*/\
+(3<<SpvWordCountShift)|SpvOpTypeFloat, VertexDeferredType_float32, 32,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_float32vec2, VertexDeferredType_float32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_float32vec3, VertexDeferredType_float32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_float32vec4, VertexDeferredType_float32, 4,\
+(4<<SpvWordCountShift)|SpvOpTypeMatrix, VertexDeferredType_float32mat4, VertexDeferredType_float32vec4, 4,\
+/*unsigned int*/\
+(4<<SpvWordCountShift)|SpvOpTypeInt, VertexDeferredType_uint32, 32, 0,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_uint32vec2, VertexDeferredType_uint32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_uint32vec3, VertexDeferredType_uint32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_uint32vec4, VertexDeferredType_uint32, 4,\
+/*signed int*/\
+(4<<SpvWordCountShift)|SpvOpTypeInt, VertexDeferredType_int32, 32, 1,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_int32vec2, VertexDeferredType_int32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_int32vec3, VertexDeferredType_int32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexDeferredType_int32vec4, VertexDeferredType_int32, 4,\
+/*CONSTANTS*/\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_float32, VertexDeferredConstant_float32_0f, 0,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_float32, VertexDeferredConstant_float32_1f, 1065353216,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_float32, VertexDeferredConstant_float32_N1f, 3212836864,\
+\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_uint32, VertexDeferredConstant_uint_0, 0,\
+\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_int32, VertexDeferredConstant_int_0, 0,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_int32, VertexDeferredConstant_int_1, 1,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexDeferredType_int32, VertexDeferredConstant_int_6, 6,\
+/*UV value constants*/\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_1f_0f, VertexDeferredConstant_float32_1f, VertexDeferredConstant_float32_0f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_0f_1f, VertexDeferredConstant_float32_0f, VertexDeferredConstant_float32_1f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_0f_0f, VertexDeferredConstant_float32_0f, VertexDeferredConstant_float32_0f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_1f_1f, VertexDeferredConstant_float32_1f, VertexDeferredConstant_float32_1f,\
+\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_1f_N1f, VertexDeferredConstant_float32_1f, VertexDeferredConstant_float32_N1f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_N1f_N1f, VertexDeferredConstant_float32_N1f, VertexDeferredConstant_float32_N1f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexDeferredType_float32vec2, VertexDeferredConstant_float32vec2_N1f_1f, VertexDeferredConstant_float32_N1f, VertexDeferredConstant_float32_1f,\
+/*Input/Output Type Declarations*/\
+/*pushconstants*/\
+(4<<SpvWordCountShift)|SpvOpTypeStruct, VertexDeferredType_struct_PushConstants, VertexDeferredType_float32mat4, VertexDeferredType_int32,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexDeferredType_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant, VertexDeferredType_struct_PushConstants,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexDeferredType_PushConstantPointer_struct_PushConstants, VertexDeferredVariable_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant,\
+/*inputs*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexDeferredType_InputPointer_int32, SpvStorageClassInput, VertexDeferredType_int32,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexDeferredType_InputPointer_int32, VertexDeferredVariable_InputPointer_VertexIndex, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexDeferredType_InputPointer_int32, VertexDeferredVariable_InputPointer_InstanceIndex, SpvStorageClassInput,\
+/*built in output*/\
+(4<<SpvWordCountShift)|SpvOpTypeArray, VertexDeferredType_float32_Array_1, VertexDeferredType_float32, VertexDeferredConstant_int_1,\
+(6<<SpvWordCountShift)|SpvOpTypeStruct, VertexDeferredType_struct_BuiltIn, VertexDeferredType_float32vec4, VertexDeferredType_float32, VertexDeferredType_float32_Array_1, VertexDeferredType_float32_Array_1,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexDeferredType_OutputPointer_struct_BuiltIn, SpvStorageClassOutput, VertexDeferredType_struct_BuiltIn,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexDeferredType_OutputPointer_struct_BuiltIn, VertexDeferredVariable_OutputPointer_struct_BuiltIn, SpvStorageClassOutput,\
+/*input locations*/\
+/*output inputs*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexDeferredType_OutputPointer_float32vec4, SpvStorageClassOutput, VertexDeferredType_float32vec4,\
+\
+(4<<SpvWordCountShift)|SpvOpTypeArray, VertexDeferredType_float32vec2_Array_6, VertexDeferredType_float32vec2, VertexDeferredConstant_int_6,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexDeferredType_FunctionPointer_float32vec2_Array_6, SpvStorageClassFunction, VertexDeferredType_float32vec2_Array_6,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexDeferredType_FunctionPointer_float32vec2, SpvStorageClassFunction, VertexDeferredType_float32vec2,\
+/*MAIN FUNCTION*/\
+(5<<SpvWordCountShift)|SpvOpFunction, VertexDeferredType_Void, VertexDeferredFunction_Main, SpvFunctionControlMaskNone, VertexDeferredType_Function,\
+(2<<SpvWordCountShift)|SpvOpLabel, VertexDeferredLabel_Start,\
+/*create vars*/\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexDeferredType_FunctionPointer_float32vec2_Array_6, VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_Positions, SpvStorageClassFunction,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexDeferredType_FunctionPointer_float32vec2_Array_6, VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_UVS, SpvStorageClassFunction,\
+/*positions array*/\
+(9<<SpvWordCountShift)|SpvOpCompositeConstruct, VertexDeferredType_float32vec2_Array_6, VertexDeferredLoadedVariable_float32vec2_Array_6_Positions,\
+	 VertexDeferredConstant_float32vec2_1f_N1f, VertexDeferredConstant_float32vec2_N1f_1f, VertexDeferredConstant_float32vec2_N1f_N1f, VertexDeferredConstant_float32vec2_1f_N1f, VertexDeferredConstant_float32vec2_1f_1f, VertexDeferredConstant_float32vec2_N1f_1f,\
+(3<<SpvWordCountShift)|SpvOpStore, VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_Positions, VertexDeferredLoadedVariable_float32vec2_Array_6_Positions,\
+/*UVS array*/\
+(9<<SpvWordCountShift)|SpvOpCompositeConstruct, VertexDeferredType_float32vec2_Array_6, VertexDeferredLoadedVariable_float32vec2_Array_6_UVS,\
+	 VertexDeferredConstant_float32vec2_1f_0f, VertexDeferredConstant_float32vec2_0f_1f, VertexDeferredConstant_float32vec2_0f_0f, VertexDeferredConstant_float32vec2_1f_0f, VertexDeferredConstant_float32vec2_1f_1f, VertexDeferredConstant_float32vec2_0f_1f,\
+(3<<SpvWordCountShift)|SpvOpStore, VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_UVS, VertexDeferredLoadedVariable_float32vec2_Array_6_UVS,\
+/*index*/\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexDeferredType_int32, VertexDeferredLoadedVariable_int32_VertexIndex, VertexDeferredVariable_InputPointer_VertexIndex,\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexDeferredType_int32, VertexDeferredLoadedVariable_int32_InstanceIndex, VertexDeferredVariable_InputPointer_InstanceIndex,\
+(5<<SpvWordCountShift)|SpvOpIMul, VertexDeferredType_int32, VertexDeferredLoadedVariable_int32_op0, VertexDeferredLoadedVariable_int32_InstanceIndex, VertexDeferredConstant_int_6,\
+(5<<SpvWordCountShift)|SpvOpISub, VertexDeferredType_int32, VertexDeferredLoadedVariable_int32_index, VertexDeferredLoadedVariable_int32_VertexIndex, VertexDeferredLoadedVariable_int32_op0,\
+/*output*/\
+/*out position*/\
+(5<<SpvWordCountShift)|SpvOpAccessChain, VertexDeferredType_FunctionPointer_float32vec2, VertexDeferredVariable_FunctionPointer_float32vec2_IndexedPositions, VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_Positions, VertexDeferredLoadedVariable_int32_index,\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexDeferredType_float32vec2, VertexDeferredLoadedVariable_float32vec2_op4, VertexDeferredVariable_FunctionPointer_float32vec2_IndexedPositions,\
+/*out UVS*/\
+(5<<SpvWordCountShift)|SpvOpAccessChain, VertexDeferredType_FunctionPointer_float32vec2, VertexDeferredVariable_FunctionPointer_float32vec2_IndexedUVS, VertexDeferredVariable_FunctionPointer_float32vec2_Array_6_UVS, VertexDeferredLoadedVariable_int32_index,\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexDeferredType_float32vec2, VertexDeferredLoadedVariable_float32vec2_op5, VertexDeferredVariable_FunctionPointer_float32vec2_IndexedUVS,\
+/*out inbuilt position*/\
+(5<<SpvWordCountShift)|SpvOpCompositeConstruct, VertexDeferredType_float32vec2, VertexDeferredLoadedVariable_float32vec2_op6, VertexDeferredConstant_float32_1f, VertexDeferredConstant_float32_1f,\
+(9<<SpvWordCountShift)|SpvOpVectorShuffle, VertexDeferredType_float32vec4, VertexDeferredLoadedVariable_float32vec4_op7, VertexDeferredLoadedVariable_float32vec2_op4, VertexDeferredLoadedVariable_float32vec2_op6, 0, 1, 2, 3,\
+\
+(5<<SpvWordCountShift)|SpvOpAccessChain, VertexDeferredType_OutputPointer_float32vec4, VertexDeferredVariable_OutputPointer_float32vec4_Position, VertexDeferredVariable_OutputPointer_struct_BuiltIn, VertexDeferredConstant_int_0,\
+(3<<SpvWordCountShift)|SpvOpStore, VertexDeferredVariable_OutputPointer_float32vec4_Position, VertexDeferredLoadedVariable_float32vec4_op7,\
+/*function end*/\
+(1<<SpvWordCountShift)|SpvOpReturn,\
+(1<<SpvWordCountShift)|SpvOpFunctionEnd,\
 }
 
 typedef enum FragmentShaderDeferredVariables {
-	FragmentDeferredVariable_ZEROISNOTUSED,
-	FragmentDeferredExtension_GLSL450,
+	FragmentDeferredExtension_GLSL450 = 1,
 	FragmentDeferredFunction_Main,
 
 	FragmentDeferredType_Void,

@@ -31,6 +31,7 @@ typedef enum VertexShaderSimplifiedMolecularVariables {
 	VertexSimplifiedMolecularExtension_GLSL450 = 1,
 	VertexSimplifiedMolecularFunction_Main,
 
+	//BASIC TYPES
 	VertexSimplifiedMolecularType_Void,
 	VertexSimplifiedMolecularType_Function,
 
@@ -42,40 +43,49 @@ typedef enum VertexShaderSimplifiedMolecularVariables {
 
 	VertexSimplifiedMolecularType_int32,
 
-	//constants
+	//CONSTANTS
 	VertexSimplifiedMolecularConstant_float32_0f,
 	VertexSimplifiedMolecularConstant_float32_1f,
 
 	VertexSimplifiedMolecularConstant_int_0,
 	VertexSimplifiedMolecularConstant_int_1,
 
-	VertexSimplifiedMolecularConstant_float32vec3_NULL,
-
-
-	//inputs
+	//INPUT
+	//Input Attributes
+	VertexSimplifiedMolecularType_InputPointer_float32,
 	VertexSimplifiedMolecularType_InputPointer_float32vec3,
+	VertexSimplifiedMolecularType_InputPointer_float32vec4,
 
 	VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position,
-	VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Colour,
-	VertexSimplifiedMolecularVariable_InputPointer_int32_ElementType,
-
+	VertexSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity,
+	VertexSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation,
+	VertexSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity,
+	VertexSimplifiedMolecularVariable_InputPointer_float32_Size,
+	//BuiltIn
 	VertexSimplifiedMolecularType_InputPointer_int32,
 	VertexSimplifiedMolecularVariable_InputPointer_VertexIndex,
 	VertexSimplifiedMolecularVariable_InputPointer_InstanceIndex,
-
-
+	//PushConstants
 	VertexSimplifiedMolecularType_struct_PushConstants,
 	VertexSimplifiedMolecularType_PushConstantPointer_struct_PushConstants,
 	VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants,
+	VertexSimplifiedMolecularType_PushConstantPointer_float32mat4,
 
-	//outputs
+	//OUTPUT
+	//Output Attributes
+	VertexSimplifiedMolecularType_OutputPointer_float32,
 	VertexSimplifiedMolecularType_OutputPointer_float32vec3,
 	VertexSimplifiedMolecularType_OutputPointer_float32vec4,
-	VertexSimplifiedMolecularType_OutputPointer_float32,
+
+	VertexSimplifiedMolecularConstant_float32vec3_NULL,
+	VertexSimplifiedMolecularConstant_float32vec4_NULL,
 
 	VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position,
-	VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Colour,
-
+	VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_PositionVelocity,
+	VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Rotation,
+	VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_RotationVelocity,
+	VertexSimplifiedMolecularVariable_OutputPointer_float32_Size,
+	//BuiltIn
 	VertexSimplifiedMolecularType_float32_Array_1,
 	VertexSimplifiedMolecularType_struct_BuiltIn,
 	VertexSimplifiedMolecularType_OutputPointer_struct_BuiltIn,
@@ -83,8 +93,7 @@ typedef enum VertexShaderSimplifiedMolecularVariables {
 	VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Position,
 	VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize,
 
-	VertexSimplifiedMolecularType_PushConstantPointer_float32mat4,
-
+	//MAIN FUNCTION
 	VertexSimplifiedMolecularLabel_Start,
 
 	VertexSimplifiedMolecularVariable_PushConstantPointer_MatrixVP,
@@ -92,44 +101,53 @@ typedef enum VertexShaderSimplifiedMolecularVariables {
 
 
 	VertexSimplifiedMolecularLoadedVariable_float32vec3_Position,
-	VertexSimplifiedMolecularLoadedVariable_float32vec3_Colour,
-	VertexSimplifiedMolecularLoadedVariable_int32_ElementType,
+	VertexSimplifiedMolecularLoadedVariable_float32vec3_PositionVelocity,
+	VertexSimplifiedMolecularLoadedVariable_float32vec4_Rotation,
+	VertexSimplifiedMolecularLoadedVariable_float32vec4_RotationVelocity,
+	VertexSimplifiedMolecularLoadedVariable_float32_Size,
+
 
 	VertexSimplifiedMolecularLoadedVariable_float32vec2_op0,
 	VertexSimplifiedMolecularLoadedVariable_float32vec4_op0,
 	VertexSimplifiedMolecularLoadedVariable_float32vec4_op1,
 
-	VertexSimplifiedMolecularLoadedVariable_float32_op0,
-
 	VertexSimplifiedMolecularVariables_MAX
 }VertexShaderSimplifiedMolecularVariables;
-#define VertexShaderSimplifiedMolecularSize (308 * sizeof(SPIRV))
+#define VertexShaderSimplifiedMolecularSize (377 * sizeof(SPIRV))
 #define VertexShaderSimplifiedMolecular() {\
 SPIRV_Header(VertexSimplifiedMolecularVariables_MAX)\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
 (3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
-(14<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelVertex, VertexSimplifiedMolecularFunction_Main, 'niam', '\0', VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Colour, VertexSimplifiedMolecularVariable_InputPointer_int32_ElementType, VertexSimplifiedMolecularVariable_InputPointer_VertexIndex, VertexSimplifiedMolecularVariable_InputPointer_InstanceIndex, \
-VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Colour, VertexSimplifiedMolecularVariable_OutputPointer_struct_BuiltIn,\
+(19<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelVertex, VertexSimplifiedMolecularFunction_Main, 'niam', '\0',\
+VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, VertexSimplifiedMolecularVariable_InputPointer_float32_Size,\
+VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_PositionVelocity, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Rotation, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_RotationVelocity, VertexSimplifiedMolecularVariable_OutputPointer_float32_Size,\
+VertexSimplifiedMolecularVariable_InputPointer_VertexIndex, VertexSimplifiedMolecularVariable_InputPointer_InstanceIndex, VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, VertexSimplifiedMolecularVariable_OutputPointer_struct_BuiltIn,\
 /*DECORATION*/\
 /*INPUT*/\
+/*Input Attributes*/\
 (4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position, SpvDecorationLocation, 0,\
-(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Colour, SpvDecorationLocation, 1,\
-(3<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_int32_ElementType, SpvDecorationFlat,\
-(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_int32_ElementType, SpvDecorationLocation, 2,\
-/*Built In*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, SpvDecorationLocation, 1,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, SpvDecorationLocation, 2,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, SpvDecorationLocation, 3,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_float32_Size, SpvDecorationLocation, 4,\
+/*BuiltIn*/\
 (4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_VertexIndex, SpvDecorationBuiltIn, SpvBuiltInVertexIndex,\
 (4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_InputPointer_InstanceIndex, SpvDecorationBuiltIn, SpvBuiltInInstanceIndex,\
-/*pushconstants*/\
+/*PushConstants*/\
 (4<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_PushConstants, 0, SpvDecorationColMajor,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_PushConstants, 0, SpvDecorationOffset, 0,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_PushConstants, 0, SpvDecorationMatrixStride, 16,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_PushConstants, 1, SpvDecorationOffset, 64,\
 (3<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularType_struct_PushConstants, SpvDecorationBlock,\
 /*OUTPUT*/\
+/*Output Attributes*/\
 (4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position, SpvDecorationLocation, 0,\
-(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Colour, SpvDecorationLocation, 1,\
-/*Built In*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_PositionVelocity, SpvDecorationLocation, 1,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Rotation, SpvDecorationLocation, 2,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_RotationVelocity, SpvDecorationLocation, 3,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexSimplifiedMolecularVariable_OutputPointer_float32_Size, SpvDecorationLocation, 4,\
+/*BuiltIn*/\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_BuiltIn, 0, SpvDecorationBuiltIn, SpvBuiltInPosition,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_BuiltIn, 1, SpvDecorationBuiltIn, SpvBuiltInPointSize,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexSimplifiedMolecularType_struct_BuiltIn, 2, SpvDecorationBuiltIn, SpvBuiltInClipDistance,\
@@ -152,46 +170,59 @@ VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, Vert
 \
 (4<<SpvWordCountShift)|SpvOpConstant, VertexSimplifiedMolecularType_int32, VertexSimplifiedMolecularConstant_int_0, 0,\
 (4<<SpvWordCountShift)|SpvOpConstant, VertexSimplifiedMolecularType_int32, VertexSimplifiedMolecularConstant_int_1, 1,\
-/*Input/Output Type Declarations*/\
-/*pushconstants*/\
+/*INPUT*/\
+/*PushConstants*/\
 (4<<SpvWordCountShift)|SpvOpTypeStruct, VertexSimplifiedMolecularType_struct_PushConstants, VertexSimplifiedMolecularType_float32mat4, VertexSimplifiedMolecularType_float32vec3,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant, VertexSimplifiedMolecularType_struct_PushConstants,\
 (4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_PushConstantPointer_struct_PushConstants, VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant,\
-/*inputs*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_PushConstantPointer_float32mat4, SpvStorageClassPushConstant, VertexSimplifiedMolecularType_float32mat4,\
+/*BuiltIn*/\
 (4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_InputPointer_int32, SpvStorageClassInput, VertexSimplifiedMolecularType_int32,\
 (4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_int32, VertexSimplifiedMolecularVariable_InputPointer_VertexIndex, SpvStorageClassInput,\
 (4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_int32, VertexSimplifiedMolecularVariable_InputPointer_InstanceIndex, SpvStorageClassInput,\
-/*built in output*/\
+/*Input Attributes*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_InputPointer_float32, SpvStorageClassInput, VertexSimplifiedMolecularType_float32,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_InputPointer_float32vec3, SpvStorageClassInput, VertexSimplifiedMolecularType_float32vec3,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_InputPointer_float32vec4, SpvStorageClassInput, VertexSimplifiedMolecularType_float32vec4,\
+\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32vec3, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32vec3, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32vec4, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32vec4, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32, VertexSimplifiedMolecularVariable_InputPointer_float32_Size, SpvStorageClassInput,\
+/*OUTPUT*/\
+/*Output Attributes*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_float32, SpvStorageClassOutput, VertexSimplifiedMolecularType_float32,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_float32vec3, SpvStorageClassOutput, VertexSimplifiedMolecularType_float32vec3,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_float32vec4, SpvStorageClassOutput, VertexSimplifiedMolecularType_float32vec4,\
+\
+(3<<SpvWordCountShift)|SpvOpConstantNull, VertexSimplifiedMolecularType_float32vec3, VertexSimplifiedMolecularConstant_float32vec3_NULL,\
+(3<<SpvWordCountShift)|SpvOpConstantNull, VertexSimplifiedMolecularType_float32vec4, VertexSimplifiedMolecularConstant_float32vec4_NULL,\
+\
+(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32vec3, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32vec3_NULL,\
+(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32vec3, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_PositionVelocity, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32vec3_NULL,\
+(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32vec4, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Rotation, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32vec4_NULL,\
+(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32vec4, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_RotationVelocity, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32vec4_NULL,\
+(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32, VertexSimplifiedMolecularVariable_OutputPointer_float32_Size, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32_0f,\
+/*BuiltIn*/\
 (4<<SpvWordCountShift)|SpvOpTypeArray, VertexSimplifiedMolecularType_float32_Array_1, VertexSimplifiedMolecularType_float32, VertexSimplifiedMolecularConstant_int_1,\
 (6<<SpvWordCountShift)|SpvOpTypeStruct, VertexSimplifiedMolecularType_struct_BuiltIn, VertexSimplifiedMolecularType_float32vec4, VertexSimplifiedMolecularType_float32, VertexSimplifiedMolecularType_float32_Array_1, VertexSimplifiedMolecularType_float32_Array_1,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_struct_BuiltIn, SpvStorageClassOutput, VertexSimplifiedMolecularType_struct_BuiltIn,\
 (4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_struct_BuiltIn, VertexSimplifiedMolecularVariable_OutputPointer_struct_BuiltIn, SpvStorageClassOutput,\
-/*input locations*/\
-(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_InputPointer_float32vec3, SpvStorageClassInput, VertexSimplifiedMolecularType_float32vec3,\
-\
-(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32vec3, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position, SpvStorageClassInput,\
-(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_float32vec3, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Colour, SpvStorageClassInput,\
-(4<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_InputPointer_int32, VertexSimplifiedMolecularVariable_InputPointer_int32_ElementType, SpvStorageClassInput,\
-/*output inputs*/\
-(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_float32vec3, SpvStorageClassOutput, VertexSimplifiedMolecularType_float32vec3,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_float32vec4, SpvStorageClassOutput, VertexSimplifiedMolecularType_float32vec4,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_OutputPointer_float32, SpvStorageClassOutput, VertexSimplifiedMolecularType_float32,\
-\
-(3<<SpvWordCountShift)|SpvOpConstantNull, VertexSimplifiedMolecularType_float32vec3, VertexSimplifiedMolecularConstant_float32vec3_NULL,\
-\
-(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32vec3, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32vec3_NULL,\
-(5<<SpvWordCountShift)|SpvOpVariable, VertexSimplifiedMolecularType_OutputPointer_float32vec3, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Colour, SpvStorageClassOutput, VertexSimplifiedMolecularConstant_float32vec3_NULL,\
-\
-(4<<SpvWordCountShift)|SpvOpTypePointer, VertexSimplifiedMolecularType_PushConstantPointer_float32mat4, SpvStorageClassPushConstant, VertexSimplifiedMolecularType_float32mat4,\
 /*MAIN FUNCTION*/\
 (5<<SpvWordCountShift)|SpvOpFunction, VertexSimplifiedMolecularType_Void, VertexSimplifiedMolecularFunction_Main, SpvFunctionControlMaskNone, VertexSimplifiedMolecularType_Function,\
 (2<<SpvWordCountShift)|SpvOpLabel, VertexSimplifiedMolecularLabel_Start,\
 	/*Assign inputs to outputs and also load variables*/\
 	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32vec3, VertexSimplifiedMolecularLoadedVariable_float32vec3_Position, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position,\
 	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Position, VertexSimplifiedMolecularLoadedVariable_float32vec3_Position,\
-	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32vec3, VertexSimplifiedMolecularLoadedVariable_float32vec3_Colour, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Colour,\
-	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_Colour, VertexSimplifiedMolecularLoadedVariable_float32vec3_Colour,\
-	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_int32, VertexSimplifiedMolecularLoadedVariable_int32_ElementType, VertexSimplifiedMolecularVariable_InputPointer_int32_ElementType,\
+	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32vec3, VertexSimplifiedMolecularLoadedVariable_float32vec3_PositionVelocity, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity,\
+	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec3_PositionVelocity, VertexSimplifiedMolecularLoadedVariable_float32vec3_PositionVelocity,\
+	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32vec4, VertexSimplifiedMolecularLoadedVariable_float32vec4_Rotation, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation,\
+	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Rotation, VertexSimplifiedMolecularLoadedVariable_float32vec4_Rotation,\
+	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32vec4, VertexSimplifiedMolecularLoadedVariable_float32vec4_RotationVelocity, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity,\
+	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_RotationVelocity, VertexSimplifiedMolecularLoadedVariable_float32vec4_RotationVelocity,\
+	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32, VertexSimplifiedMolecularLoadedVariable_float32_Size, VertexSimplifiedMolecularVariable_InputPointer_float32_Size,\
+	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32_Size, VertexSimplifiedMolecularLoadedVariable_float32_Size,\
 	/*get pushconstants VP matrix*/\
 	(5<<SpvWordCountShift)|SpvOpAccessChain, VertexSimplifiedMolecularType_PushConstantPointer_float32mat4, VertexSimplifiedMolecularVariable_PushConstantPointer_MatrixVP, VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, VertexSimplifiedMolecularConstant_int_0,\
 	(4<<SpvWordCountShift)|SpvOpLoad, VertexSimplifiedMolecularType_float32mat4, VertexSimplifiedMolecularLoadedVariable_PushConstantPointer_MatrixVP, VertexSimplifiedMolecularVariable_PushConstantPointer_MatrixVP,\
@@ -205,8 +236,7 @@ VertexSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, Vert
 	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Position, VertexSimplifiedMolecularLoadedVariable_float32vec4_op1,\
 	/*pointsize*/\
 	(5<<SpvWordCountShift)|SpvOpAccessChain, VertexSimplifiedMolecularType_OutputPointer_float32, VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize, VertexSimplifiedMolecularVariable_OutputPointer_struct_BuiltIn, VertexSimplifiedMolecularConstant_int_1,\
-	(4<<SpvWordCountShift)|SpvOpConvertUToF, VertexSimplifiedMolecularType_float32, VertexSimplifiedMolecularLoadedVariable_float32_op0, VertexSimplifiedMolecularLoadedVariable_int32_ElementType,\
-	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize, VertexSimplifiedMolecularLoadedVariable_float32_op0,\
+	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize, VertexSimplifiedMolecularLoadedVariable_float32_Size,\
 /*function end*/\
 (1<<SpvWordCountShift)|SpvOpReturn,\
 (1<<SpvWordCountShift)|SpvOpFunctionEnd,\
@@ -216,6 +246,7 @@ typedef enum FragmentShaderSimplifiedMolecularVariables {
 	FragmentSimplifiedMolecularExtension_GLSL450 = 1,
 	FragmentSimplifiedMolecularFunction_Main,
 
+	//BASIC TYPES
 	FragmentSimplifiedMolecularType_Void,
 	FragmentSimplifiedMolecularType_Function,
 
@@ -227,26 +258,32 @@ typedef enum FragmentShaderSimplifiedMolecularVariables {
 
 	FragmentSimplifiedMolecularType_int32,
 
-	//constants
+	//CONSTANTS
 	FragmentSimplifiedMolecularConstant_float32_0f,
 	FragmentSimplifiedMolecularConstant_float32_1f,
 
 	FragmentSimplifiedMolecularConstant_int32_0,
 
-	//inputs
-	//input locations
+	//INPUT
+	//Input Attributes
+	FragmentSimplifiedMolecularType_InputPointer_float32,
 	FragmentSimplifiedMolecularType_InputPointer_float32vec3,
+	FragmentSimplifiedMolecularType_InputPointer_float32vec4,
 
 	FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Position,
-	FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Colour,
+	FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity,
+	FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation,
+	FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity,
+	FragmentSimplifiedMolecularVariable_InputPointer_float32_Size,
 
-	//pushconstants
+	//PushConstants
 	FragmentSimplifiedMolecularType_struct_PushConstants,
 	FragmentSimplifiedMolecularType_PushConstantPointer_struct_PushConstants,
 	FragmentSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants,
 	FragmentSimplifiedMolecularType_PushConstantPointer_int32,
 
-	//output image attachments
+	//OUTPUT
+	//Subpass Attachments
 	FragmentSimplifiedMolecularType_OutputPointer_float32vec4,
 	FragmentSimplifiedMolecularConstant_float32vec4_NULL,
 	FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy,
@@ -254,20 +291,14 @@ typedef enum FragmentShaderSimplifiedMolecularVariables {
 
 	FragmentSimplifiedMolecularConstantComposite_float32vec4_SelectedColour,
 
-	//function start
-
+	//MAIN FUNCTION
 	FragmentSimplifiedMolecularLabel_Start,
 
-	FragmentSimplifiedMolecularLoadedVariable_float32vec3_Position,
-	FragmentSimplifiedMolecularLoadedVariable_float32vec3_Colour,
-
-	FragmentSimplifiedMolecularLoadedVariable_float32vec2_op0,
 	FragmentSimplifiedMolecularLoadedVariable_float32vec4_op0,
-
 
 	FragmentSimplifiedMolecularVariables_MAX
 }FragmentShaderSimplifiedMolecularVariables;
-#define FragmentShaderSimplifiedMolecularSize (196 * sizeof(SPIRV))
+#define FragmentShaderSimplifiedMolecularSize (216 * sizeof(SPIRV))
 #define FragmentShaderSimplifiedMolecular() {\
 SPIRV_Header(FragmentSimplifiedMolecularVariables_MAX)\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
@@ -275,14 +306,19 @@ SPIRV_Header(FragmentSimplifiedMolecularVariables_MAX)\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
 (6<<SpvWordCountShift)|SpvOpExtInstImport, FragmentSimplifiedMolecularExtension_GLSL450, 'LSLG', 'dts.', '054.', '\0',\
 (3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
-(10<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelFragment, FragmentSimplifiedMolecularFunction_Main, 'niam', '\0', FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Position, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Colour,\
+(13<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelFragment, FragmentSimplifiedMolecularFunction_Main, 'niam', '\0',\
+FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Position, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, FragmentSimplifiedMolecularVariable_InputPointer_float32_Size,\
 FragmentSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutPositionOrRevealage,\
 (3<<SpvWordCountShift)|SpvOpExecutionMode, FragmentSimplifiedMolecularFunction_Main, SpvExecutionModeOriginUpperLeft,\
 /*DECORATION*/\
 /*INPUT*/\
+/*Input Attributes*/\
 (4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Position, SpvDecorationLocation, 0,\
-(4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Colour, SpvDecorationLocation, 1,\
-/*pushconstants*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, SpvDecorationLocation, 1,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, SpvDecorationLocation, 2,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, SpvDecorationLocation, 3,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_InputPointer_float32_Size, SpvDecorationLocation, 4,\
+/*PushConstants*/\
 (4<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentSimplifiedMolecularType_struct_PushConstants, 0, SpvDecorationColMajor,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentSimplifiedMolecularType_struct_PushConstants, 0, SpvDecorationOffset, 0,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentSimplifiedMolecularType_struct_PushConstants, 0, SpvDecorationMatrixStride, 16,\
@@ -290,9 +326,9 @@ FragmentSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, Fr
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentSimplifiedMolecularType_struct_PushConstants, 2, SpvDecorationOffset, 68,\
 (3<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularType_struct_PushConstants, SpvDecorationBlock,\
 /*OUTPUT*/\
+/*Output Attributes*/\
 (4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, SpvDecorationLocation, 0,\
 (4<<SpvWordCountShift)|SpvOpDecorate, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutPositionOrRevealage, SpvDecorationLocation, 1,\
-\
 /*TYPES*/\
 (2<<SpvWordCountShift)|SpvOpTypeVoid, FragmentSimplifiedMolecularType_Void,\
 (3<<SpvWordCountShift)|SpvOpTypeFunction, FragmentSimplifiedMolecularType_Function, FragmentSimplifiedMolecularType_Void,\
@@ -309,31 +345,35 @@ FragmentSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, Fr
 (4<<SpvWordCountShift)|SpvOpConstant, FragmentSimplifiedMolecularType_float32, FragmentSimplifiedMolecularConstant_float32_1f, 1065353216,\
 \
 (4<<SpvWordCountShift)|SpvOpConstant, FragmentSimplifiedMolecularType_int32, FragmentSimplifiedMolecularConstant_int32_0, 0,\
-/*input locations*/\
+/*INPUT*/\
+/*Input Attributes*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentSimplifiedMolecularType_InputPointer_float32, SpvStorageClassInput, FragmentSimplifiedMolecularType_float32,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, FragmentSimplifiedMolecularType_InputPointer_float32vec3, SpvStorageClassInput, FragmentSimplifiedMolecularType_float32vec3,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentSimplifiedMolecularType_InputPointer_float32vec4, SpvStorageClassInput, FragmentSimplifiedMolecularType_float32vec4,\
 \
 (4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_InputPointer_float32vec3, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Position, SpvStorageClassInput,\
-(4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_InputPointer_float32vec3, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Colour, SpvStorageClassInput,\
-/*pushconstants*/\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_InputPointer_float32vec3, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_InputPointer_float32vec4, FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_InputPointer_float32vec4, FragmentSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_InputPointer_float32, FragmentSimplifiedMolecularVariable_InputPointer_float32_Size, SpvStorageClassInput,\
+/*PushConstants*/\
 (5<<SpvWordCountShift)|SpvOpTypeStruct, FragmentSimplifiedMolecularType_struct_PushConstants, FragmentSimplifiedMolecularType_float32mat4, FragmentSimplifiedMolecularType_int32, FragmentSimplifiedMolecularType_int32,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, FragmentSimplifiedMolecularType_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant, FragmentSimplifiedMolecularType_struct_PushConstants,\
 (4<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_PushConstantPointer_struct_PushConstants, FragmentSimplifiedMolecularVariable_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, FragmentSimplifiedMolecularType_PushConstantPointer_int32, SpvStorageClassPushConstant, FragmentSimplifiedMolecularType_int32,\
-/*outputs*/\
+/*OUTPUT*/\
+/*Output Attributes*/\
 (4<<SpvWordCountShift)|SpvOpTypePointer, FragmentSimplifiedMolecularType_OutputPointer_float32vec4, SpvStorageClassOutput, FragmentSimplifiedMolecularType_float32vec4,\
+\
 (3<<SpvWordCountShift)|SpvOpConstantNull, FragmentSimplifiedMolecularType_float32vec4, FragmentSimplifiedMolecularConstant_float32vec4_NULL,\
+\
 (5<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_OutputPointer_float32vec4, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, SpvStorageClassOutput, FragmentSimplifiedMolecularConstant_float32vec4_NULL,\
 (5<<SpvWordCountShift)|SpvOpVariable, FragmentSimplifiedMolecularType_OutputPointer_float32vec4, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutPositionOrRevealage, SpvStorageClassOutput, FragmentSimplifiedMolecularConstant_float32vec4_NULL,\
 /*MAIN FUNCTION*/\
 (5<<SpvWordCountShift)|SpvOpFunction, FragmentSimplifiedMolecularType_Void, FragmentSimplifiedMolecularFunction_Main, SpvFunctionControlMaskNone, FragmentSimplifiedMolecularType_Function,\
 (2<<SpvWordCountShift)|SpvOpLabel, FragmentSimplifiedMolecularLabel_Start,\
-	/*Loading Variables*/\
-	(4<<SpvWordCountShift)|SpvOpLoad, FragmentSimplifiedMolecularType_float32vec3, FragmentSimplifiedMolecularLoadedVariable_float32vec3_Position, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Position,\
-	(4<<SpvWordCountShift)|SpvOpLoad, FragmentSimplifiedMolecularType_float32vec3, FragmentSimplifiedMolecularLoadedVariable_float32vec3_Colour, FragmentSimplifiedMolecularVariable_InputPointer_float32vec3_Colour,\
-	/*out inbuilt Colour*/\
-	(5<<SpvWordCountShift)|SpvOpCompositeConstruct, FragmentSimplifiedMolecularType_float32vec2, FragmentSimplifiedMolecularLoadedVariable_float32vec2_op0, FragmentSimplifiedMolecularConstant_float32_1f, FragmentSimplifiedMolecularConstant_float32_1f,\
-	(9<<SpvWordCountShift)|SpvOpVectorShuffle, FragmentSimplifiedMolecularType_float32vec4, FragmentSimplifiedMolecularLoadedVariable_float32vec4_op0, FragmentSimplifiedMolecularLoadedVariable_float32vec3_Colour, FragmentSimplifiedMolecularLoadedVariable_float32vec2_op0, 0, 1, 2, 3,\
-	\
+	/*Output Default Colour*/\
+	(7<<SpvWordCountShift)|SpvOpCompositeConstruct, FragmentSimplifiedMolecularType_float32vec4, FragmentSimplifiedMolecularLoadedVariable_float32vec4_op0, FragmentSimplifiedMolecularConstant_float32_1f, FragmentSimplifiedMolecularConstant_float32_1f, FragmentSimplifiedMolecularConstant_float32_1f, FragmentSimplifiedMolecularConstant_float32_1f,\
 	(3<<SpvWordCountShift)|SpvOpStore, FragmentSimplifiedMolecularVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, FragmentSimplifiedMolecularLoadedVariable_float32vec4_op0,\
 /*function end*/\
 (1<<SpvWordCountShift)|SpvOpReturn,\
@@ -345,6 +385,7 @@ typedef enum VertexShaderCovalentBondVariables {
 	VertexCovalentBondExtension_GLSL450 = 1,
 	VertexCovalentBondFunction_Main,
 
+	//BASIC TYPES
 	VertexCovalentBondType_Void,
 	VertexCovalentBondType_Function,
 	VertexCovalentBondType_bool,
@@ -357,7 +398,7 @@ typedef enum VertexShaderCovalentBondVariables {
 
 	VertexCovalentBondType_int32,
 
-	//constants
+	//CONSTANTS
 	VertexCovalentBondConstant_float32_0f,
 	VertexCovalentBondConstant_float32_1f,
 
@@ -366,25 +407,24 @@ typedef enum VertexShaderCovalentBondVariables {
 
 	VertexCovalentBondConstant_float32vec3_NULL,
 
-
-	//inputs
+	//INPUT
+	//Input Attributes
 	VertexCovalentBondType_InputPointer_float32vec3,
-
 	VertexCovalentBondVariable_InputPointer_float32vec3_Position,
-
+	//BuiltIn
 	VertexCovalentBondType_InputPointer_int32,
 	VertexCovalentBondVariable_InputPointer_VertexIndex,
 	VertexCovalentBondVariable_InputPointer_InstanceIndex,
-
-
+	//PushConstants
 	VertexCovalentBondType_struct_PushConstants,
 	VertexCovalentBondType_PushConstantPointer_struct_PushConstants,
 	VertexCovalentBondVariable_PushConstantPointer_struct_PushConstants,
+	VertexCovalentBondType_PushConstantPointer_float32mat4,
 
-	//outputs
+	//OUTPUT
+	//BuiltIn
 	VertexCovalentBondType_OutputPointer_float32vec4,
 	VertexCovalentBondType_OutputPointer_float32,
-
 	VertexCovalentBondType_float32_Array_1,
 	VertexCovalentBondType_struct_BuiltIn,
 	VertexCovalentBondType_OutputPointer_struct_BuiltIn,
@@ -392,13 +432,12 @@ typedef enum VertexShaderCovalentBondVariables {
 	VertexCovalentBondVariable_OutputPointer_float32vec4_Position,
 	VertexCovalentBondVariable_OutputPointer_float32_PointSize,
 
-	VertexCovalentBondType_PushConstantPointer_float32mat4,
 
+	//MAIN FUNCTION
 	VertexCovalentBondLabel_Start,
 
 	VertexCovalentBondVariable_PushConstantPointer_MatrixVP,
 	VertexCovalentBondLoadedVariable_PushConstantPointer_MatrixVP,
-
 
 	VertexCovalentBondLoadedVariable_float32vec3_Position,
 
@@ -502,6 +541,7 @@ typedef enum FragmentShaderCovalentBondVariables {
 	FragmentCovalentBondExtension_GLSL450 = 1,
 	FragmentCovalentBondFunction_Main,
 
+	//BASIC TYPES
 	FragmentCovalentBondType_Void,
 	FragmentCovalentBondType_Function,
 
@@ -511,19 +551,20 @@ typedef enum FragmentShaderCovalentBondVariables {
 
 	FragmentCovalentBondType_int32,
 
-	//constants
+	//CONSTANTS
 	FragmentCovalentBondConstant_float32_0f,
 	FragmentCovalentBondConstant_float32_1f,
 	FragmentCovalentBondConstant_float32vec4_1f_1f_1f_1f,
 
-	//inputs
-	//pushconstants
+	//INPUT
+	//PushConstants
 	FragmentCovalentBondType_struct_PushConstants,
 	FragmentCovalentBondType_PushConstantPointer_struct_PushConstants,
 	FragmentCovalentBondVariable_PushConstantPointer_struct_PushConstants,
 	FragmentCovalentBondType_PushConstantPointer_int32,
 
-	//output image attachments
+	//OUTPUT
+	//Subpass Attachments
 	FragmentCovalentBondType_OutputPointer_float32vec4,
 	FragmentCovalentBondConstant_float32vec4_NULL,
 	FragmentCovalentBondVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy,
@@ -531,7 +572,7 @@ typedef enum FragmentShaderCovalentBondVariables {
 
 	FragmentCovalentBondConstantComposite_float32vec4_SelectedColour,
 
-	//function start
+	//MAIN FUNCTION
 	FragmentCovalentBondLabel_Start,
 
 	FragmentCovalentBondVariables_MAX
@@ -592,7 +633,6 @@ SPIRV_Header(FragmentCovalentBondVariables_MAX)\
 }
 
 
-/**/
 typedef enum ComputeShaderButterfly1Variables {
 	ButterflyVariable_ExtInstGLSL450 = 1,
 	ButterflyFunction_Main,
@@ -655,7 +695,7 @@ typedef enum ComputeShaderButterfly1Variables {
 	//pingpong1
 	ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong1,
 
-	//output
+	//OUTPUT
 
 
 
@@ -849,6 +889,456 @@ SPIRV_Header(ButterflyVariables_MAX)\
 (1<<SpvWordCountShift)|SpvOpFunctionEnd,\
 }
 
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+//Advanced Quantum Shader
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef enum VertexShaderQuantumVariables {
+	//VertexQuantumExtension_GLSL450,
+	VertexQuantumFunction_Main = 1,
+
+	//BASIC TYPES
+	VertexQuantumType_Void,
+	VertexQuantumType_Function,
+	VertexQuantumType_bool,
+
+	VertexQuantumType_float32,
+	VertexQuantumType_float32vec2,
+	VertexQuantumType_float32vec3,
+	VertexQuantumType_float32vec4,
+	VertexQuantumType_float32mat4,
+
+	VertexQuantumType_uint32,
+	VertexQuantumType_uint32vec2,
+	VertexQuantumType_uint32vec3,
+	VertexQuantumType_uint32vec4,
+
+	VertexQuantumType_int32,
+	VertexQuantumType_int32vec2,
+	VertexQuantumType_int32vec3,
+	VertexQuantumType_int32vec4,
+
+	//CONSTANTS
+	VertexQuantumConstant_float32_0f,
+	VertexQuantumConstant_float32_1f,
+	VertexQuantumConstant_float32_N1f,
+
+	VertexQuantumConstant_uint_0,
+
+	VertexQuantumConstant_int_0,
+	VertexQuantumConstant_int_1,
+	VertexQuantumConstant_int_6,
+
+	VertexQuantumConstant_float32vec2_1f_0f,
+	VertexQuantumConstant_float32vec2_0f_1f,
+	VertexQuantumConstant_float32vec2_0f_0f,
+	VertexQuantumConstant_float32vec2_1f_1f,
+
+	VertexQuantumConstant_float32vec2_1f_N1f,
+	VertexQuantumConstant_float32vec2_N1f_N1f,
+	VertexQuantumConstant_float32vec2_N1f_1f,
+
+
+	//INPUT
+	//BuiltIn
+	VertexQuantumType_InputPointer_int32,
+	VertexQuantumVariable_InputPointer_VertexIndex,
+	VertexQuantumVariable_InputPointer_InstanceIndex,
+	//PushConstants
+	VertexQuantumType_struct_PushConstants,
+	VertexQuantumType_PushConstantPointer_struct_PushConstants,
+	VertexQuantumVariable_PushConstantPointer_struct_PushConstants,
+
+	//OUTPUT
+	//BuiltIn
+	VertexQuantumType_OutputPointer_float32vec4,
+	VertexQuantumType_float32_Array_1,
+	VertexQuantumType_struct_BuiltIn,
+	VertexQuantumType_OutputPointer_struct_BuiltIn,
+	VertexQuantumVariable_OutputPointer_struct_BuiltIn,
+	VertexQuantumVariable_OutputPointer_float32vec4_Position,
+
+	//Misc
+	VertexQuantumType_float32vec2_Array_6,
+	VertexQuantumType_FunctionPointer_float32vec2_Array_6,
+
+	VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_Positions,
+	VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_UVS,
+
+	VertexQuantumType_FunctionPointer_float32vec2,
+	//MAIN FUNCTION
+	VertexQuantumLabel_Start,
+
+	VertexQuantumLoadedVariable_float32vec2_Array_6_Positions,
+	VertexQuantumLoadedVariable_float32vec2_Array_6_UVS,
+
+	VertexQuantumLoadedVariable_int32_VertexIndex,
+	VertexQuantumLoadedVariable_int32_InstanceIndex,
+
+	VertexQuantumLoadedVariable_int32_op0,
+	VertexQuantumLoadedVariable_int32_index,
+
+	VertexQuantumVariable_FunctionPointer_float32vec2_IndexedPositions,
+	VertexQuantumVariable_FunctionPointer_float32vec2_IndexedUVS,
+
+	VertexQuantumLoadedVariable_float32vec2_op4,
+	VertexQuantumLoadedVariable_float32vec2_op5,
+	VertexQuantumLoadedVariable_float32vec2_op6,
+	VertexQuantumLoadedVariable_float32vec4_op7,
+
+	VertexQuantumVariables_MAX
+}VertexShaderQuantumVariables;
+#define VertexShaderQuantumSize (352 * sizeof(SPIRV))
+#define VertexShaderQuantum() {\
+SPIRV_Header(VertexQuantumVariables_MAX)\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
+(3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
+(9<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelVertex, VertexQuantumFunction_Main, 'niam', '\0', VertexQuantumVariable_InputPointer_VertexIndex, VertexQuantumVariable_InputPointer_InstanceIndex, \
+VertexQuantumVariable_PushConstantPointer_struct_PushConstants, VertexQuantumVariable_OutputPointer_struct_BuiltIn,\
+/*DECORATION*/\
+/*INPUT*/\
+/*Built In*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexQuantumVariable_InputPointer_VertexIndex, SpvDecorationBuiltIn, SpvBuiltInVertexIndex,\
+(4<<SpvWordCountShift)|SpvOpDecorate, VertexQuantumVariable_InputPointer_InstanceIndex, SpvDecorationBuiltIn, SpvBuiltInInstanceIndex,\
+/*pushconstants*/\
+(4<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_PushConstants, 0, SpvDecorationColMajor,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_PushConstants, 0, SpvDecorationOffset, 0,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_PushConstants, 0, SpvDecorationMatrixStride, 16,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_PushConstants, 1, SpvDecorationOffset, 64,\
+(3<<SpvWordCountShift)|SpvOpDecorate, VertexQuantumType_struct_PushConstants, SpvDecorationBlock,\
+/*OUTPUT*/\
+/*Built In*/\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_BuiltIn, 0, SpvDecorationBuiltIn, SpvBuiltInPosition,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_BuiltIn, 1, SpvDecorationBuiltIn, SpvBuiltInPointSize,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_BuiltIn, 2, SpvDecorationBuiltIn, SpvBuiltInClipDistance,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, VertexQuantumType_struct_BuiltIn, 3, SpvDecorationBuiltIn, SpvBuiltInCullDistance,\
+(3<<SpvWordCountShift)|SpvOpDecorate, VertexQuantumType_struct_BuiltIn, SpvDecorationBlock,\
+/*TYPES*/\
+(2<<SpvWordCountShift)|SpvOpTypeVoid, VertexQuantumType_Void,\
+(3<<SpvWordCountShift)|SpvOpTypeFunction, VertexQuantumType_Function, VertexQuantumType_Void,\
+(2<<SpvWordCountShift)|SpvOpTypeBool, VertexQuantumType_bool,\
+/*floats*/\
+(3<<SpvWordCountShift)|SpvOpTypeFloat, VertexQuantumType_float32, 32,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_float32vec2, VertexQuantumType_float32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_float32vec3, VertexQuantumType_float32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_float32vec4, VertexQuantumType_float32, 4,\
+(4<<SpvWordCountShift)|SpvOpTypeMatrix, VertexQuantumType_float32mat4, VertexQuantumType_float32vec4, 4,\
+/*unsigned int*/\
+(4<<SpvWordCountShift)|SpvOpTypeInt, VertexQuantumType_uint32, 32, 0,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_uint32vec2, VertexQuantumType_uint32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_uint32vec3, VertexQuantumType_uint32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_uint32vec4, VertexQuantumType_uint32, 4,\
+/*signed int*/\
+(4<<SpvWordCountShift)|SpvOpTypeInt, VertexQuantumType_int32, 32, 1,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_int32vec2, VertexQuantumType_int32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_int32vec3, VertexQuantumType_int32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, VertexQuantumType_int32vec4, VertexQuantumType_int32, 4,\
+/*CONSTANTS*/\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_float32, VertexQuantumConstant_float32_0f, 0,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_float32, VertexQuantumConstant_float32_1f, 1065353216,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_float32, VertexQuantumConstant_float32_N1f, 3212836864,\
+\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_uint32, VertexQuantumConstant_uint_0, 0,\
+\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_int32, VertexQuantumConstant_int_0, 0,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_int32, VertexQuantumConstant_int_1, 1,\
+(4<<SpvWordCountShift)|SpvOpConstant, VertexQuantumType_int32, VertexQuantumConstant_int_6, 6,\
+/*UV value constants*/\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_1f_0f, VertexQuantumConstant_float32_1f, VertexQuantumConstant_float32_0f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_0f_1f, VertexQuantumConstant_float32_0f, VertexQuantumConstant_float32_1f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_0f_0f, VertexQuantumConstant_float32_0f, VertexQuantumConstant_float32_0f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_1f_1f, VertexQuantumConstant_float32_1f, VertexQuantumConstant_float32_1f,\
+\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_1f_N1f, VertexQuantumConstant_float32_1f, VertexQuantumConstant_float32_N1f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_N1f_N1f, VertexQuantumConstant_float32_N1f, VertexQuantumConstant_float32_N1f,\
+(5<<SpvWordCountShift)|SpvOpConstantComposite, VertexQuantumType_float32vec2, VertexQuantumConstant_float32vec2_N1f_1f, VertexQuantumConstant_float32_N1f, VertexQuantumConstant_float32_1f,\
+/*Input/Output Type Declarations*/\
+/*pushconstants*/\
+(4<<SpvWordCountShift)|SpvOpTypeStruct, VertexQuantumType_struct_PushConstants, VertexQuantumType_float32mat4, VertexQuantumType_int32,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexQuantumType_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant, VertexQuantumType_struct_PushConstants,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexQuantumType_PushConstantPointer_struct_PushConstants, VertexQuantumVariable_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant,\
+/*inputs*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexQuantumType_InputPointer_int32, SpvStorageClassInput, VertexQuantumType_int32,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexQuantumType_InputPointer_int32, VertexQuantumVariable_InputPointer_VertexIndex, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexQuantumType_InputPointer_int32, VertexQuantumVariable_InputPointer_InstanceIndex, SpvStorageClassInput,\
+/*built in output*/\
+(4<<SpvWordCountShift)|SpvOpTypeArray, VertexQuantumType_float32_Array_1, VertexQuantumType_float32, VertexQuantumConstant_int_1,\
+(6<<SpvWordCountShift)|SpvOpTypeStruct, VertexQuantumType_struct_BuiltIn, VertexQuantumType_float32vec4, VertexQuantumType_float32, VertexQuantumType_float32_Array_1, VertexQuantumType_float32_Array_1,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexQuantumType_OutputPointer_struct_BuiltIn, SpvStorageClassOutput, VertexQuantumType_struct_BuiltIn,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexQuantumType_OutputPointer_struct_BuiltIn, VertexQuantumVariable_OutputPointer_struct_BuiltIn, SpvStorageClassOutput,\
+/*input locations*/\
+/*output inputs*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexQuantumType_OutputPointer_float32vec4, SpvStorageClassOutput, VertexQuantumType_float32vec4,\
+\
+(4<<SpvWordCountShift)|SpvOpTypeArray, VertexQuantumType_float32vec2_Array_6, VertexQuantumType_float32vec2, VertexQuantumConstant_int_6,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexQuantumType_FunctionPointer_float32vec2_Array_6, SpvStorageClassFunction, VertexQuantumType_float32vec2_Array_6,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, VertexQuantumType_FunctionPointer_float32vec2, SpvStorageClassFunction, VertexQuantumType_float32vec2,\
+/*MAIN FUNCTION*/\
+(5<<SpvWordCountShift)|SpvOpFunction, VertexQuantumType_Void, VertexQuantumFunction_Main, SpvFunctionControlMaskNone, VertexQuantumType_Function,\
+(2<<SpvWordCountShift)|SpvOpLabel, VertexQuantumLabel_Start,\
+/*create vars*/\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexQuantumType_FunctionPointer_float32vec2_Array_6, VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_Positions, SpvStorageClassFunction,\
+(4<<SpvWordCountShift)|SpvOpVariable, VertexQuantumType_FunctionPointer_float32vec2_Array_6, VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_UVS, SpvStorageClassFunction,\
+/*positions array*/\
+(9<<SpvWordCountShift)|SpvOpCompositeConstruct, VertexQuantumType_float32vec2_Array_6, VertexQuantumLoadedVariable_float32vec2_Array_6_Positions,\
+	 VertexQuantumConstant_float32vec2_1f_N1f, VertexQuantumConstant_float32vec2_N1f_1f, VertexQuantumConstant_float32vec2_N1f_N1f, VertexQuantumConstant_float32vec2_1f_N1f, VertexQuantumConstant_float32vec2_1f_1f, VertexQuantumConstant_float32vec2_N1f_1f,\
+(3<<SpvWordCountShift)|SpvOpStore, VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_Positions, VertexQuantumLoadedVariable_float32vec2_Array_6_Positions,\
+/*UVS array*/\
+(9<<SpvWordCountShift)|SpvOpCompositeConstruct, VertexQuantumType_float32vec2_Array_6, VertexQuantumLoadedVariable_float32vec2_Array_6_UVS,\
+	 VertexQuantumConstant_float32vec2_1f_0f, VertexQuantumConstant_float32vec2_0f_1f, VertexQuantumConstant_float32vec2_0f_0f, VertexQuantumConstant_float32vec2_1f_0f, VertexQuantumConstant_float32vec2_1f_1f, VertexQuantumConstant_float32vec2_0f_1f,\
+(3<<SpvWordCountShift)|SpvOpStore, VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_UVS, VertexQuantumLoadedVariable_float32vec2_Array_6_UVS,\
+/*index*/\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexQuantumType_int32, VertexQuantumLoadedVariable_int32_VertexIndex, VertexQuantumVariable_InputPointer_VertexIndex,\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexQuantumType_int32, VertexQuantumLoadedVariable_int32_InstanceIndex, VertexQuantumVariable_InputPointer_InstanceIndex,\
+(5<<SpvWordCountShift)|SpvOpIMul, VertexQuantumType_int32, VertexQuantumLoadedVariable_int32_op0, VertexQuantumLoadedVariable_int32_InstanceIndex, VertexQuantumConstant_int_6,\
+(5<<SpvWordCountShift)|SpvOpISub, VertexQuantumType_int32, VertexQuantumLoadedVariable_int32_index, VertexQuantumLoadedVariable_int32_VertexIndex, VertexQuantumLoadedVariable_int32_op0,\
+/*output*/\
+/*out position*/\
+(5<<SpvWordCountShift)|SpvOpAccessChain, VertexQuantumType_FunctionPointer_float32vec2, VertexQuantumVariable_FunctionPointer_float32vec2_IndexedPositions, VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_Positions, VertexQuantumLoadedVariable_int32_index,\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexQuantumType_float32vec2, VertexQuantumLoadedVariable_float32vec2_op4, VertexQuantumVariable_FunctionPointer_float32vec2_IndexedPositions,\
+/*out UVS*/\
+(5<<SpvWordCountShift)|SpvOpAccessChain, VertexQuantumType_FunctionPointer_float32vec2, VertexQuantumVariable_FunctionPointer_float32vec2_IndexedUVS, VertexQuantumVariable_FunctionPointer_float32vec2_Array_6_UVS, VertexQuantumLoadedVariable_int32_index,\
+(4<<SpvWordCountShift)|SpvOpLoad, VertexQuantumType_float32vec2, VertexQuantumLoadedVariable_float32vec2_op5, VertexQuantumVariable_FunctionPointer_float32vec2_IndexedUVS,\
+/*out inbuilt position*/\
+(5<<SpvWordCountShift)|SpvOpCompositeConstruct, VertexQuantumType_float32vec2, VertexQuantumLoadedVariable_float32vec2_op6, VertexQuantumConstant_float32_1f, VertexQuantumConstant_float32_1f,\
+(9<<SpvWordCountShift)|SpvOpVectorShuffle, VertexQuantumType_float32vec4, VertexQuantumLoadedVariable_float32vec4_op7, VertexQuantumLoadedVariable_float32vec2_op4, VertexQuantumLoadedVariable_float32vec2_op6, 0, 1, 2, 3,\
+\
+(5<<SpvWordCountShift)|SpvOpAccessChain, VertexQuantumType_OutputPointer_float32vec4, VertexQuantumVariable_OutputPointer_float32vec4_Position, VertexQuantumVariable_OutputPointer_struct_BuiltIn, VertexQuantumConstant_int_0,\
+(3<<SpvWordCountShift)|SpvOpStore, VertexQuantumVariable_OutputPointer_float32vec4_Position, VertexQuantumLoadedVariable_float32vec4_op7,\
+/*function end*/\
+(1<<SpvWordCountShift)|SpvOpReturn,\
+(1<<SpvWordCountShift)|SpvOpFunctionEnd,\
+}
+
+
+typedef enum FragmentShaderQuantumVariables {
+	FragmentQuantumExtension_GLSL450 = 1,
+	FragmentQuantumFunction_Main,
+
+	//BASIC TYPES
+	FragmentQuantumType_Void,
+	FragmentQuantumType_Function,
+	FragmentQuantumType_bool,
+
+	FragmentQuantumType_float32,
+	FragmentQuantumType_float32vec2,
+	FragmentQuantumType_float32vec3,
+	FragmentQuantumType_float32vec4,
+	FragmentQuantumType_float32mat4,
+
+	FragmentQuantumType_uint32,
+	FragmentQuantumType_uint32vec2,
+	FragmentQuantumType_uint32vec3,
+	FragmentQuantumType_uint32vec4,
+
+	FragmentQuantumType_int32,
+	FragmentQuantumType_int32vec2,
+	FragmentQuantumType_int32vec3,
+	FragmentQuantumType_int32vec4,
+
+	//CONSTANTS
+	FragmentQuantumConstant_float32_0f,
+	FragmentQuantumConstant_float32_1f,
+	FragmentQuantumConstant_float32_2f,
+
+	FragmentQuantumConstant_uint32_0,
+
+	FragmentQuantumConstant_int32_0,
+	FragmentQuantumConstant_int32_1,
+	FragmentQuantumConstant_int32_2,
+
+	//INPUT
+	//GPU_Atom 
+	FragmentQuantumType_struct_Atom,
+	FragmentQuantumType_RuntimeArray_struct_Atoms,
+	FragmentQuantumType_struct_Atoms,
+	FragmentQuantumType_StorageBufferPointer_struct_Atoms,
+	FragmentQuantumType_StorageBufferPointer_struct_Atom,
+	FragmentQuantumVariable_StorageBufferPointer_struct_Atoms,
+
+	//GPU_Electrons
+	FragmentQuantumType_struct_Electron,
+	FragmentQuantumType_RuntimeArray_struct_Electrons,
+	FragmentQuantumType_struct_Electrons,
+	FragmentQuantumType_StorageBufferPointer_struct_Electrons,
+	FragmentQuantumType_StorageBufferPointer_struct_Electron,
+	FragmentQuantumVariable_StorageBufferPointer_struct_Electrons,
+
+	//FragmentQuantumType_StorageBufferPointer_float32vec3,
+
+	//PushConstants
+	FragmentQuantumType_struct_PushConstants,
+	FragmentQuantumType_PushConstantPointer_struct_PushConstants,
+	FragmentQuantumVariable_PushConstantPointer_struct_PushConstants,
+
+
+	//OUTPUT
+	//Subpass Attachments
+	FragmentQuantumType_OutputPointer_float32vec4,
+	FragmentQuantumConstant_float32vec4_NULL,
+	FragmentQuantumVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy,
+	FragmentQuantumVariable_OutputPointer_float32vec4_OutPositionOrRevealage,
+
+	//MAIN FUNCTION
+	FragmentQuantumLabel_Start,
+
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_Albedo,
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_Position,
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_Normal,
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_PBR,
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_Transperancy,
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_Revealage,
+	FragmentQuantumLoadedVariable_Image_float32_2D_0_0_0_0_Unknown_Depth,
+
+	FragmentQuantumLoadedVariable_float32vec4_Albedo,
+	FragmentQuantumLoadedVariable_float32vec4_Position,
+	FragmentQuantumLoadedVariable_float32vec4_Normal,
+	FragmentQuantumLoadedVariable_float32vec4_PBR,
+	FragmentQuantumLoadedVariable_float32vec4_Transperancy,
+	FragmentQuantumLoadedVariable_float32vec4_Revealage,
+	FragmentQuantumLoadedVariable_float32vec4_Depth,
+
+	FragmentQuantumLoadedVariable_float32_AlbedoX,
+	FragmentQuantumLoadedVariable_float32_AlbedoY,
+	FragmentQuantumLoadedVariable_float32_AlbedoZ,
+	FragmentQuantumLoadedVariable_float32_AlbedoW,
+
+	FragmentQuantumLoadedVariable_float32_TransperancyX,
+	FragmentQuantumLoadedVariable_float32_TransperancyY,
+	FragmentQuantumLoadedVariable_float32_TransperancyZ,
+	FragmentQuantumLoadedVariable_float32_TransperancyW,
+
+	FragmentQuantumLoadedVariable_float32vec3_Albedo,
+	FragmentQuantumLoadedVariable_float32vec3_Transperancy,
+
+	FragmentQuantumLoadedVariable_float32_op0,
+	FragmentQuantumLoadedVariable_float32_op1,
+	FragmentQuantumLoadedVariable_float32_op2,
+	FragmentQuantumLoadedVariable_float32_op3,
+	FragmentQuantumLoadedVariable_float32_op4,
+
+	FragmentQuantumLoadedVariable_float32vec3_op0,
+	FragmentQuantumLoadedVariable_float32vec3_op1,
+	FragmentQuantumLoadedVariable_float32vec3_op2,
+
+	FragmentQuantumLoadedVariable_float32vec4_op0,
+
+
+	FragmentQuantumVariables_MAX,
+}FragmentShaderQuantumVariables;
+#define FragmentShaderQuantumSize (326 * sizeof(SPIRV))
+#define FragmentShaderQuantum() {\
+SPIRV_Header(FragmentQuantumVariables_MAX)\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityImageQuery,\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityInputAttachment,\
+(2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
+(6<<SpvWordCountShift)|SpvOpExtInstImport, FragmentQuantumExtension_GLSL450, 'LSLG', 'dts.', '054.', '\0',\
+(3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
+(10<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelFragment, FragmentQuantumFunction_Main, 'niam', '\0', FragmentQuantumVariable_StorageBufferPointer_struct_Atoms, FragmentQuantumVariable_StorageBufferPointer_struct_Electrons,\
+FragmentQuantumVariable_PushConstantPointer_struct_PushConstants, FragmentQuantumVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, FragmentQuantumVariable_OutputPointer_float32vec4_OutPositionOrRevealage,\
+(3<<SpvWordCountShift)|SpvOpExecutionMode, FragmentQuantumFunction_Main, SpvExecutionModeOriginUpperLeft,\
+/*DECORATION*/\
+/*INPUT*/\
+/*StorageBuffer GPU_Atoms*/\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Atom, 0, SpvDecorationOffset, 0,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Atom, 1, SpvDecorationOffset, 16,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Atom, 2, SpvDecorationOffset, 32,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Atom, 3, SpvDecorationOffset, 48,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Atom, 4, SpvDecorationOffset, 64,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumType_RuntimeArray_struct_Atoms, SpvDecorationArrayStride, 80,\
+(3<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumType_struct_Atoms, SpvDecorationBlock,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Atoms, 0, SpvDecorationOffset, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumVariable_StorageBufferPointer_struct_Atoms, SpvDecorationDescriptorSet, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumVariable_StorageBufferPointer_struct_Atoms, SpvDecorationBinding, 0,\
+/*StorageBuffer GPU_Electrons*/\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Electron, 0, SpvDecorationOffset, 0,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Electron, 1, SpvDecorationOffset, 16,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Electron, 2, SpvDecorationOffset, 32,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Electron, 3, SpvDecorationOffset, 48,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumType_RuntimeArray_struct_Electrons, SpvDecorationArrayStride, 64,\
+(3<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumType_struct_Electrons, SpvDecorationBlock,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_Electrons, 0, SpvDecorationOffset, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumVariable_StorageBufferPointer_struct_Electrons, SpvDecorationDescriptorSet, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumVariable_StorageBufferPointer_struct_Electrons, SpvDecorationBinding, 1,\
+/*PushConstants*/\
+(4<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_PushConstants, 0, SpvDecorationColMajor,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_PushConstants, 0, SpvDecorationOffset, 0,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, FragmentQuantumType_struct_PushConstants, 0, SpvDecorationMatrixStride, 16,\
+(3<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumType_struct_PushConstants, SpvDecorationBlock,\
+/*OUTPUT*/\
+/*Subpass Attachments*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, SpvDecorationLocation, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, FragmentQuantumVariable_OutputPointer_float32vec4_OutPositionOrRevealage, SpvDecorationLocation, 1,\
+\
+/*TYPES*/\
+(2<<SpvWordCountShift)|SpvOpTypeVoid, FragmentQuantumType_Void,\
+(3<<SpvWordCountShift)|SpvOpTypeFunction, FragmentQuantumType_Function, FragmentQuantumType_Void,\
+(2<<SpvWordCountShift)|SpvOpTypeBool, FragmentQuantumType_bool,\
+/*floats*/\
+(3<<SpvWordCountShift)|SpvOpTypeFloat, FragmentQuantumType_float32, 32,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_float32vec2, FragmentQuantumType_float32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_float32vec3, FragmentQuantumType_float32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_float32vec4, FragmentQuantumType_float32, 4,\
+(4<<SpvWordCountShift)|SpvOpTypeMatrix, FragmentQuantumType_float32mat4, FragmentQuantumType_float32vec4, 4,\
+/*unsigned int*/\
+(4<<SpvWordCountShift)|SpvOpTypeInt, FragmentQuantumType_uint32, 32, 0,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_uint32vec2, FragmentQuantumType_uint32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_uint32vec3, FragmentQuantumType_uint32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_uint32vec4, FragmentQuantumType_uint32, 4,\
+/*signed int*/\
+(4<<SpvWordCountShift)|SpvOpTypeInt, FragmentQuantumType_int32, 32, 1,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_int32vec2, FragmentQuantumType_int32, 2,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_int32vec3, FragmentQuantumType_int32, 3,\
+(4<<SpvWordCountShift)|SpvOpTypeVector, FragmentQuantumType_int32vec4, FragmentQuantumType_int32, 4,\
+/*CONSTANTS*/\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_float32, FragmentQuantumConstant_float32_0f, 0,\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_float32, FragmentQuantumConstant_float32_1f, 1065353216,\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_float32, FragmentQuantumConstant_float32_2f, 1073741824,\
+\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_uint32, FragmentQuantumConstant_uint32_0, 0,\
+\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_int32, FragmentQuantumConstant_int32_0, 0,\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_int32, FragmentQuantumConstant_int32_1, 1,\
+(4<<SpvWordCountShift)|SpvOpConstant, FragmentQuantumType_int32, FragmentQuantumConstant_int32_2, 2,\
+/*INPUT*/\
+/*StorageBuffer GPU_Atoms*/\
+(7<<SpvWordCountShift)|SpvOpTypeStruct, FragmentQuantumType_struct_Atom, FragmentQuantumType_float32vec3, FragmentQuantumType_float32vec3, FragmentQuantumType_float32vec4, FragmentQuantumType_float32vec4, FragmentQuantumType_int32,\
+(3<<SpvWordCountShift)|SpvOpTypeRuntimeArray, FragmentQuantumType_RuntimeArray_struct_Atoms, FragmentQuantumType_struct_Atom,\
+(3<<SpvWordCountShift)|SpvOpTypeStruct, FragmentQuantumType_struct_Atoms, FragmentQuantumType_RuntimeArray_struct_Atoms,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentQuantumType_StorageBufferPointer_struct_Atoms, SpvStorageClassStorageBuffer, FragmentQuantumType_struct_Atoms,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentQuantumType_StorageBufferPointer_struct_Atom, SpvStorageClassStorageBuffer, FragmentQuantumType_struct_Atom,\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentQuantumType_StorageBufferPointer_struct_Atoms, FragmentQuantumVariable_StorageBufferPointer_struct_Atoms, SpvStorageClassStorageBuffer,\
+/*StorageBuffer GPU_Electrons*/\
+(6<<SpvWordCountShift)|SpvOpTypeStruct, FragmentQuantumType_struct_Electron, FragmentQuantumType_float32vec3, FragmentQuantumType_float32vec3, FragmentQuantumType_float32vec4, FragmentQuantumType_float32vec4,\
+(3<<SpvWordCountShift)|SpvOpTypeRuntimeArray, FragmentQuantumType_RuntimeArray_struct_Electrons, FragmentQuantumType_struct_Electron,\
+(3<<SpvWordCountShift)|SpvOpTypeStruct, FragmentQuantumType_struct_Electrons, FragmentQuantumType_RuntimeArray_struct_Electrons,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentQuantumType_StorageBufferPointer_struct_Electrons, SpvStorageClassStorageBuffer, FragmentQuantumType_struct_Electrons,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentQuantumType_StorageBufferPointer_struct_Electron, SpvStorageClassStorageBuffer, FragmentQuantumType_struct_Electron,\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentQuantumType_StorageBufferPointer_struct_Electrons, FragmentQuantumVariable_StorageBufferPointer_struct_Electrons, SpvStorageClassStorageBuffer,\
+/*PushConstants*/\
+(3<<SpvWordCountShift)|SpvOpTypeStruct, FragmentQuantumType_struct_PushConstants, FragmentQuantumType_float32mat4,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentQuantumType_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant, FragmentQuantumType_struct_PushConstants,\
+(4<<SpvWordCountShift)|SpvOpVariable, FragmentQuantumType_PushConstantPointer_struct_PushConstants, FragmentQuantumVariable_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant,\
+/*OUTPUT*/\
+/*Subpass Attachments*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, FragmentQuantumType_OutputPointer_float32vec4, SpvStorageClassOutput, FragmentQuantumType_float32vec4,\
+(3<<SpvWordCountShift)|SpvOpConstantNull, FragmentQuantumType_float32vec4, FragmentQuantumConstant_float32vec4_NULL,\
+(5<<SpvWordCountShift)|SpvOpVariable, FragmentQuantumType_OutputPointer_float32vec4, FragmentQuantumVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, SpvStorageClassOutput, FragmentQuantumConstant_float32vec4_NULL,\
+(5<<SpvWordCountShift)|SpvOpVariable, FragmentQuantumType_OutputPointer_float32vec4, FragmentQuantumVariable_OutputPointer_float32vec4_OutPositionOrRevealage, SpvStorageClassOutput, FragmentQuantumConstant_float32vec4_NULL,\
+/*MAIN FUNCTION*/\
+(5<<SpvWordCountShift)|SpvOpFunction, FragmentQuantumType_Void, FragmentQuantumFunction_Main, SpvFunctionControlMaskNone, FragmentQuantumType_Function,\
+(2<<SpvWordCountShift)|SpvOpLabel, FragmentQuantumLabel_Start,\
+	/*albedo = vec4()*/\
+	/*(3<<SpvWordCountShift)|SpvOpStore, FragmentQuantumVariable_OutputPointer_float32vec4_OutAlbedoOrTransperancy, fffffffffffffffffffffffffffffffff,*/\
+/*FUNCTION END*/\
+(1<<SpvWordCountShift)|SpvOpReturn,\
+(1<<SpvWordCountShift)|SpvOpFunctionEnd,\
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effects
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -858,48 +1348,47 @@ SPIRV_Header(ButterflyVariables_MAX)\
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Draw_SimplifiedMolecular(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectSimplifiedMolecular* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, PushConstantsGeometry* PushConstants)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
 {
-	{
-		VkBuffer vkBuffer = pGraphicsWindow->pLogicalDevice->SrcBuffer.VkBuffer;
-		VkDeviceSize VkOffset = GPU_Buffers[0].Pointer + GPU_BufferPointers[0];
-		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_Atoms) * pEffect->GPU_AtomsSize;
+	VkBuffer vkBuffer = GPU_Buffers[0].Allocater.pArenaAllocater->VkBuffer;
+	VkDeviceSize VkOffset = GPU_Buffers[0].Pointer + GPU_BufferPointers[0];
+	GPU_BufferPointers[0] += sizeof(*pEffect->Particles) * pEffect->ParticlesSize;
 
-		vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipelineAtom);
+	vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipelineParticle);
 
-		PushConstantsSimplifiedMolecular PushConstantsSimplifiedMolecular;
-		memset(&PushConstantsSimplifiedMolecular, NULL, sizeof(PushConstantsSimplifiedMolecular));
-		glm_vec3_copy(pEffect->Position, PushConstantsSimplifiedMolecular.Position);
-		uint8_t pushconstantbuffer[sizeof(PushConstantsSimplifiedMolecular) + sizeof(*PushConstants)];
-		memcpy(pushconstantbuffer, PushConstants, sizeof(*PushConstants));
-		memcpy((void*)((uint64_t)pushconstantbuffer + (uint64_t)sizeof(*PushConstants)), &PushConstantsSimplifiedMolecular, sizeof(PushConstantsSimplifiedMolecular));
-		vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pGraphicsWindow->pLogicalDevice->PipelineLayout2D, VK_SHADER_STAGE_ALL, 0,
-			pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, pushconstantbuffer);
+	PushConstantsSimplifiedMolecular PushConstantsSimplifiedMolecular;
+	memset(&PushConstantsSimplifiedMolecular, NULL, sizeof(PushConstantsSimplifiedMolecular));
+	glm_mat4_copy(CameraVP, PushConstantsSimplifiedMolecular.VP);
+	glm_vec3_copy(pEffect->Position, PushConstantsSimplifiedMolecular.Position);
+	vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, ((GraphicsUtils*)GraphicsRes.pUtils)->GenericResources[Graphics_Ref_Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout2D, VK_SHADER_STAGE_ALL, 0,
+		pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstantsSimplifiedMolecular);
 
-		vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
+	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
-		vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 1, pEffect->GPU_AtomsSize, 0, 0);
-	}
-	{
-		VkBuffer vkBuffer = pGraphicsWindow->pLogicalDevice->SrcBuffer.VkBuffer;
-		VkDeviceSize VkOffset = GPU_Buffers[1].Pointer + GPU_BufferPointers[1];
-		GPU_BufferPointers[1] += sizeof(GPU_CovalentBond) * pEffect->CovalentBondsSize;
+	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 1, pEffect->ParticlesSize, 0, 0);
+}
 
-		vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipelineCovalentBond);
+void Draw_QuantumAtomic(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectQuantumAtomic* pEffect,
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
+{
+	vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipelineQuantum);
 
-		PushConstantsSimplifiedMolecular PushConstantsSimplifiedMolecular;
-		memset(&PushConstantsSimplifiedMolecular, NULL, sizeof(PushConstantsSimplifiedMolecular));
-		glm_vec3_copy(pEffect->Position, PushConstantsSimplifiedMolecular.Position);
-		uint8_t pushconstantbuffer[sizeof(PushConstantsSimplifiedMolecular) + sizeof(*PushConstants)];
-		memcpy(pushconstantbuffer, PushConstants, sizeof(*PushConstants));
-		memcpy((void*)((uint64_t)pushconstantbuffer + (uint64_t)sizeof(*PushConstants)), &PushConstantsSimplifiedMolecular, sizeof(PushConstantsSimplifiedMolecular));
-		vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pGraphicsWindow->pLogicalDevice->PipelineLayout2D, VK_SHADER_STAGE_ALL, 0,
-			pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, pushconstantbuffer);
+	PushConstantsQuantumAtomic PushConstantsQuantumAtomic;
+	memset(&PushConstantsQuantumAtomic, NULL, sizeof(PushConstantsQuantumAtomic));
+	//glm_mat4_copy(CameraVP, PushConstantsQuantumAtomic.VP);
+	//glm_vec3_copy(pEffect->Position, PushConstantsQuantumAtomic.Position);
+	vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayoutQuantum, VK_SHADER_STAGE_ALL, 0,
+		pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstantsQuantumAtomic);
 
-		vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
+	VkDescriptorSet descriptorsets[1] = {
+		pEffect->VkDescriptorSetsQuantum[FrameIndex]
+	};
+	uint32_t descriptorsetSize = 1;
 
-		vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->CovalentBondsSize * 2, 1, 0, 0);
-	}
+	vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pEffect->VkPipelineLayoutQuantum, 0, descriptorsetSize, descriptorsets, 0, NULL);
+
+	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 1, pEffect->GPU_AtomsSize, 0, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -911,87 +1400,101 @@ void Update_SimplifiedMolecular(ElementGraphics* pElement, ResourceHeader* pHead
 {
 	if (GPU_Buffers == NULL)
 	{
-		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_Atoms) * pEffect->GPU_AtomsSize;
-		GPU_BufferPointers[1] += sizeof(GPU_CovalentBond) * pEffect->CovalentBondsSize;
+		GPU_BufferPointers[0] += sizeof(*pEffect->Particles) * pEffect->ParticlesSize;
 	}
 	else
-	{	
+	{		
+		for (size_t i = 0; i < pEffect->ParticlesSize; i++)
+		{
+			GPU_Particle* pParticle = &pEffect->Particles[i];
+			for (size_t i1 = 0; i1 < pEffect->ParticlesSize; i1++)
+			{
+				GPU_Particle* pParticle2 = &pEffect->Particles[i1];
+
+				float distancesqaured = sqrt(glm_vec3_distance(pParticle->Position, pParticle2->Position));
+				if (distancesqaured < 0.0000001f)
+				{
+					distancesqaured = 0.0000001f;
+				}
+				//gravity
+				//float force = ((0.00000000001) / distancesqaured) * pParticle2->Size; // ((0.00000000001) / distancesqaured) * pParticle2->Size
+				//electromagnetic
+				float force = (-0.000000008988 * ((pParticle->Charge * pParticle2->Charge) / distancesqaured));
+				//weak
+
+				//strong
+
+
+
+				vec3 aa;
+				glm_vec3_scale(pParticle2->Position, force / pParticle->Size, aa);
+
+				vec3 aaa;
+				glm_vec3_divs(aa, pParticle2->Size / pParticle->Size, aaa);
+
+				glm_vec3_add(pParticle->PositionVelocity, aa, pParticle->PositionVelocity);
+				glm_vec3_sub(pParticle2->PositionVelocity, aaa, pParticle2->PositionVelocity);
+
+
+
+			}
+			glm_vec3_add(pParticle->Position, pParticle->PositionVelocity, pParticle->Position);
+			glm_quat_mul(pParticle->Rotation, pParticle->RotationVelocity, pParticle->Rotation);
+		}
+
+		if (pEffect->ParticlesSize != NULL)
+		{
+			memcpy((void*)((uint64_t)GPU_BufferPointers[0]), pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+		}
+		GPU_BufferPointers[0] += sizeof(*pEffect->Particles) * pEffect->ParticlesSize;
+	}
+}
+
+void Update_QuantumAtomic(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectQuantumAtomic* pEffect,
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+{
+	if (GPU_Buffers == NULL)
+	{
+		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_Atoms) * pEffect->GPU_AtomsSize;
+		GPU_BufferPointers[1] += sizeof(*pEffect->GPU_Electrons) * pEffect->GPU_ElectronsSize;
+	}
+	else
+	{
 		/*
 		for (size_t i = 0; i < pEffect->GPU_AtomsSize; i++)
 		{
 			GPU_Atom* pAtom = &pEffect->GPU_Atoms[i];
-			glm_vec3_add(pAtom->Position, pAtom->Velocity, pAtom->Position);
+			glm_vec3_add(pAtom->Position, pAtom->PositionVelocity, pAtom->Position);
+			glm_quat_mul(pAtom->Rotation, pAtom->RotationVelocity, pAtom->Rotation);
 
-			for (size_t i1 = 0; i1 < pAtom->BondCount; i1++)
-			{		
-				uint32_t index = 0;
-				if (i == pEffect->CovalentBonds[pAtom->BondIndices[i1]].AtomIndices[1])
-					index = 1;
+		}
 
-				glm_vec3_copy(pAtom->Position, pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[index]);
-				glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[pAtom->BondIndices[i1]].AtomIndices[!index]].Position, pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[!index]);
-				
-				
-				//float OxygenCarbonStrength = 10000.0021f;
-				float OxygenCarbonDistance = 0.3f;
-				//vec3 zero;
-				//glm_vec3_zero(zero);
-				//float linearvelocity = glm_vec3_distance(pAtom->Velocity, zero);
-
-				//r = d - 2(d . n)n
-				vec3 normal;
-				glm_vec3_sub(pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[0], pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[1], normal);
-				glm_vec3_normalize(normal);
-
-				float dot = 2 * glm_dot(pAtom->Velocity, normal);
-				vec3 d;
-				glm_vec3_scale(normal, dot, d);
-				glm_vec3_sub(pAtom->Velocity, d, pAtom->Velocity);
-
-				glm_vec3_copy(pAtom->Position, pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[index]);
-				glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[pAtom->BondIndices[i1]].AtomIndices[!index]].Position, pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[!index]);
-
-
-				float reboundforce = (glm_vec3_distance(pAtom->Position, pEffect->GPU_Atoms[pEffect->CovalentBonds[pAtom->BondIndices[i1]].AtomIndices[!index]].Position) - OxygenCarbonDistance) * -1;
-				reboundforce = reboundforce * 0.01;
-				vec3 rebound;
-				glm_vec3_sub(pAtom->Position, pEffect->GPU_Atoms[pEffect->CovalentBonds[pAtom->BondIndices[i1]].AtomIndices[!index]].Position, rebound);
-				glm_vec3_scale(rebound, reboundforce, rebound);
-
-				glm_vec3_add(pAtom->Position, rebound, pAtom->Position);
-
-
-				glm_vec3_copy(pAtom->Position, pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[index]);
-				glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[pAtom->BondIndices[i1]].AtomIndices[!index]].Position, pEffect->CovalentBonds[pAtom->BondIndices[i1]].Position[!index]);
-
-				
-				if (linearvelocity > OxygenCarbonStrength)
-				{
-					//break the bond
-					RemoveMember_Array(&pEffect->CovalentBonds, pEffect->CovalentBondsSize, pAtom->BondIndices[i1], sizeof(*pEffect->CovalentBonds), 1);
-					pEffect->CovalentBondsSize--;
-				}
-				
-			}
+		for (size_t i = 0; i < ChemistryQuantumAtomicBuffersCount; i++)
+		{
+			VkDescriptorBufferInfo BufferInfo;
+			BufferInfo.buffer = pGraphicsWindow->pLogicalDevice->SrcBuffer.VkBuffer;
+			BufferInfo.offset = GPU_Buffers[i].Pointer;
+			BufferInfo.range = (GPU_Buffers[i].SizeBytes != NULL) ? GPU_Buffers[i].SizeBytes : VK_WHOLE_SIZE;
+			Update_Descriptor(pGraphicsWindow->pLogicalDevice, [FrameIndex], i, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &BufferInfo, NULL);
 		}
 
 		for (size_t i = 0; i < pEffect->CovalentBondsSize; i++)
 		{
 			GPU_CovalentBond* pCovalentBond = ((uint64_t)pGraphicsWindow->pLogicalDevice->SrcBufPointer + GPU_Buffers[1].Pointer + GPU_BufferPointers[1]);
 			GPU_BufferPointers[1] += sizeof(GPU_CovalentBond);
-		
-			glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[i].AtomIndices[1]].Position, pCovalentBond->Position[0]);
-			glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[i].AtomIndices[0]].Position, pCovalentBond->Position[1]);
 
+			//glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[i].AtomIndices[1]].Position, pCovalentBond->Position[0]);
+			//glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[i].AtomIndices[0]].Position, pCovalentBond->Position[1]);
 		}
-		*/
+
 
 		if (pEffect->GPU_AtomsSize != NULL)
 		{
 			memcpy((void*)((uint64_t)pGraphicsWindow->pLogicalDevice->SrcBufPointer + GPU_Buffers[0].Pointer + GPU_BufferPointers[0]),
 				pEffect->GPU_Atoms, pEffect->GPU_AtomsSize * sizeof(*pEffect->GPU_Atoms));
-		}
+		}*/
 		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_Atoms) * pEffect->GPU_AtomsSize;
+		GPU_BufferPointers[1] += sizeof(*pEffect->GPU_Electrons) * pEffect->GPU_ElectronsSize;
 	}
 }
 
@@ -1002,7 +1505,10 @@ void Update_SimplifiedMolecular(ElementGraphics* pElement, ResourceHeader* pHead
 void UpdateSignature_SimplifiedMolecular(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
 {
 
+}
 
+void UpdateSignature_QuantumAtomic(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+{
 
 }
 
@@ -1015,37 +1521,65 @@ void Destroy_SimplifiedMolecular(ElementGraphics* pElement, ChemistryEffectSimpl
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 	if (Full == true)
 	{
-		if (pEffect->GPU_Atoms != NULL)
+		if (pEffect->Particles != NULL)
+			free(pEffect->Particles);
+		pEffect->Particles = NULL;
+		pEffect->ParticlesSize = NULL;
+
+		if (pEffect->VkPipelineParticle != NULL)
+			vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineParticle, NULL);
+		pEffect->VkPipelineParticle = NULL;
+
+		if (pEffect->VkShaderVertexParticle != NULL)
+			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertexParticle, NULL);
+		pEffect->VkShaderVertexParticle = NULL;
+		if (pEffect->VkShaderFragmentParticle != NULL)
+			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragmentParticle, NULL);
+		pEffect->VkShaderFragmentParticle = NULL;
+	}
+}
+
+void Destroy_QuantumAtomic(ElementGraphics* pElement, ChemistryEffectQuantumAtomic* pEffect, bool Full, uint32_t ThreadIndex)
+{
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
+	if (Full == true)
+	{
+		if (pEffect->GPU_Atoms != NULL && pEffect->GPU_AtomsSize != NULL)
 			free(pEffect->GPU_Atoms);
 		pEffect->GPU_Atoms = NULL;
 		pEffect->GPU_AtomsSize = NULL;
 
-		if (pEffect->CovalentBonds != NULL)
-			free(pEffect->CovalentBonds);
-		pEffect->CovalentBonds = NULL;
-		pEffect->CovalentBondsSize = NULL;
+		if (pEffect->GPU_Electrons != NULL && pEffect->GPU_ElectronsSize != NULL)
+			free(pEffect->GPU_Electrons);
+		pEffect->GPU_Electrons = NULL;
+		pEffect->GPU_ElectronsSize = NULL;
 
-		if (pEffect->VkPipelineAtom != NULL)
-			vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineAtom, NULL);
-		pEffect->VkPipelineAtom = NULL;
+		if (pEffect->VkPipelineQuantum != NULL)
+			vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineQuantum, NULL);
+		pEffect->VkPipelineQuantum = NULL;
 
-		if (pEffect->VkShaderVertexAtom != NULL)
-			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertexAtom, NULL);
-		pEffect->VkShaderVertexAtom = NULL;
-		if (pEffect->VkShaderFragmentAtom != NULL)
-			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragmentAtom, NULL);
-		pEffect->VkShaderFragmentAtom = NULL;
+		if (pEffect->VkPipelineLayoutQuantum != NULL)
+			vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineLayoutQuantum, NULL);
+		pEffect->VkPipelineLayoutQuantum = NULL;
 
-		if (pEffect->VkPipelineCovalentBond != NULL)
-			vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineCovalentBond, NULL);
-		pEffect->VkPipelineCovalentBond = NULL;
+		if (pEffect->VkDescriptorSetLayoutQuantum != NULL)
+			vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorSetLayoutQuantum, NULL);
 
-		if (pEffect->VkShaderVertexCovalentBond != NULL)
-			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertexCovalentBond, NULL);
-		pEffect->VkShaderVertexCovalentBond = NULL;
-		if (pEffect->VkShaderFragmentCovalentBond != NULL)
-			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragmentCovalentBond, NULL);
-		pEffect->VkShaderFragmentCovalentBond = NULL;
+		if (pEffect->VkDescriptorSetsQuantum != NULL)
+		{
+			//vkFreeDescriptorSets(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkWindowDescriptorPool, pResourceHeader->CurrentFrameBuffersSize, pResourceHeader->VkDescriptorSetsInputAttachment);
+			free(pEffect->VkDescriptorSetsQuantum);
+		}
+		if (pEffect->VkDescriptorPoolQuantum != NULL)
+			vkDestroyDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorPoolQuantum, NULL);
+
+
+		if (pEffect->VkShaderVertexQuantum != NULL)
+			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertexQuantum, NULL);
+		pEffect->VkShaderVertexQuantum = NULL;
+		if (pEffect->VkShaderFragmentQuantum != NULL)
+			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragmentQuantum, NULL);
+		pEffect->VkShaderFragmentQuantum = NULL;
 	}
 }
 
@@ -1144,171 +1678,350 @@ void ReCreate_SimplifiedMolecular(ElementGraphics* pElement, ChemistryEffectSimp
 	ViewportState.scissorCount = 1;
 	ViewportState.pScissors = &Scissor;
 
+	const SPIRV Vertex[] = VertexShaderSimplifiedMolecular();
+	const SPIRV Fragment[] = FragmentShaderSimplifiedMolecular();
+
+	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderVertexParticle, Vertex, VertexShaderSimplifiedMolecularSize, "ReCreate_SimplifiedMolecular()");
+	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderFragmentParticle, Fragment, FragmentShaderSimplifiedMolecularSize, "ReCreate_SimplifiedMolecular()");
+
+	uint32_t ShaderCount = 2;
+	VkPipelineShaderStageCreateInfo ShaderStages[2];
+	memset(ShaderStages, NULL, sizeof(*ShaderStages) * ShaderCount);
+	ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	ShaderStages[0].module = pEffect->VkShaderVertexParticle;
+	ShaderStages[0].pName = "main";
+
+	ShaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	ShaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	ShaderStages[1].module = pEffect->VkShaderFragmentParticle;
+	ShaderStages[1].pName = "main";
+
+	uint64_t InputBindingDescsSize = 1;
+	VkVertexInputBindingDescription InputBindingDescs[1];
+	uint64_t InputAttribDescsSize = 5;
+	VkVertexInputAttributeDescription InputAttribDescs[5];
+
+	//Buffer Binding Main
+	InputBindingDescs[0].binding = 0;
+	InputBindingDescs[0].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+	InputBindingDescs[0].stride = sizeof(GPU_Particle);
+	//Attributes
+	//Position
+	InputAttribDescs[0].binding = 0;
+	InputAttribDescs[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	InputAttribDescs[0].location = 0;
+	InputAttribDescs[0].offset = offsetof(GPU_Particle, Position);
+	//PositionVelocity
+	InputAttribDescs[1].binding = 0;
+	InputAttribDescs[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	InputAttribDescs[1].location = 1;
+	InputAttribDescs[1].offset = offsetof(GPU_Particle, PositionVelocity);
+	//Rotation
+	InputAttribDescs[2].binding = 0;
+	InputAttribDescs[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	InputAttribDescs[2].location = 2;
+	InputAttribDescs[2].offset = offsetof(GPU_Particle, Rotation);
+	//RotationVelocity
+	InputAttribDescs[3].binding = 0;
+	InputAttribDescs[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	InputAttribDescs[3].location = 3;
+	InputAttribDescs[3].offset = offsetof(GPU_Particle, RotationVelocity);
+	//size
+	InputAttribDescs[4].binding = 0;
+	InputAttribDescs[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	InputAttribDescs[4].location = 4;
+	InputAttribDescs[4].offset = offsetof(GPU_Particle, Size);
+
+
+	//pipeline
+	VkPipelineVertexInputStateCreateInfo VertexInputInfo;
+	memset(&VertexInputInfo, NULL, sizeof(VertexInputInfo));
+	VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+	VertexInputInfo.vertexBindingDescriptionCount = (uint32_t)InputBindingDescsSize;
+	VertexInputInfo.pVertexBindingDescriptions = InputBindingDescs; // Optional
+
+	VertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)InputAttribDescsSize;
+	VertexInputInfo.pVertexAttributeDescriptions = InputAttribDescs; // Optional
+
+
+	VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
+	memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
+	InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+	InputAssemblyState.primitiveRestartEnable = VK_FALSE;
+
+	VkPipelineRasterizationStateCreateInfo RasterizationState;
+	memset(&RasterizationState, NULL, sizeof(RasterizationState));
+	RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	RasterizationState.depthClampEnable = VK_FALSE;
+	RasterizationState.rasterizerDiscardEnable = VK_FALSE;
+	RasterizationState.polygonMode = VK_POLYGON_MODE_POINT;
+	RasterizationState.lineWidth = 1.0f;
+	RasterizationState.cullMode = VK_CULL_MODE_NONE; //CULL MODE
+	RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	RasterizationState.depthBiasEnable = VK_FALSE;
+	RasterizationState.depthBiasConstantFactor = 0.0f; // Optional
+	RasterizationState.depthBiasClamp = 0.0f; // Optional
+	RasterizationState.depthBiasSlopeFactor = 0.0f; // Optional
+
+	VkGraphicsPipelineCreateInfo Info;
+	memset(&Info, NULL, sizeof(Info));
+
+	Info.subpass = 0;
+	ColourBlending.attachmentCount = 4;
+
+	Info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	Info.stageCount = ShaderCount;
+	Info.pStages = ShaderStages;
+	Info.pVertexInputState = &VertexInputInfo;
+	Info.pInputAssemblyState = &InputAssemblyState;
+	Info.pViewportState = &ViewportState;
+	Info.pRasterizationState = &RasterizationState;
+	Info.pMultisampleState = &MultisampleState;
+	Info.pDepthStencilState = &DepthStencil; // Optional
+	Info.pColorBlendState = &ColourBlending;
+	Info.pDynamicState = &DynamicStates; // Optional
+	Info.layout = ((GraphicsUtils*)GraphicsRes.pUtils)->GenericResources[Graphics_Ref_Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout2D;
+	Info.renderPass = pGraphicsWindow->VkRenderPassDeferred;
+	//Info.subpass = 1;
+	Info.basePipelineHandle = VK_NULL_HANDLE; // Optional
+	Info.basePipelineIndex = -1; // Optional
+
+	if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipelineParticle)) != VK_SUCCESS)
 	{
-		const SPIRV Vertex[] = VertexShaderSimplifiedMolecular();
-		const SPIRV Fragment[] = FragmentShaderSimplifiedMolecular();
+		Engine_Ref_FunctionError("ReCreate_Generic2D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
+		return;
+	}
+}
 
-		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderVertexAtom, Vertex, VertexShaderSimplifiedMolecularSize, "ReCreate_SimplifiedMolecular()");
-		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderFragmentAtom, Fragment, FragmentShaderSimplifiedMolecularSize, "ReCreate_SimplifiedMolecular()");
+void ReCreate_QuantumAtomic(ElementGraphics* pElement, ChemistryEffectQuantumAtomic* pEffect, uint32_t ThreadIndex)
+{
+#ifndef NDEBUG
+	if (pElement == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_QuantumAtomic()", "pElement == NULLPTR");
+		return;
+	}
+	if (pEffect == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_QuantumAtomic()", "pEffect == NULLPTR");
+		return;
+	}
+#endif
+	VkResult res = VK_SUCCESS;
+	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 
-		uint32_t ShaderCount = 2;
-		VkPipelineShaderStageCreateInfo ShaderStages[2];
-		memset(ShaderStages, NULL, sizeof(*ShaderStages) * ShaderCount);
-		ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-		ShaderStages[0].module = pEffect->VkShaderVertexAtom;
-		ShaderStages[0].pName = "main";
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//DescriptorLayout
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		ShaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		ShaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		ShaderStages[1].module = pEffect->VkShaderFragmentAtom;
-		ShaderStages[1].pName = "main";
-
-		uint64_t InputBindingDescsSize = 1;
-		VkVertexInputBindingDescription InputBindingDescs[1];
-		uint64_t InputAttribDescsSize = 3;
-		VkVertexInputAttributeDescription InputAttribDescs[3];
-
-		//Buffer Binding Main
-		InputBindingDescs[0].binding = 0;
-		InputBindingDescs[0].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-		InputBindingDescs[0].stride = sizeof(GPU_Atom);
-
-		//Attributes
-		//position
-		InputAttribDescs[0].binding = 0;
-		InputAttribDescs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		InputAttribDescs[0].location = 0;
-		InputAttribDescs[0].offset = offsetof(GPU_Atom, Position);
-		//Colour
-		InputAttribDescs[1].binding = 0;
-		InputAttribDescs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		InputAttribDescs[1].location = 1;
-		InputAttribDescs[1].offset = offsetof(GPU_Atom, Colour);
-		//ElementType
-		InputAttribDescs[2].binding = 0;
-		InputAttribDescs[2].format = VK_FORMAT_R32G32B32A32_SINT;
-		InputAttribDescs[2].location = 2;
-		InputAttribDescs[2].offset = offsetof(GPU_Atom, AtomElementType);
-
-		//pipeline
-
-		VkPipelineVertexInputStateCreateInfo VertexInputInfo;
-		memset(&VertexInputInfo, NULL, sizeof(VertexInputInfo));
-		VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-		VertexInputInfo.vertexBindingDescriptionCount = (uint32_t)InputBindingDescsSize;
-		VertexInputInfo.pVertexBindingDescriptions = InputBindingDescs; // Optional
-
-		VertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)InputAttribDescsSize;
-		VertexInputInfo.pVertexAttributeDescriptions = InputAttribDescs; // Optional
-
-
-		VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
-		memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
-		InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-		InputAssemblyState.primitiveRestartEnable = VK_FALSE;
-
-		VkPipelineRasterizationStateCreateInfo RasterizationState;
-		memset(&RasterizationState, NULL, sizeof(RasterizationState));
-		RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-		RasterizationState.depthClampEnable = VK_FALSE;
-		RasterizationState.rasterizerDiscardEnable = VK_FALSE;
-		RasterizationState.polygonMode = VK_POLYGON_MODE_POINT;
-		RasterizationState.lineWidth = 1.0f;
-		RasterizationState.cullMode = VK_CULL_MODE_NONE; //CULL MODE
-		RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
-		RasterizationState.depthBiasEnable = VK_FALSE;
-		RasterizationState.depthBiasConstantFactor = 0.0f; // Optional
-		RasterizationState.depthBiasClamp = 0.0f; // Optional
-		RasterizationState.depthBiasSlopeFactor = 0.0f; // Optional
-
+	{
+		VkDescriptorSetLayoutBinding BindingsQuantum[ChemistryQuantumAtomicBuffersCount];
+		for (size_t i = 0; i < ChemistryQuantumAtomicBuffersCount; i++)
 		{
-			VkGraphicsPipelineCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
-
-			Info.subpass = 0;
-			ColourBlending.attachmentCount = 4;
-
-			Info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-			Info.stageCount = ShaderCount;
-			Info.pStages = ShaderStages;
-			Info.pVertexInputState = &VertexInputInfo;
-			Info.pInputAssemblyState = &InputAssemblyState;
-			Info.pViewportState = &ViewportState;
-			Info.pRasterizationState = &RasterizationState;
-			Info.pMultisampleState = &MultisampleState;
-			Info.pDepthStencilState = &DepthStencil; // Optional
-			Info.pColorBlendState = &ColourBlending;
-			Info.pDynamicState = &DynamicStates; // Optional
-			Info.layout = pGraphicsWindow->pLogicalDevice->PipelineLayout2D;
-			Info.renderPass = pGraphicsWindow->VkDeferredRenderPass;
-			//Info.subpass = 1;
-			Info.basePipelineHandle = VK_NULL_HANDLE; // Optional
-			Info.basePipelineIndex = -1; // Optional
-
-			if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipelineAtom)) != VK_SUCCESS)
-			{
-				Engine_Ref_FunctionError("ReCreate_Generic2D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
-				return;
-			}
+			BindingsQuantum[i].binding = i;
+			BindingsQuantum[i].descriptorCount = 1;
+			BindingsQuantum[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			BindingsQuantum[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+			BindingsQuantum[i].pImmutableSamplers = NULL;
+		}
+		VkDescriptorSetLayoutCreateInfo Info;
+		memset(&Info, 0, sizeof(Info));
+		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		Info.bindingCount = (uint32_t)ChemistryQuantumAtomicBuffersCount;
+		Info.pBindings = BindingsQuantum;
+		if ((res = vkCreateDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pEffect->VkDescriptorSetLayoutQuantum)) != VK_SUCCESS)
+		{
+			Engine_Ref_FunctionError("ReCreate_QuantumAtomic()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
+			return;
 		}
 	}
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//Pipeline Layouts
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	{
-		const SPIRV Vertex[] = VertexShaderCovalentBond();
-		const SPIRV Fragment[] = FragmentShaderCovalentBond();
+		VkDescriptorSetLayout layouts[1] = { pEffect->VkDescriptorSetLayoutQuantum };
+		uint32_t layoutsSize = 1;
 
-		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderVertexCovalentBond, Vertex, VertexShaderCovalentBondSize, "ReCreate_SimplifiedMolecular()");
-		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderFragmentCovalentBond, Fragment, FragmentShaderCovalentBondSize, "ReCreate_SimplifiedMolecular()");
+		VkPushConstantRange PushConstants;
+		memset(&PushConstants, 0, sizeof(PushConstants));
+		PushConstants.offset = 0;
+		PushConstants.size = pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize;
+		PushConstants.stageFlags = VK_SHADER_STAGE_ALL;
 
-		uint32_t ShaderCount = 2;
-		VkPipelineShaderStageCreateInfo ShaderStages[2];
-		memset(ShaderStages, NULL, sizeof(*ShaderStages)* ShaderCount);
-		ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-		ShaderStages[0].module = pEffect->VkShaderVertexCovalentBond;
-		ShaderStages[0].pName = "main";
+		VkPipelineLayoutCreateInfo Info;
+		memset(&Info, 0, sizeof(Info));
+		Info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		Info.setLayoutCount = layoutsSize;
+		Info.pSetLayouts = layouts;
+		Info.pPushConstantRanges = &PushConstants;
+		Info.pushConstantRangeCount = 1;
+		if ((res = vkCreatePipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pEffect->VkPipelineLayoutQuantum)) != VK_SUCCESS)
+		{
+			Engine_Ref_FunctionError("ReCreate_QuantumAtomic()", "vkCreatePipelineLayout Failed, VkResult == ", res);
+			return;
+		}
+	}
 
-		ShaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		ShaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		ShaderStages[1].module = pEffect->VkShaderFragmentCovalentBond;
-		ShaderStages[1].pName = "main";
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//Descriptor Pool
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		uint64_t InputBindingDescsSize = 1;
-		VkVertexInputBindingDescription InputBindingDescs[1];
-		uint64_t InputAttribDescsSize = 1;
-		VkVertexInputAttributeDescription InputAttribDescs[1];
+	{//pool
+		uint32_t PoolSizesSize = 1;
+		VkDescriptorPoolSize PoolSizes[1];
 
-		//Buffer Binding Main
-		InputBindingDescs[0].binding = 0;
-		InputBindingDescs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		InputBindingDescs[0].stride = sizeof(vec3);
+		PoolSizes[0].descriptorCount = ChemistryQuantumAtomicBuffersCount;
+		PoolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
-		//Attributes
-		//position
-		InputAttribDescs[0].binding = 0;
-		InputAttribDescs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		InputAttribDescs[0].location = 0;
-		InputAttribDescs[0].offset = 0;
+		VkDescriptorPoolCreateInfo Info;
+		memset(&Info, NULL, sizeof(Info));
+		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		Info.maxSets = 1 * pGraphicsWindow->CurrentFrameBuffersSize;
+		Info.poolSizeCount = PoolSizesSize;
+		Info.pPoolSizes = PoolSizes;
+		if ((res = vkCreateDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pEffect->VkDescriptorPoolQuantum)) != VK_SUCCESS)
+		{
+			Engine_Ref_FunctionError("ReCreate_QuantumAtomic()", "vkCreateDescriptorPool, VkResult == ", res);
+			return;
+		}
+	}
+	pEffect->VkDescriptorSetsQuantum = calloc(pGraphicsWindow->CurrentFrameBuffersSize, sizeof(*pEffect->VkDescriptorSetsQuantum));
+	for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
+	{
+		uint32_t layoutsSize = 1;
+		VkDescriptorSetLayout layouts[1] = { pEffect->VkDescriptorSetLayoutQuantum };
+		VkDescriptorSet sets[1];
 
-		//pipeline
-		VkPipelineVertexInputStateCreateInfo VertexInputInfo;
-		memset(&VertexInputInfo, NULL, sizeof(VertexInputInfo));
-		VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		VkDescriptorSetAllocateInfo Info;
+		memset(&Info, NULL, sizeof(Info));
+		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		Info.descriptorPool = pEffect->VkDescriptorPoolQuantum;
+		Info.descriptorSetCount = layoutsSize;
+		Info.pSetLayouts = layouts;
+		Info.pNext = NULL;
+		if ((res = vkAllocateDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
+		{
+			Engine_Ref_FunctionError("ReCreate_QuantumAtomic()", "vkAllocateDescriptorSets, VkResult == ", res);
+			return;
+		}
+		pEffect->VkDescriptorSetsQuantum[i] = sets[0];
+	}
 
-		VertexInputInfo.vertexBindingDescriptionCount = (uint32_t)InputBindingDescsSize;
-		VertexInputInfo.pVertexBindingDescriptions = InputBindingDescs; // Optional
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//Pipeline
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		VertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)InputAttribDescsSize;
-		VertexInputInfo.pVertexAttributeDescriptions = InputAttribDescs; // Optional
+
+	const SPIRV Vertex[] = VertexShaderQuantum();
+	const SPIRV Fragment[] = FragmentShaderQuantum();
+
+	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderVertexQuantum, Vertex, VertexShaderQuantumSize, "ReCreate_QuantumAtomic()");
+	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderFragmentQuantum, Fragment, FragmentShaderQuantumSize, "ReCreate_QuantumAtomic()");
+
+	uint32_t ShaderStagesCount = 2;
+	VkPipelineShaderStageCreateInfo ShaderStages[2];
+	memset(&ShaderStages, NULL, sizeof(*ShaderStages) * ShaderStagesCount);
+
+	ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	ShaderStages[0].module = pEffect->VkShaderVertexQuantum;
+	ShaderStages[0].pName = "main";
+
+	ShaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	ShaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	ShaderStages[1].module = pEffect->VkShaderFragmentQuantum;
+	ShaderStages[1].pName = "main";
+
+
+
+	VkPipelineMultisampleStateCreateInfo MultisampleState;
+	memset(&MultisampleState, NULL, sizeof(MultisampleState));
+	MultisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	MultisampleState.sampleShadingEnable = VK_FALSE;
+	MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	MultisampleState.minSampleShading = 1.0f; // Optional
+	MultisampleState.pSampleMask = NULL; // Optional
+	MultisampleState.alphaToCoverageEnable = VK_FALSE; // Optional
+	MultisampleState.alphaToOneEnable = VK_FALSE; // Optional
+
+	VkPipelineColorBlendAttachmentState ColourBlendAttachment;
+	memset(&ColourBlendAttachment, NULL, sizeof(ColourBlendAttachment));
+	ColourBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	ColourBlendAttachment.blendEnable = VK_TRUE;
+	ColourBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	ColourBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	ColourBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	ColourBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	ColourBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+	ColourBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	VkPipelineColorBlendAttachmentState ColourBlendAttachmentDeffered;
+	memset(&ColourBlendAttachmentDeffered, NULL, sizeof(ColourBlendAttachmentDeffered));
+	ColourBlendAttachmentDeffered.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	VkPipelineColorBlendAttachmentState attachments[4] = { ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment };
+	VkPipelineColorBlendStateCreateInfo ColourBlending;
+	memset(&ColourBlending, NULL, sizeof(ColourBlending));
+	ColourBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	ColourBlending.attachmentCount = 2;
+	ColourBlending.pAttachments = attachments;
+
+	VkPipelineDepthStencilStateCreateInfo DepthStencil;
+	memset(&DepthStencil, NULL, sizeof(DepthStencil));
+	DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	DepthStencil.depthTestEnable = VK_TRUE;
+	DepthStencil.depthWriteEnable = VK_TRUE;
+	DepthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	DepthStencil.depthBoundsTestEnable = VK_FALSE;
+	DepthStencil.minDepthBounds = 0.0f;
+	DepthStencil.maxDepthBounds = 1.0f;
+	DepthStencil.stencilTestEnable = VK_FALSE;
+
+
+	uint32_t statesSize = 2;
+	VkDynamicState states[2] = { VK_DYNAMIC_STATE_VIEWPORT , VK_DYNAMIC_STATE_SCISSOR };
+	VkPipelineDynamicStateCreateInfo DynamicStates;
+	memset(&DynamicStates, NULL, sizeof(DynamicStates));
+	DynamicStates.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	DynamicStates.dynamicStateCount = statesSize;
+	DynamicStates.pDynamicStates = states;
+
+	VkViewport Viewport;
+	Viewport.x = 0.0f;
+	Viewport.y = 0.0f;
+	Viewport.width = (float)pGraphicsWindow->CurrentExtentWidth;
+	Viewport.height = (float)pGraphicsWindow->CurrentExtentHeight;
+	Viewport.minDepth = 0.0f;
+	Viewport.maxDepth = 1.0f;
+
+	VkRect2D Scissor;
+	Scissor.offset.x = 0;
+	Scissor.offset.y = 0;
+	Scissor.extent.width = pGraphicsWindow->CurrentExtentWidth;
+	Scissor.extent.height = pGraphicsWindow->CurrentExtentHeight;
+
+	VkPipelineViewportStateCreateInfo ViewportState;
+	memset(&ViewportState, NULL, sizeof(ViewportState));
+	ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	ViewportState.viewportCount = 1; //multi screeen~?!?!??!!?
+	ViewportState.pViewports = &Viewport;
+	ViewportState.scissorCount = 1;
+	ViewportState.pScissors = &Scissor;
+
+	{
+		VkPipelineVertexInputStateCreateInfo VertexInputState;
+		memset(&VertexInputState, NULL, sizeof(VertexInputState));
+		VertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
 		VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
 		memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
 		InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		InputAssemblyState.primitiveRestartEnable = VK_FALSE;
 
 		VkPipelineRasterizationStateCreateInfo RasterizationState;
@@ -1316,7 +2029,7 @@ void ReCreate_SimplifiedMolecular(ElementGraphics* pElement, ChemistryEffectSimp
 		RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		RasterizationState.depthClampEnable = VK_FALSE;
 		RasterizationState.rasterizerDiscardEnable = VK_FALSE;
-		RasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+		RasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
 		RasterizationState.lineWidth = 1.0f;
 		RasterizationState.cullMode = VK_CULL_MODE_NONE; //CULL MODE
 		RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
@@ -1325,35 +2038,32 @@ void ReCreate_SimplifiedMolecular(ElementGraphics* pElement, ChemistryEffectSimp
 		RasterizationState.depthBiasClamp = 0.0f; // Optional
 		RasterizationState.depthBiasSlopeFactor = 0.0f; // Optional
 
+		VkGraphicsPipelineCreateInfo Info;
+		memset(&Info, NULL, sizeof(Info));
+
+		Info.subpass = 0;
+		ColourBlending.attachmentCount = 4;
+
+		Info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		Info.stageCount = ShaderStagesCount;
+		Info.pStages = ShaderStages;
+		Info.pVertexInputState = &VertexInputState;
+		Info.pInputAssemblyState = &InputAssemblyState;
+		Info.pViewportState = &ViewportState;
+		Info.pRasterizationState = &RasterizationState;
+		Info.pMultisampleState = &MultisampleState;
+		Info.pDepthStencilState = &DepthStencil; // Optional
+		Info.pColorBlendState = &ColourBlending;
+		Info.pDynamicState = &DynamicStates; // Optional
+		Info.layout = pEffect->VkPipelineLayoutQuantum;
+		Info.renderPass = pGraphicsWindow->VkRenderPassDeferred;
+		Info.basePipelineHandle = VK_NULL_HANDLE; // Optional
+		Info.basePipelineIndex = -1; // Optional
+
+		if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, NULL, 1, &Info, NULL, &pEffect->VkPipelineQuantum)) != VK_SUCCESS)
 		{
-			VkGraphicsPipelineCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
-
-			Info.subpass = 0;
-			ColourBlending.attachmentCount = 4;
-
-			Info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-			Info.stageCount = ShaderCount;
-			Info.pStages = ShaderStages;
-			Info.pVertexInputState = &VertexInputInfo;
-			Info.pInputAssemblyState = &InputAssemblyState;
-			Info.pViewportState = &ViewportState;
-			Info.pRasterizationState = &RasterizationState;
-			Info.pMultisampleState = &MultisampleState;
-			Info.pDepthStencilState = &DepthStencil; // Optional
-			Info.pColorBlendState = &ColourBlending;
-			Info.pDynamicState = &DynamicStates; // Optional
-			Info.layout = pGraphicsWindow->pLogicalDevice->PipelineLayout2D;
-			Info.renderPass = pGraphicsWindow->VkDeferredRenderPass;
-			//Info.subpass = 1;
-			Info.basePipelineHandle = VK_NULL_HANDLE; // Optional
-			Info.basePipelineIndex = -1; // Optional
-
-			if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipelineCovalentBond)) != VK_SUCCESS)
-			{
-				Engine_Ref_FunctionError("ReCreate_Generic2D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
-				return;
-			}
+			Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkCreateGraphicsPipelines Failed, VkResult == ", res);
+			return;
 		}
 	}
 }
@@ -1366,34 +2076,52 @@ void Pack_SimplifiedMolecular(const ElementGraphics* pElement, ElementGraphics* 
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedEffect->VkPipelineAtom, NULL, sizeof(pCopiedEffect->VkPipelineAtom));
-		memset(&pCopiedEffect->VkShaderVertexAtom, NULL, sizeof(pCopiedEffect->VkShaderVertexAtom));
-		memset(&pCopiedEffect->VkShaderFragmentAtom, NULL, sizeof(pCopiedEffect->VkShaderFragmentAtom));
+		memset(&pCopiedEffect->VkPipelineParticle, NULL, sizeof(pCopiedEffect->VkPipelineParticle));
+		memset(&pCopiedEffect->VkShaderVertexParticle, NULL, sizeof(pCopiedEffect->VkShaderVertexParticle));
+		memset(&pCopiedEffect->VkShaderFragmentParticle, NULL, sizeof(pCopiedEffect->VkShaderFragmentParticle));
+		if (pEffect->Particles != NULL)
+		{
+			memcpy(((void*)((uint64_t)pData + (uint64_t)*pBufferPointer)), pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+			pCopiedEffect->Particles = *pBufferPointer;
+			*pBufferPointer += pEffect->ParticlesSize * sizeof(*pEffect->Particles);
+		}
+	}
+	else
+	{
+		*pBufferPointer += pEffect->ParticlesSize * sizeof(*pEffect->Particles);
+	}
+}
 
-		memset(&pCopiedEffect->VkPipelineCovalentBond, NULL, sizeof(pCopiedEffect->VkPipelineCovalentBond));
-		memset(&pCopiedEffect->VkShaderVertexCovalentBond, NULL, sizeof(pCopiedEffect->VkShaderVertexCovalentBond));
-		memset(&pCopiedEffect->VkShaderFragmentCovalentBond, NULL, sizeof(pCopiedEffect->VkShaderFragmentCovalentBond));
+void Pack_QuantumAtomic(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const ChemistryEffectQuantumAtomic* pEffect, ChemistryEffectQuantumAtomic* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+{
+	if (pData != NULL)
+	{
+		memset(&pCopiedEffect->VkPipelineQuantum, NULL, sizeof(pCopiedEffect->VkPipelineQuantum));
+		memset(&pCopiedEffect->VkPipelineLayoutQuantum, NULL, sizeof(pCopiedEffect->VkPipelineLayoutQuantum));
 
+		memset(&pCopiedEffect->VkDescriptorSetLayoutQuantum, NULL, sizeof(pCopiedEffect->VkDescriptorSetLayoutQuantum));
+		memset(&pCopiedEffect->VkDescriptorSetsQuantum, NULL, sizeof(pCopiedEffect->VkDescriptorSetsQuantum));
+		memset(&pCopiedEffect->VkDescriptorPoolQuantum, NULL, sizeof(pCopiedEffect->VkDescriptorPoolQuantum));
 
+		memset(&pCopiedEffect->VkShaderVertexQuantum, NULL, sizeof(pCopiedEffect->VkShaderVertexQuantum));
+		memset(&pCopiedEffect->VkShaderFragmentQuantum, NULL, sizeof(pCopiedEffect->VkShaderFragmentQuantum));
 		if (pEffect->GPU_Atoms != NULL)
 		{
 			memcpy(((void*)((uint64_t)pData + (uint64_t)*pBufferPointer)), pEffect->GPU_Atoms, pEffect->GPU_AtomsSize * sizeof(*pEffect->GPU_Atoms));
-			pCopiedEffect->GPU_Atoms = (UTF8*)*pBufferPointer;
+			pCopiedEffect->GPU_Atoms = *pBufferPointer;
 			*pBufferPointer += pEffect->GPU_AtomsSize * sizeof(*pEffect->GPU_Atoms);
 		}
-
-		if (pEffect->CovalentBonds != NULL)
+		if (pEffect->GPU_Electrons != NULL)
 		{
-			memcpy(((void*)((uint64_t)pData + (uint64_t)*pBufferPointer)), pEffect->CovalentBonds, pEffect->CovalentBondsSize * sizeof(*pEffect->CovalentBonds));
-			pCopiedEffect->CovalentBonds = (UTF8*)*pBufferPointer;
-			*pBufferPointer += pEffect->CovalentBondsSize * sizeof(*pEffect->CovalentBonds);
+			memcpy(((void*)((uint64_t)pData + (uint64_t)*pBufferPointer)), pEffect->GPU_Electrons, pEffect->GPU_ElectronsSize * sizeof(*pEffect->GPU_Electrons));
+			pCopiedEffect->GPU_Electrons = *pBufferPointer;
+			*pBufferPointer += pEffect->GPU_ElectronsSize * sizeof(*pEffect->GPU_Electrons);
 		}
 	}
 	else
 	{
 		*pBufferPointer += pEffect->GPU_AtomsSize * sizeof(*pEffect->GPU_Atoms);
-
-		*pBufferPointer += pEffect->CovalentBondsSize * sizeof(*pEffect->CovalentBonds);
+		*pBufferPointer += pEffect->GPU_ElectronsSize * sizeof(*pEffect->GPU_Electrons);
 	}
 }
 
@@ -1403,19 +2131,27 @@ void Pack_SimplifiedMolecular(const ElementGraphics* pElement, ElementGraphics* 
 
 void UnPack_SimplifiedMolecular(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const ChemistryEffectSimplifiedMolecular* pEffect, ChemistryEffectSimplifiedMolecular* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
 {
+	if (pEffect->Particles != NULL)
+	{
+		pCopiedEffect->Particles = (UTF8*)calloc(pCopiedEffect->ParticlesSize, sizeof(*pCopiedEffect->Particles));
+		memcpy(pCopiedEffect->Particles, ((void*)((uint64_t)pData + (uint64_t)pEffect->Particles)), pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+	}
+	ReCreate_SimplifiedMolecular(pCopiedElement, pCopiedEffect, ThreadIndex);
+}
+
+void UnPack_QuantumAtomic(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const ChemistryEffectQuantumAtomic* pEffect, ChemistryEffectQuantumAtomic* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
+{
 	if (pEffect->GPU_Atoms != NULL)
 	{
 		pCopiedEffect->GPU_Atoms = (UTF8*)calloc(pCopiedEffect->GPU_AtomsSize, sizeof(*pCopiedEffect->GPU_Atoms));
 		memcpy(pCopiedEffect->GPU_Atoms, ((void*)((uint64_t)pData + (uint64_t)pEffect->GPU_Atoms)), pEffect->GPU_AtomsSize * sizeof(*pEffect->GPU_Atoms));
 	}
-
-	if (pEffect->CovalentBonds != NULL)
+	if (pEffect->GPU_Electrons != NULL)
 	{
-		pCopiedEffect->CovalentBonds = (UTF8*)calloc(pCopiedEffect->CovalentBondsSize, sizeof(*pCopiedEffect->CovalentBonds));
-		memcpy(pCopiedEffect->CovalentBonds, ((void*)((uint64_t)pData + (uint64_t)pEffect->CovalentBonds)), pEffect->CovalentBondsSize * sizeof(*pEffect->CovalentBonds));
+		pCopiedEffect->GPU_Electrons = (UTF8*)calloc(pCopiedEffect->GPU_ElectronsSize, sizeof(*pCopiedEffect->GPU_Electrons));
+		memcpy(pCopiedEffect->GPU_Electrons, ((void*)((uint64_t)pData + (uint64_t)pEffect->GPU_Electrons)), pEffect->GPU_ElectronsSize * sizeof(*pEffect->GPU_Electrons));
 	}
-
-	ReCreate_SimplifiedMolecular(pCopiedElement, pCopiedEffect, ThreadIndex);
+	ReCreate_QuantumAtomic(pCopiedElement, pCopiedEffect, ThreadIndex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1438,24 +2174,49 @@ TEXRESULT Create_SimplifiedMolecular(ElementGraphics* pElement, ChemistryEffectS
 		}
 #endif
 		glm_vec3_copy(EffectCreateInfo->Position, EffectInfo->Position);
+		if (EffectCreateInfo->ParticlesSize != NULL)
+		{
+			EffectInfo->ParticlesSize = EffectCreateInfo->ParticlesSize;
+			EffectInfo->Particles = calloc(EffectInfo->ParticlesSize, sizeof(*EffectInfo->Particles));
+			memcpy(EffectInfo->Particles, EffectCreateInfo->Particles, EffectInfo->ParticlesSize * sizeof(*EffectInfo->Particles));
+		}
+		ReCreate_SimplifiedMolecular(pElement, EffectInfo, ThreadIndex);
+	}
+	*pAllocationSize = sizeof(ChemistryEffectSimplifiedMolecular);
+	return (TEXRESULT)Success;
+}
 
+TEXRESULT Create_QuantumAtomic(ElementGraphics* pElement, ChemistryEffectQuantumAtomic* EffectInfo, ChemistryEffectCreateInfoQuantumAtomic* EffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
+{
+	if (EffectInfo == NULL)
+	{
+
+	}
+	else
+	{
+#ifndef NDEBUG
+		if (EffectCreateInfo == NULL)
+		{
+			Engine_Ref_ArgsError("Create_QuantumAtomic()", "EffectCreateInfo == NULLPTR");
+			return (TEXRESULT)Invalid_Parameter;
+		}
+#endif
+		glm_vec3_copy(EffectCreateInfo->Position, EffectInfo->Position);
 		if (EffectCreateInfo->AtomsSize != NULL)
 		{
 			EffectInfo->GPU_AtomsSize = EffectCreateInfo->AtomsSize;
 			EffectInfo->GPU_Atoms = calloc(EffectInfo->GPU_AtomsSize, sizeof(*EffectInfo->GPU_Atoms));
 			memcpy(EffectInfo->GPU_Atoms, EffectCreateInfo->Atoms, EffectInfo->GPU_AtomsSize * sizeof(*EffectInfo->GPU_Atoms));
-		}
-		
-		if (EffectCreateInfo->CovalentBonds != NULL)
+		}	
+		if (EffectCreateInfo->ElectronsSize != NULL)
 		{
-			EffectInfo->CovalentBondsSize = EffectCreateInfo->CovalentBondsSize;
-			EffectInfo->CovalentBonds = calloc(EffectInfo->CovalentBondsSize, sizeof(*EffectInfo->CovalentBonds));
-			memcpy(EffectInfo->CovalentBonds, EffectCreateInfo->CovalentBonds, EffectInfo->CovalentBondsSize * sizeof(*EffectInfo->CovalentBonds));
+			EffectInfo->GPU_ElectronsSize = EffectCreateInfo->ElectronsSize;
+			EffectInfo->GPU_Electrons = calloc(EffectInfo->GPU_ElectronsSize, sizeof(*EffectInfo->GPU_Electrons));
+			memcpy(EffectInfo->GPU_Electrons, EffectCreateInfo->Electrons, EffectInfo->GPU_ElectronsSize * sizeof(*EffectInfo->GPU_Electrons));
 		}
-		
-		ReCreate_SimplifiedMolecular(pElement, EffectInfo, ThreadIndex);
+		ReCreate_QuantumAtomic(pElement, EffectInfo, ThreadIndex);
 	}
-	*pAllocationSize = sizeof(ChemistryEffectSimplifiedMolecular);
+	*pAllocationSize = sizeof(ChemistryEffectQuantumAtomic);
 	return (TEXRESULT)Success;
 }
 
@@ -1474,8 +2235,20 @@ TEXRESULT Initialise_Chemistry()
 	Utils.SimplifiedMolecularSignature.Update = (Update_GraphicsEffectTemplate*)&Update_SimplifiedMolecular;
 	Utils.SimplifiedMolecularSignature.Draw = (Draw_GraphicsEffectTemplate*)&Draw_SimplifiedMolecular;
 	Utils.SimplifiedMolecularSignature.UpdateSignature = &UpdateSignature_SimplifiedMolecular;
-	Utils.SimplifiedMolecularSignature.SignatureGPUBuffersSize = 2; //paramatom
+	Utils.SimplifiedMolecularSignature.SignatureGPUBuffersSize = ChemistrySimplifiedMolecularBuffersCount;
 	Graphics_Effects_Ref_Register_GraphicsEffectSignature(&Utils.SimplifiedMolecularSignature);
+
+	Utils.QuantumAtomicSignature.Identifier = (uint32_t)ChemistryEffects_QuantumAtomic;
+	Utils.QuantumAtomicSignature.Constructor = (Create_GraphicsEffectTemplate*)&Create_QuantumAtomic;
+	Utils.QuantumAtomicSignature.ReConstructor = (ReCreate_GraphicsEffectTemplate*)&ReCreate_QuantumAtomic;
+	Utils.QuantumAtomicSignature.Destructor = (Destroy_GraphicsEffectTemplate*)&Destroy_QuantumAtomic;
+	Utils.QuantumAtomicSignature.Packer = (Pack_GraphicsEffectTemplate*)&Pack_QuantumAtomic;
+	Utils.QuantumAtomicSignature.UnPacker = (UnPack_GraphicsEffectTemplate*)&UnPack_QuantumAtomic;
+	Utils.QuantumAtomicSignature.Update = (Update_GraphicsEffectTemplate*)&Update_QuantumAtomic;
+	Utils.QuantumAtomicSignature.Draw = (Draw_GraphicsEffectTemplate*)&Draw_QuantumAtomic;
+	Utils.QuantumAtomicSignature.UpdateSignature = &UpdateSignature_QuantumAtomic;
+	Utils.QuantumAtomicSignature.SignatureGPUBuffersSize = ChemistryQuantumAtomicBuffersCount; //storagebuffer atom, storagebuffer electron.
+	Graphics_Effects_Ref_Register_GraphicsEffectSignature(&Utils.QuantumAtomicSignature);
 
 	return (TEXRESULT)(Success);
 }
@@ -1517,9 +2290,9 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData((void*)"Chemistry::Utils"), &ChemistryRes.pUtils, &Utils);
 
 	//functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Initialise_Chemistry"), &ChemistryRes.pInitialise_Chemistry, &Initialise_Chemistry, Construct, Single_Thread, 1000.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Destroy_Chemistry"), &ChemistryRes.pDestroy_Chemistry, &Destroy_Chemistry, Destruct, Single_Thread, 0.001f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Update_Chemistry"), &ChemistryRes.pUpdate_Chemistry, &Update_Chemistry, EveryFrame, Single_Thread, 0.1f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Initialise_Chemistry"), &ChemistryRes.pInitialise_Chemistry, &Initialise_Chemistry, Construct, Single_Thread, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Destroy_Chemistry"), &ChemistryRes.pDestroy_Chemistry, &Destroy_Chemistry, Destruct, Single_Thread, 100.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Update_Chemistry"), &ChemistryRes.pUpdate_Chemistry, &Update_Chemistry, EveryFrame, Single_Thread, 0.01f, 0, NULL);
 
 
 }
