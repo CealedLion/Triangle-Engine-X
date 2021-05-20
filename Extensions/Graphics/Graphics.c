@@ -2516,7 +2516,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		VkWin32SurfaceCreateInfoKHR SurfaceCreateInfo;
 		memset(&SurfaceCreateInfo, 0, sizeof(SurfaceCreateInfo));
 		SurfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-		SurfaceCreateInfo.hinstance = (HINSTANCE)((EngineUtils*)EngineRes.pUtils)->Instance;
+		SurfaceCreateInfo.hinstance = (HINSTANCE)((EngineUtils*)EngineRes.pUtils)->win32.Instance;
 		SurfaceCreateInfo.hwnd = (HWND)pResourceHeader->pWindow->Window;
 		SurfaceCreateInfo.flags = 0;
 		SurfaceCreateInfo.pNext = NULL;

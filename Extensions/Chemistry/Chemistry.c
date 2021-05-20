@@ -111,13 +111,17 @@ typedef enum VertexShaderSimplifiedMolecularVariables {
 	VertexSimplifiedMolecularLoadedVariable_float32vec4_op0,
 	VertexSimplifiedMolecularLoadedVariable_float32vec4_op1,
 
+	VertexSimplifiedMolecularLoadedVariable_float32_op0,
+	VertexSimplifiedMolecularLoadedVariable_float32_op1,
+
 	VertexSimplifiedMolecularVariables_MAX
 }VertexShaderSimplifiedMolecularVariables;
-#define VertexShaderSimplifiedMolecularSize (377 * sizeof(SPIRV))
+#define VertexShaderSimplifiedMolecularSize (395 * sizeof(SPIRV))
 #define VertexShaderSimplifiedMolecular() {\
 SPIRV_Header(VertexSimplifiedMolecularVariables_MAX)\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel,\
+(6<<SpvWordCountShift)|SpvOpExtInstImport, VertexSimplifiedMolecularExtension_GLSL450, 'LSLG', 'dts.', '054.', '\0',\
 (3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
 (19<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelVertex, VertexSimplifiedMolecularFunction_Main, 'niam', '\0',\
 VertexSimplifiedMolecularVariable_InputPointer_float32vec3_Position, VertexSimplifiedMolecularVariable_InputPointer_float32vec3_PositionVelocity, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_Rotation, VertexSimplifiedMolecularVariable_InputPointer_float32vec4_RotationVelocity, VertexSimplifiedMolecularVariable_InputPointer_float32_Size,\
@@ -236,7 +240,9 @@ VertexSimplifiedMolecularVariable_InputPointer_VertexIndex, VertexSimplifiedMole
 	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32vec4_Position, VertexSimplifiedMolecularLoadedVariable_float32vec4_op1,\
 	/*pointsize*/\
 	(5<<SpvWordCountShift)|SpvOpAccessChain, VertexSimplifiedMolecularType_OutputPointer_float32, VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize, VertexSimplifiedMolecularVariable_OutputPointer_struct_BuiltIn, VertexSimplifiedMolecularConstant_int_1,\
-	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize, VertexSimplifiedMolecularLoadedVariable_float32_Size,\
+	(6<<SpvWordCountShift)|SpvOpExtInst, VertexSimplifiedMolecularType_float32, VertexSimplifiedMolecularLoadedVariable_float32_op0, VertexSimplifiedMolecularExtension_GLSL450, 31, VertexSimplifiedMolecularLoadedVariable_float32_Size,\
+	(6<<SpvWordCountShift)|SpvOpExtInst, VertexSimplifiedMolecularType_float32, VertexSimplifiedMolecularLoadedVariable_float32_op1, VertexSimplifiedMolecularExtension_GLSL450, 31, VertexSimplifiedMolecularLoadedVariable_float32_op0,\
+	(3<<SpvWordCountShift)|SpvOpStore, VertexSimplifiedMolecularVariable_OutputPointer_float32_PointSize, VertexSimplifiedMolecularLoadedVariable_float32_op1,\
 /*function end*/\
 (1<<SpvWordCountShift)|SpvOpReturn,\
 (1<<SpvWordCountShift)|SpvOpFunctionEnd,\
@@ -1395,59 +1401,110 @@ void Draw_QuantumAtomic(ElementGraphics* pElement, ResourceHeader* pHeader, Obje
 //Update Effect Element
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool press = false;
+
 void Update_SimplifiedMolecular(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectSimplifiedMolecular* pEffect,
 	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
 {
+
+	Engine_Ref_Lock_Mutex(pEffect->mutex);
+
 	if (GPU_Buffers == NULL)
 	{
-		GPU_BufferPointers[0] += sizeof(*pEffect->Particles) * pEffect->ParticlesSize;
+		GPU_BufferPointers[0] += pEffect->ParticlesSize * sizeof(*pEffect->Particles);
 	}
 	else
 	{		
+
+		
+		if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_R == KeyPress && press == false)
+		{
+			Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
+			memset(&pEffect->Particles[pEffect->ParticlesSize], 0, sizeof(*pEffect->Particles));
+			pEffect->Particles[pEffect->ParticlesSize].Size = 0.00054f;
+			pEffect->Particles[pEffect->ParticlesSize].Charge = -1.0f;
+			pEffect->Particles[pEffect->ParticlesSize].Position[0] = (((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position - 500) / 100;
+			pEffect->Particles[pEffect->ParticlesSize].Position[1] = -((((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position - 500) / 100);
+			pEffect->ParticlesSize++;
+			press = true;
+		}
+		if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_T == KeyPress && press == false)
+		{
+			Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
+			memset(&pEffect->Particles[pEffect->ParticlesSize], 0, sizeof(*pEffect->Particles));
+			pEffect->Particles[pEffect->ParticlesSize].Size = 1.0f;
+			pEffect->Particles[pEffect->ParticlesSize].Charge = 1.0f;
+			pEffect->Particles[pEffect->ParticlesSize].Position[0] = (((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position - 500) / 100;
+			pEffect->Particles[pEffect->ParticlesSize].Position[1] = -((((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position - 500) / 100);
+			pEffect->ParticlesSize++;
+			press = true;
+		}
+		if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_R == KeyRelease && ((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_T == KeyRelease)
+		{
+			press = false;
+		}
+
+		for (size_t i = 0; i < pEffect->ParticlesSize; i++)
+		{
+			GPU_Particle* pParticle1 = &pEffect->Particles[i];	
+			for (size_t i1 = 0; i1 < pEffect->ParticlesSize; i1++)
+			{
+				if (i != i1)
+				{
+					GPU_Particle* pParticle2 = &pEffect->Particles[i1];
+					float distancesqaured = glm_vec3_distance(pParticle1->Position, pParticle2->Position) * 10000;
+
+					double force = 0.0;
+					//gravity needs to be 10^24 times weaker then electromagnetic.
+					//force += ((1.0 / 404331557902116024553602703216.58) / distancesqaured) * pParticle2->Size; // ((0.00000000001) / distancesqaured) * pParticle2->Size
+					//electromagnetic
+					force += -((0.8988 * (((pParticle1->Charge * pParticle2->Charge)) / distancesqaured)));
+					
+					force *= 0.0001;
+
+					if (force < 10.0f && force > -10.0f)
+					{
+						vec3 aa;
+						glm_vec3_scale(pParticle2->Position, force / pParticle1->Size, aa);
+
+						vec3 aaa;
+						glm_vec3_divs(aa, pParticle2->Size / pParticle1->Size, aaa);
+
+						glm_vec3_add(pParticle1->PositionVelocity, aa, pParticle1->PositionVelocity);
+						glm_vec3_sub(pParticle2->PositionVelocity, aaa, pParticle2->PositionVelocity);
+					}
+				}
+			}
+
+			float bleed = 0.999f;
+			glm_vec3_scale(pParticle1->PositionVelocity, bleed, pParticle1->PositionVelocity);
+			glm_vec4_scale(pParticle1->RotationVelocity, bleed, pParticle1->RotationVelocity);
+
+			pParticle1->PositionVelocity[0] += ((float)rand()) * 0.0000000000001;
+			pParticle1->PositionVelocity[1] += ((float)rand()) * 0.0000000000001;
+			pParticle1->PositionVelocity[2] += ((float)rand()) * 0.0000000000001;
+
+			glm_vec3_add(pParticle1->Position, pParticle1->PositionVelocity, pParticle1->Position);
+			glm_quat_mul(pParticle1->Rotation, pParticle1->RotationVelocity, pParticle1->Rotation);
+		}
 		for (size_t i = 0; i < pEffect->ParticlesSize; i++)
 		{
 			GPU_Particle* pParticle = &pEffect->Particles[i];
-			for (size_t i1 = 0; i1 < pEffect->ParticlesSize; i1++)
-			{
-				GPU_Particle* pParticle2 = &pEffect->Particles[i1];
-
-				float distancesqaured = sqrt(glm_vec3_distance(pParticle->Position, pParticle2->Position));
-				if (distancesqaured < 0.0000001f)
-				{
-					distancesqaured = 0.0000001f;
-				}
-				//gravity
-				//float force = ((0.00000000001) / distancesqaured) * pParticle2->Size; // ((0.00000000001) / distancesqaured) * pParticle2->Size
-				//electromagnetic
-				float force = (-0.000000008988 * ((pParticle->Charge * pParticle2->Charge) / distancesqaured));
-				//weak
-
-				//strong
-
-
-
-				vec3 aa;
-				glm_vec3_scale(pParticle2->Position, force / pParticle->Size, aa);
-
-				vec3 aaa;
-				glm_vec3_divs(aa, pParticle2->Size / pParticle->Size, aaa);
-
-				glm_vec3_add(pParticle->PositionVelocity, aa, pParticle->PositionVelocity);
-				glm_vec3_sub(pParticle2->PositionVelocity, aaa, pParticle2->PositionVelocity);
-
-
-
-			}
 			glm_vec3_add(pParticle->Position, pParticle->PositionVelocity, pParticle->Position);
 			glm_quat_mul(pParticle->Rotation, pParticle->RotationVelocity, pParticle->Rotation);
 		}
+
+
 
 		if (pEffect->ParticlesSize != NULL)
 		{
 			memcpy((void*)((uint64_t)GPU_BufferPointers[0]), pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
 		}
-		GPU_BufferPointers[0] += sizeof(*pEffect->Particles) * pEffect->ParticlesSize;
+
+
+		GPU_BufferPointers[0] += pEffect->ParticlesSize * sizeof(*pEffect->Particles);
 	}
+	Engine_Ref_Unlock_Mutex(pEffect->mutex);
 }
 
 void Update_QuantumAtomic(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectQuantumAtomic* pEffect,
@@ -1461,33 +1518,6 @@ void Update_QuantumAtomic(ElementGraphics* pElement, ResourceHeader* pHeader, Ob
 	else
 	{
 		/*
-		for (size_t i = 0; i < pEffect->GPU_AtomsSize; i++)
-		{
-			GPU_Atom* pAtom = &pEffect->GPU_Atoms[i];
-			glm_vec3_add(pAtom->Position, pAtom->PositionVelocity, pAtom->Position);
-			glm_quat_mul(pAtom->Rotation, pAtom->RotationVelocity, pAtom->Rotation);
-
-		}
-
-		for (size_t i = 0; i < ChemistryQuantumAtomicBuffersCount; i++)
-		{
-			VkDescriptorBufferInfo BufferInfo;
-			BufferInfo.buffer = pGraphicsWindow->pLogicalDevice->SrcBuffer.VkBuffer;
-			BufferInfo.offset = GPU_Buffers[i].Pointer;
-			BufferInfo.range = (GPU_Buffers[i].SizeBytes != NULL) ? GPU_Buffers[i].SizeBytes : VK_WHOLE_SIZE;
-			Update_Descriptor(pGraphicsWindow->pLogicalDevice, [FrameIndex], i, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &BufferInfo, NULL);
-		}
-
-		for (size_t i = 0; i < pEffect->CovalentBondsSize; i++)
-		{
-			GPU_CovalentBond* pCovalentBond = ((uint64_t)pGraphicsWindow->pLogicalDevice->SrcBufPointer + GPU_Buffers[1].Pointer + GPU_BufferPointers[1]);
-			GPU_BufferPointers[1] += sizeof(GPU_CovalentBond);
-
-			//glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[i].AtomIndices[1]].Position, pCovalentBond->Position[0]);
-			//glm_vec3_copy(pEffect->GPU_Atoms[pEffect->CovalentBonds[i].AtomIndices[0]].Position, pCovalentBond->Position[1]);
-		}
-
-
 		if (pEffect->GPU_AtomsSize != NULL)
 		{
 			memcpy((void*)((uint64_t)pGraphicsWindow->pLogicalDevice->SrcBufPointer + GPU_Buffers[0].Pointer + GPU_BufferPointers[0]),
@@ -2180,6 +2210,9 @@ TEXRESULT Create_SimplifiedMolecular(ElementGraphics* pElement, ChemistryEffectS
 			EffectInfo->Particles = calloc(EffectInfo->ParticlesSize, sizeof(*EffectInfo->Particles));
 			memcpy(EffectInfo->Particles, EffectCreateInfo->Particles, EffectInfo->ParticlesSize * sizeof(*EffectInfo->Particles));
 		}
+		Engine_Ref_Create_Mutex(EffectInfo->mutex, MutexType_Plain);
+
+
 		ReCreate_SimplifiedMolecular(pElement, EffectInfo, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(ChemistryEffectSimplifiedMolecular);

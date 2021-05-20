@@ -24,7 +24,7 @@ volatile struct{
 	UTF8* DefaultIP; // = (UTF8*)"216.58.223.255";
 }Config;
 
-const float speed = 0.0001f;
+const float speed = 0.00001f;
 const float mouseSpeed = 0.00000001f;
 const float ScrollSpeed = 50.0f;
 
@@ -79,7 +79,7 @@ TEXRESULT Initialise_Chat()
 			memset(&CreateInfo, NULL, sizeof(CreateInfo));
 			CreateInfo.TargetExtentWidth = 1000;
 			CreateInfo.TargetExtentHeight = 1000;
-			CreateInfo.TargetFrameBuffersSize = 3;
+			CreateInfo.TargetFrameBuffersSize = 4;
 			ResourceHeaderCreateInfo MainCreateInfo;
 			memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
@@ -127,7 +127,7 @@ TEXRESULT Initialise_Chat()
 				}
 			}
 		}
-		
+		/*
 
 		{
 
@@ -302,7 +302,7 @@ TEXRESULT Initialise_Chat()
 				free(InfoText.pFonts);
 			}
 		}
-
+		*/
 
 
 		
@@ -356,75 +356,22 @@ TEXRESULT Initialise_Chat()
 				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_SimplifiedMolecular;
 				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
 
-				Info.ParticlesSize = 4;
+				Info.ParticlesSize = 1;
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
-				Info.Particles[0].Position[0] = -1.2f;
-				Info.Particles[0].PositionVelocity[1] = 0.0000f;
+				Info.Particles[0].Position[0] = 0.0f;
 				Info.Particles[0].Size = 1.0f;
-				Info.Particles[0].Charge = 2.0f;
-
-				Info.Particles[1].Position[0] = 0.0f;
-				Info.Particles[1].Position[1] = -0.1f;
-				Info.Particles[1].PositionVelocity[1] = 0.0003f;
-				Info.Particles[1].Size = 0.000544662309f;
-				Info.Particles[1].Charge = -1.0f;
-
-				Info.Particles[2].Position[0] = 1.2f;
-				Info.Particles[2].PositionVelocity[1] = 0.0000f;
-				Info.Particles[2].Size = 1.0f;
-				Info.Particles[2].Charge = 2.0f;
-
-
-				Info.Particles[3].Position[0] = 0.0f;
-				Info.Particles[3].Position[1] = 0.1f;
-				Info.Particles[3].PositionVelocity[1] = -0.0003f;
-				Info.Particles[3].Size = 0.000544662309f;
-				Info.Particles[3].Charge = -1.0f;
-
-
+				Info.Particles[0].Charge = 1.0f;
 				/*
-				Info.Particles[3].Position[0] = -0.2f;
-				Info.Particles[3].PositionVelocity[1] = 0.0001f;
-				Info.Particles[3].Size = ChemistryElementType_Carbon;
+				for (size_t i = 0; i < 8; i++)
+				{
+					Info.Particles[1 + i].Position[0] = 0.0f;
+					Info.Particles[1 + i].Size = 0.0005f;
+					Info.Particles[1 + i].Charge = -1.0f;
+				}
+				*/
 
-				Info.Particles[4].Position[0] = -0.1f;
-				Info.Particles[4].Position[1] = 0.15f;
-				Info.Particles[4].PositionVelocity[1] = 0.0001f;
-				Info.Particles[4].Size = ChemistryElementType_Carbon;
 
-				Info.Particles[5].Position[0] = 0.1f;
-				Info.Particles[5].Position[1] = 0.15f;
-				Info.Particles[5].PositionVelocity[1] = 0.0001f;
-				Info.Particles[5].Size = ChemistryElementType_Carbon;
-
-				Info.Particles[6].Position[0] = 0.350f;
-				Info.Particles[6].PositionVelocity[1] = 0.0001f;
-				Info.Particles[6].Size = ChemistryElementType_Hydrogen;
-
-				Info.Particles[7].Position[0] = 0.2f;
-				Info.Particles[7].Position[1] = -0.25f;
-				Info.Particles[7].PositionVelocity[1] = 0.0001f;
-				Info.Particles[7].Size = ChemistryElementType_Hydrogen;
-
-				Info.Particles[8].Position[0] = -0.2f;
-				Info.Particles[8].Position[1] = -0.25f;
-				Info.Particles[8].PositionVelocity[1] = 0.0001f;
-				Info.Particles[8].Size = ChemistryElementType_Hydrogen;
-
-				Info.Particles[9].Position[0] = -0.350f;
-				Info.Particles[9].PositionVelocity[1] = 0.0001f;
-				Info.Particles[9].Size = ChemistryElementType_Hydrogen;
-
-				Info.Particles[10].Position[0] = -0.2f;
-				Info.Particles[10].Position[1] = 0.25f;
-				Info.Particles[10].PositionVelocity[1] = 0.0001f;
-				Info.Particles[10].Size = ChemistryElementType_Hydrogen;
-
-				Info.Particles[11].Position[0] = 0.2f;
-				Info.Particles[11].Position[1] = 0.25f;
-				Info.Particles[11].PositionVelocity[1] = 0.0001f;
-				Info.Particles[11].Size = ChemistryElementType_Hydrogen;*/
 
 				ElementCreateInfo MainCreateInfo;
 				memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
@@ -1222,7 +1169,7 @@ void Update_Chat()
 		}
 	}
 	
-	if ((((EngineUtils*)EngineRes.pUtils)->CurrentTime - lasttime) > 1.0)//fps counter shit
+	/*if ((((EngineUtils*)EngineRes.pUtils)->CurrentTime - lasttime) > 1.0)//fps counter shit
 	{	
 		(((EngineUtils*)EngineRes.pUtils)->CurrentTime = ((double)clock() / (double)CLOCKS_PER_SEC));
 		
@@ -1248,14 +1195,15 @@ void Update_Chat()
 
 		pEffect->UTF8_Text = CopyData(buffer);
 		Object_Ref_ReCreate_Element(iFPS_DisplayText, &ElementInstance, 0);
-	}
+	}*/
 	
 	
 	RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pCameraHeader->Header.iParents[0], (uint32_t)GraphicsHeader_Position);
 	
 	float framehorizontalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentWidth / 2.0f - ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position);
 	float frameverticalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentHeight / 2.0f - ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position);
-	
+	framehorizontalAngle = 0;
+	frameverticalAngle = 0;
 	vec4 Translation;
 	glm_vec3_zero(Translation);
 	mat4 Rotation;
@@ -1362,6 +1310,7 @@ void Update_Chat()
 
 	//glm_rotate(pPositionHeader->Matrix, frameverticalAngle, horiz);
 	glm_rotate(pPositionHeader->Matrix, framehorizontalAngle, vertic);
+	
 }
 
 struct ChatResStruct

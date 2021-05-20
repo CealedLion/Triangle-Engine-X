@@ -26,15 +26,7 @@ BinaryType EngineBinType = Release;
 BinaryType EngineBinType = Debug;
 #endif
 
-EngineUtils Utils;
-
-UTF8* CommandLine; //used with windows. 
-
-
-
-
-
-
+volatile EngineUtils Utils;
 
 /* Platform specific includes */
 #if defined(_TEX_POSIX_)
@@ -53,9 +45,6 @@ UTF8* CommandLine; //used with windows.
 #include <windowsx.h>
 #include <mshtmcid.h>
 #endif
-
-
-
 
 /* Mutex */
 #if defined(_TEX_WIN32_)
@@ -84,10 +73,6 @@ typedef pthread_cond_t cnd_t;
 #endif
 
 
-
-
-
-
 void ObjectError(const UTF8* FunctionName, const UTF8* ObjectName, void* ObjectPointer, const UTF8* Error)
 {
 	char buffer[512];
@@ -101,18 +86,12 @@ void ObjectError(const UTF8* FunctionName, const UTF8* ObjectName, void* ObjectP
 	OutputDebugString(Path1);
 	free(Path1);
 #endif
-
-	//Resize_Array((void**)&Utils.OutputStream, Utils.OutputStreamSize, Utils.OutputStreamSize + 1, sizeof(*Utils.OutputStream));
-	//Utils.OutputStream[Utils.OutputStreamSize] = CopyData(buffer);
-	//Utils.OutputStreamSize++;
-	//fprintf(stdout, "Error: %s : %s 0x%p, Encountered The Following Validation Error: %s\n", functionname, objectname, objectpointer, error )
 }
 
 void FunctionError(const UTF8* FunctionName, const UTF8* Error, uint64_t Value)
 {
 	char buffer[512];
 	snprintf(buffer, 512, "Error: %s Failed With Error: %s0x%p\n", FunctionName, Error, Value);
-
 #ifdef _TEX_WIN32_
 	LPWSTR Path1 = NULL;
 	uint32_t size = MultiByteToWideChar(CP_UTF8, 0, buffer, -1, Path1, 0);
@@ -122,17 +101,12 @@ void FunctionError(const UTF8* FunctionName, const UTF8* Error, uint64_t Value)
 	OutputDebugString(Path1);
 	free(Path1);
 #endif
-	//Resize_Array((void**)&Utils.OutputStream, Utils.OutputStreamSize, Utils.OutputStreamSize + 1, sizeof(*Utils.OutputStream));
-	//Utils.OutputStream[Utils.OutputStreamSize] = CopyData(buffer);
-	//Utils.OutputStreamSize++;
-	//fprintf(stdout, "Error: %s Failed With Error: %s0x%p\n", functionname, error, value)
 }
 
 void ArgsError(const UTF8* FunctionName, const UTF8* Error)
 {
 	char buffer[512];
 	snprintf(buffer, 512, "Error: %s Invalid Argument: %s\n", FunctionName, Error);
-
 #ifdef _TEX_WIN32_
 	LPWSTR Path1 = NULL;
 	uint32_t size = MultiByteToWideChar(CP_UTF8, 0, buffer, -1, Path1, 0);
@@ -142,10 +116,6 @@ void ArgsError(const UTF8* FunctionName, const UTF8* Error)
 	OutputDebugString(Path1);
 	free(Path1);
 #endif
-	//Resize_Array((void**)&Utils.OutputStream, Utils.OutputStreamSize, Utils.OutputStreamSize + 1, sizeof(*Utils.OutputStream));
-	//Utils.OutputStream[Utils.OutputStreamSize] = CopyData(buffer);
-	//Utils.OutputStreamSize++;
-	//fprintf(stdout, "Error: %s Invalid Argument: %s\n", functionname, error)
 }
 
 
@@ -2163,7 +2133,7 @@ TEXRESULT Create_Window(Window** ppWindow, uint32_t Width, uint32_t Height, cons
 	WNDCLASS wc;
 	memset(&wc, 0, sizeof(WNDCLASS));
 	wc.lpfnWndProc = WindowProc;
-	wc.hInstance = Utils.Instance;
+	wc.hInstance = Utils.win32.Instance;
 	wc.lpszClassName = Name1;
 	RegisterClass(&wc);
 
@@ -2178,7 +2148,7 @@ TEXRESULT Create_Window(Window** ppWindow, uint32_t Width, uint32_t Height, cons
 		Width, Height,
 		NULL,       // Parent window    
 		NULL,       // Menu
-		Utils.Instance,  // Instance handle
+		Utils.win32.Instance,  // Instance handle
 		NULL        // Additional application data
 	);
 	free((void*)Name1);
@@ -2197,7 +2167,6 @@ TEXRESULT Create_Window(Window** ppWindow, uint32_t Width, uint32_t Height, cons
 	{
 		Run_ExternalFunction(Utils.Category.Window_Open[i]);
 	}
-
 	return Success;
 }
 
@@ -2229,7 +2198,7 @@ TEXRESULT Destroy_Window(Window* pWindow, const UTF8* Name)
 			Name1 = (WCHAR*)malloc(sizeof(WCHAR) * Name1Size);
 			MultiByteToWideChar(CP_UTF8, 0, Name, -1, Name1, Name1Size);
 
-			UnregisterClass(Name1, Utils.Instance);
+			UnregisterClass(Name1, Utils.win32.Instance);
 			free((void*)Name1);
 #endif
 			free(Utils.pWindows[i]);
@@ -2255,15 +2224,11 @@ TEXRESULT Set_WindowFullScreen(Window* pWindow, bool FullScreen)
 	pWindow->FullScreen = FullScreen;
 #ifdef _WIN32
 	DWORD dwStyle = GetWindowLong(pWindow->Window, GWL_STYLE);
-
 	if (pWindow->FullScreen == true)
 	{
 		MONITORINFO mi = { sizeof(mi) };
-		if (GetWindowPlacement(pWindow->Window, &g_wpPrev) &&
-			GetMonitorInfo(MonitorFromWindow(pWindow->Window,
-				MONITOR_DEFAULTTOPRIMARY), &mi)) {
-			SetWindowLong(pWindow->Window, GWL_STYLE,
-				dwStyle & ~WS_OVERLAPPEDWINDOW);
+		if (GetWindowPlacement(pWindow->Window, &g_wpPrev) && GetMonitorInfo(MonitorFromWindow(pWindow->Window, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+			SetWindowLong(pWindow->Window, GWL_STYLE, dwStyle & ~WS_OVERLAPPEDWINDOW);
 			SetWindowPos(pWindow->Window, HWND_TOP,
 				mi.rcMonitor.left, mi.rcMonitor.top,
 				mi.rcMonitor.right - mi.rcMonitor.left,
@@ -2273,12 +2238,9 @@ TEXRESULT Set_WindowFullScreen(Window* pWindow, bool FullScreen)
 	}
 	else
 	{
-		SetWindowLong(pWindow->Window, GWL_STYLE,
-			dwStyle | WS_OVERLAPPEDWINDOW);
+		SetWindowLong(pWindow->Window, GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
 		SetWindowPlacement(pWindow->Window, &g_wpPrev);
-		SetWindowPos(pWindow->Window, NULL, 0, 0, 0, 0,
-			SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-			SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+		SetWindowPos(pWindow->Window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 	}
 #endif
 }
@@ -2379,7 +2341,6 @@ TEXRESULT Write_ClipboardUTF8(Window* pWindow, UTF8* pData)
 */
 TEXRESULT Get_PrimaryMonitor(Window* pWindow, Monitor** ppMonitor)
 {
-	
 #ifndef NDEBUG
 	if (ppMonitor == NULL)
 	{
@@ -2529,10 +2490,17 @@ void Apply_Config(const UTF8* ConfigParameterName, void* pConfigParameterToApply
 	}
 }
 
-
 //////////////////////////////////////////
 //Main Functions
 //////////////////////////////////////////
+
+#ifdef _WIN32
+HINSTANCE ghInstance = NULL;
+HINSTANCE ghPrevInstance = NULL;
+PWSTR gpCmdLine = NULL;
+int gnCmdShow = NULL;
+#endif
+
 
 TEXRESULT Initialize()
 {
@@ -2541,9 +2509,24 @@ TEXRESULT Initialize()
 	////////////////////////////////////////////////////////////////////////////////////////
 	memset(&Config, NULL, sizeof(Config));
 	memset(&Utils, NULL, sizeof(Utils));
-	Config.InitialExtensionMax = 1024;
 
+	//stupid endian test
+	unsigned int x = 0x76543210;
+	char* c = (char*)&x;
+	if (!(*c == 0x10)) //big endian, unsupported.
+		return 1;
 #ifdef _WIN32
+	Utils.win32.Instance = ghInstance;
+	Utils.win32.PrevInstance = ghPrevInstance;
+	Utils.win32.CommandShow = gnCmdShow;
+	if (gpCmdLine != NULL)
+	{
+		LPSTR Multibyte = NULL;
+		uint32_t MultibyteSize = WideCharToMultiByte(CP_UTF8, 0, gpCmdLine, -1, Multibyte, NULL, NULL, NULL);
+		Multibyte = (LPSTR*)malloc(sizeof(LPSTR) * MultibyteSize);
+		WideCharToMultiByte(CP_UTF8, 0, gpCmdLine, -1, Multibyte, MultibyteSize, NULL, NULL);
+		Utils.win32.CommandLine = Multibyte;
+	}
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	Utils.CPU.MaxThreads = sysinfo.dwNumberOfProcessors;
@@ -2552,6 +2535,9 @@ TEXRESULT Initialize()
 	sched_getaffinity(0, sizeof(cpuset), &cpuset);
 	Utils.CPU.MaxThreads = CPU_COUNT(&cpuset);
 #endif
+
+
+	Config.InitialExtensionMax = 1024;
 
 	Create_Mutex(Utils.WindowsMutex, MutexType_Plain);
 
@@ -2629,7 +2615,7 @@ TEXRESULT Initialize()
 	//Init Extensions
 	////////////////////////////////////////////////////////////////////////////////////////
 	
-	UTF8* CommandLinePointer = CommandLine;
+	UTF8* CommandLinePointer = Utils.win32.CommandLine;
 	while (*CommandLinePointer != '\0')
 	{
 		uint64_t it = Find_first_of(CommandLinePointer, ",");
@@ -2727,31 +2713,15 @@ void Destroy()
 
 
 #ifdef _WIN32
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow){
-	//stupid endian test
-	unsigned int x = 0x76543210;
-	char* c = (char*)&x;
-	if (!(*c == 0x10)) //big endian, unsupported.
-		return 1;
-
-	Utils.Instance = hInstance;
-	Utils.PrevInstance = hPrevInstance;
-	Utils.CommandShow = nCmdShow;
-	if (pCmdLine != NULL)
-	{
-		LPSTR Multibyte = NULL;
-		uint32_t MultibyteSize = WideCharToMultiByte(CP_UTF8, 0, pCmdLine, -1, Multibyte, NULL, NULL, NULL);
-		Multibyte = (LPSTR*)malloc(sizeof(LPSTR) * MultibyteSize);
-		WideCharToMultiByte(CP_UTF8, 0, pCmdLine, -1, Multibyte, MultibyteSize, NULL, NULL);
-		CommandLine = Multibyte;
-	}
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow){	
+	ghInstance = hInstance;
+	ghPrevInstance = hPrevInstance;
+	gpCmdLine = pCmdLine;
+	gnCmdShow = nCmdShow;
 
 	Initialize();
 	while (Utils.ApplicationClose == false)
 	{
-		Utils.CurrentTime = ((double)clock() / (double)CLOCKS_PER_SEC);
-
-		//input handling
 		for (size_t i = 0; i < Utils.pWindowsSize; i++)
 		{
 			MSG msg;
@@ -2762,7 +2732,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 				DispatchMessage(&msg);
 			}
 		}
-
 		for (size_t i = 0; i < Utils.Category.EveryFrameSize; i++)
 		{
 			Run_ExternalFunction(Utils.Category.EveryFrame[i]);

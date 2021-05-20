@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 //Third-Party
 #include <atomic\atomic.h>
 //ours
@@ -1369,7 +1370,8 @@ void UpdateSignature_Volume(AudioEffectSignature* pSignature)
 		{
 			if (pElement->UsageFlags & AudioElementUsage_Recording)
 			{
-				if ((((EngineUtils*)EngineRes.pUtils)->CurrentTime - pElement->LastTime) >= ((double)pElement->RingBufferSize_Seconds / (double)4))
+
+				if ((((double)clock() / (double)CLOCKS_PER_SEC) - pElement->LastTime) >= ((double)pElement->RingBufferSize_Seconds / (double)4))
 				{
 					uint32_t ReadBufferSize = soundio_ring_buffer_fill_count(pElement->RingBuffer);
 					const char* ReadBuffer = soundio_ring_buffer_read_ptr(pElement->RingBuffer);

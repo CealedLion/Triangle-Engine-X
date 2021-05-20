@@ -345,6 +345,9 @@ typedef struct ChemistryEffectSimplifiedMolecular {
 	GPU_Particle* Particles;
 
 	//every reinit
+
+	Mutex mutex;
+
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipelineParticle;
 	VkShaderModule VkShaderVertexParticle;

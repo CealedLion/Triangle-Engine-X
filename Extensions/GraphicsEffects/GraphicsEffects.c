@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 //Third-Party
 #include <atomic\atomic.h>
 //OS Specific
@@ -1192,7 +1193,8 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 			RHeaderGraphicsWindow* pGraphicsWindow1 = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 			if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pGraphicsWindow1->Header.Allocation) == Success)
 			{
-				pResourceHeader->Time = ((EngineUtils*)EngineRes.pUtils)->CurrentTime;
+				pResourceHeader->Time = ((double)clock() / (double)CLOCKS_PER_SEC);
+
 				RHeaderTexture* pTexture = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget);
 				RHeaderImageSource* pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource);
 

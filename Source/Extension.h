@@ -1488,20 +1488,30 @@ typedef struct Window_Open_Callback_struct
 typedef struct EngineUtils{
 	bool ApplicationClose;
 
-	void* Instance; //HINSTANCE Global_hInstance; used with windows.
-	void* PrevInstance; //used with windows.
-	int CommandShow; //used with windows.
-
+	//OS-Specific Information.
+	struct WindowsInfo {
+		void* Instance; //HINSTANCE hInstance;
+		void* PrevInstance; // HINSTANCE hPrevInstance
+		int CommandShow; //int nCmdShow
+		UTF8* CommandLine;
+	}win32;
+	struct PosixInfo {
+		uint32_t pad;
+	}posix;
+	//Computer Information.
+	struct CPUINFO {
+		size_t MaxThreads;
+	}CPU;
+	//Internal Window Buffer.
 	Window** pWindows;
 	size_t pWindowsSize;
 	Mutex WindowsMutex;
 
-	struct CPUINFO{
-		size_t MaxThreads;
-	}CPU;
 
-	double CurrentTime;
-
+	ExtensionDataBuffer ExtensionBuffer;
+	//default extension
+	ExtensionAllocation EngineExtension;
+	//Callback States
 	Key_Callback_struct Key_Callback_state;
 	Character_Callback_struct Character_Callback_state;
 	MouseButton_Callback_struct MouseButton_Callback_state;
@@ -1520,11 +1530,6 @@ typedef struct EngineUtils{
 	Window_Close_Callback_struct Window_Close_Callback_state;
 	Window_Open_Callback_struct Window_Open_Callback_state;
 	//end
-
-	ExtensionDataBuffer ExtensionBuffer;
-
-	//default extension
-	ExtensionAllocation EngineExtension;
 
 	struct CategoriesStruct
 	{
