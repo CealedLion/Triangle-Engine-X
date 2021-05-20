@@ -8,12 +8,6 @@
 #include <time.h>
 //Third-Party
 #include <atomic\atomic.h>
-//OS Specific
-#ifdef _WIN32
-//#include <process.h>
-#else
-
-#endif
 //ours
 #include "Extension.h"
 #include "Object.h"
@@ -25,14 +19,11 @@
 #define TEX_EXPOSE_GRAPHICSEFFECTS
 #include "GraphicsEffects.h"
 
-
 volatile struct{
 	uint64_t InitialHeadersMax;
 }Config;
 
 volatile GraphicsEffectsUtils Utils;
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Misc

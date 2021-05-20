@@ -11,8 +11,8 @@
 //OS Specific
 #ifdef _WIN32
 #define VK_USE_PLATFORM_WIN32_KHR
+#else
 #endif
-
 //ours
 #include "Extension.h"
 #include "Object.h"
@@ -39,7 +39,6 @@ volatile struct
 
 	uint32_t MaxAnisotropy;
 	bool AnisotropicFiltering;
-
 }Config;
 
 volatile GraphicsUtils Utils;
