@@ -639,168 +639,188 @@ SPIRV_Header(FragmentCovalentBondVariables_MAX)\
 }
 
 
-typedef enum ComputeShaderButterfly1Variables {
+typedef enum ComputeShaderButterflyVariables {
 	ButterflyVariable_ExtInstGLSL450 = 1,
 	ButterflyFunction_Main,
 
+	//BASIC TYPES
 	ButterflyType_Void,
 	ButterflyType_Function,
 	ButterflyType_bool,
-
 
 	ButterflyType_float32,
 	ButterflyType_float32vec2,
 	ButterflyType_float32vec3,
 	ButterflyType_float32vec4,
 
-	ButterflyType_uint32,
-	ButterflyType_uint32vec2,
-	ButterflyType_uint32vec3,
-
 	ButterflyType_int32,
 	ButterflyType_int32vec2,
+	ButterflyType_int32vec3,
 
-
-	//basic constants
+	//CONSTANTS
 	ButterflyConstant_float32_0,
+	ButterflyConstant_float32_7,
 
-	ButterflyConstant_uint32_0,
-	ButterflyConstant_uint32_1,
-	ButterflyConstant_uint32_2,
-
+	ButterflyConstant_int32_N1,
 	ButterflyConstant_int32_0,
 	ButterflyConstant_int32_1,
+	ButterflyConstant_int32_2,
 
-	//input
-	ButterflyType_InputPointer_uint32vec3,
-	ButterflyType_InputPointer_uint32,
-
+	//INPUT
+	//PushConstants
 	ButterflyType_struct_PushConstants,
 	ButterflyType_PushConstantPointer_struct_PushConstants,
 	ButterflyVariable_PushConstantPointer_struct_PushConstants,
 	ButterflyType_PushConstantPointer_int32,
-
-	ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID,
-
-	//twiddlefactors image
-	ButterflyType_Image_float32_2D_0_0_0_2_R32f,
-	ButterflyType_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f,
-	ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f,
-
-	//output/input
-	//GPU_Atom 
-	ButterflyType_struct_Atom,
-	ButterflyType_RuntimeArray_struct_Atoms,
-	ButterflyType_struct_Atoms,
-	ButterflyType_StorageBufferPointer_struct_Atoms,
-	ButterflyType_StorageBufferPointer_struct_Atom,
-	ButterflyType_StorageBufferPointer_float32vec3,
-
-	//pingpong0
-	ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong0,
-	//pingpong1
-	ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong1,
-
-	//OUTPUT
+	//BuiltIn
+	ButterflyType_InputPointer_int32vec3,
+	ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID,
+	ButterflyType_InputPointer_int32,
+	//StorageBuffer GPU_Particles
+	ButterflyType_struct_Particle,
+	ButterflyType_RuntimeArray_struct_Particles,
+	ButterflyType_struct_Particles,
+	ButterflyType_StorageBufferPointer_struct_Particles,
+	ButterflyType_StorageBufferPointer_struct_Particle,
+	ButterflyVariable_StorageBufferPointer_struct_Particles,
+	//INPUT/OUTPUT
+	//Result
+	ButterflyType_Image_float32_3D_0_0_0_2_R32f,
+	ButterflyType_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f,
+	ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0,
+	ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1,
 
 
-
-	ButterflyType_FunctionPointer_struct_Atom,
-
-
-
+	//MAIN FUNCTION
 	ButterflyLabel_Start,
-
-
-
-	ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_0,
-	ButterflyLoadedVariable_uint32_BuiltInInvocationID_0,
-
-	ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_1,
-	ButterflyLoadedVariable_uint32_BuiltInInvocationID_1,
-
-	ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_2,
-	ButterflyLoadedVariable_uint32_BuiltInInvocationID_2,
-
+	
+	ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,
+	ButterflyVariable_InputPointer_int32_BuiltInInvocationID_0,
+	ButterflyLoadedVariable_int32_BuiltInInvocationID_0,
+	ButterflyVariable_InputPointer_int32_BuiltInInvocationID_1,
+	ButterflyLoadedVariable_int32_BuiltInInvocationID_1,
+	ButterflyVariable_InputPointer_int32_BuiltInInvocationID_2,
+	ButterflyLoadedVariable_int32_BuiltInInvocationID_2,
+	
 
 	ButterflyVariable_PushConstantPointer_int32_ButterflyStage,
 	ButterflyLoadedVariable_int32_ButterflyStage,
-
 	ButterflyVariable_PushConstantPointer_int32_PingPongIndex,
 	ButterflyLoadedVariable_int32_PingPongIndex,
-
-
-	ButterflyLoadedVariable_int32vec2_op0,
-	ButterflyLoadedVariable_float32vec4_TwiddleFactors,
+	ButterflyVariable_PushConstantPointer_int32_ButterflyDirection,
+	ButterflyLoadedVariable_int32_ButterflyDirection,
 
 
 
-	ButterflyLoadedVariable_float32_op0,
-	ButterflyLoadedVariable_float32_op1,
-	ButterflyLoadedVariable_float32_op2,
-	ButterflyLoadedVariable_float32_op3,
+	ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0,
+	ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1,
 
-	ButterflyLoadedVariable_int32_op0,
-	ButterflyLoadedVariable_int32_op1,
 
-	//ButterflyLoadedVariable_float32vec2_op3,
+	ButterflyLoadedVariable_int32vec3_op0,
+	ButterflyLoadedVariable_int32vec3_op1,
+	ButterflyLoadedVariable_int32vec3_op2,
+	ButterflyLoadedVariable_int32vec3_op3,
+	ButterflyLoadedVariable_int32vec3_op4,
+	ButterflyLoadedVariable_int32vec3_op5,
 
-	//ButterflyLoadedVariable_float32vec3_SampleA,
-	//ButterflyLoadedVariable_float32vec3_SampleB,
-	ButterflyVariable_FunctionPointer_struct_Atom,
+	ButterflyLoadedVariable_int32vec3_op6,
+	ButterflyLoadedVariable_int32vec3_op7,
+	ButterflyLoadedVariable_int32vec3_op8,
+	ButterflyLoadedVariable_int32vec3_op9,
+	ButterflyLoadedVariable_int32vec3_op10,
+	ButterflyLoadedVariable_int32vec3_op11,
 
-	ButterflyLoadVariable_bool_op0,
 
-	ButterflyLabel_PingPongSelectionMerge,
+	ButterflyLoadedVariable_bool_op0,
+	ButterflyLabel_PingPongMerge,
 	ButterflyLabel_PingPongTrue,
 	ButterflyLabel_PingPongFalse,
 
-	ButterflyVariable_StorageBufferPointer_struct_AtomPingPong0,
-	ButterflyLoadedVariable_struct_AtomPingPong0,
-	ButterflyVariable_StorageBufferPointer_struct_AtomPingPong1,
-	ButterflyLoadedVariable_struct_AtomPingPong1,
+
+	//sample all around current point
+	ButterflyLoadedVariable_float32vec4_sample_0_0_0__0,
+	ButterflyLoadedVariable_float32vec4_sample_1_0_0__0,
+	ButterflyLoadedVariable_float32vec4_sample_N1_0_0__0,
+	ButterflyLoadedVariable_float32vec4_sample_0_1_0__0,
+	ButterflyLoadedVariable_float32vec4_sample_0_N1_0__0,
+	ButterflyLoadedVariable_float32vec4_sample_0_0_1__0,
+	ButterflyLoadedVariable_float32vec4_sample_0_0_N1__0,
+
+	//each pixel composed of electrostatic value 
+
+	//get the force component of each sample
+	ButterflyLoadedVariable_float32_force_sample0_0,
+	ButterflyLoadedVariable_float32_force_sample1_0,
+	ButterflyLoadedVariable_float32_force_sample2_0,
+	ButterflyLoadedVariable_float32_force_sample3_0,
+	ButterflyLoadedVariable_float32_force_sample4_0,
+	ButterflyLoadedVariable_float32_force_sample5_0,
+	ButterflyLoadedVariable_float32_force_sample6_0,
 
 
-	
+	//spread out the energy
+	ButterflyLoadedVariable_float32_op0_0,
+	ButterflyLoadedVariable_float32_op1_0,
+	ButterflyLoadedVariable_float32_op2_0,
+	ButterflyLoadedVariable_float32_op3_0,
+	ButterflyLoadedVariable_float32_op4_0,
+	ButterflyLoadedVariable_float32_op5_0,
+
+	ButterflyLoadedVariable_float32_op6_0,
+
+	//store
+	ButterflyLoadedVariable_float32vec4_op0_0,
+	ButterflyLoadedVariable_float32vec4_op1_0,
+	ButterflyLoadedVariable_float32vec4_op2_0,
+	ButterflyLoadedVariable_float32vec4_op3_0,
+	ButterflyLoadedVariable_float32vec4_op4_0,
+	ButterflyLoadedVariable_float32vec4_op5_0,
+	ButterflyLoadedVariable_float32vec4_op6_0,
+
+
+
 	ButterflyVariables_MAX
-}ComputeShaderButterfly1Variables;
-#define ComputeShaderButterfly1Size (744 * sizeof(SPIRV))
-#define ComputeShaderButterfly1() {\
+}ComputeShaderButterflyVariables;
+#define ComputeShaderButterflySize (744 * sizeof(SPIRV))
+#define ComputeShaderButterfly() {\
 SPIRV_Header(ButterflyVariables_MAX)\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityShader,\
 (2<<SpvWordCountShift)|SpvOpCapability, SpvCapabilityVulkanMemoryModel, \
 (6<<SpvWordCountShift)|SpvOpExtInstImport, ButterflyVariable_ExtInstGLSL450, 'LSLG', 'dts.', '054.', '\0',\
 (3<<SpvWordCountShift)|SpvOpMemoryModel, SpvAddressingModelLogical, SpvMemoryModelVulkan,\
 (11<<SpvWordCountShift)|SpvOpEntryPoint, SpvExecutionModelGLCompute, ButterflyFunction_Main, 'niam', '\0', \
-	ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, ButterflyVariable_PushConstantPointer_struct_PushConstants, ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f,\
-	ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong0, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong1,\
-(6<<SpvWordCountShift)|SpvOpExecutionMode, ButterflyFunction_Main, SpvExecutionModeLocalSize, 1, 16, 1,\
+	ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID, ButterflyVariable_PushConstantPointer_struct_PushConstants, ButterflyVariable_StorageBufferPointer_struct_Particles,\
+	ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1,\
+(6<<SpvWordCountShift)|SpvOpExecutionMode, ButterflyFunction_Main, SpvExecutionModeLocalSize, 16, 16, 16,\
 /*DECORATION*/\
 /*INPUT*/\
 /*PushConstants*/\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_PushConstants, 0, SpvDecorationOffset, 0,\
 (5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_PushConstants, 1, SpvDecorationOffset, 4,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_PushConstants, 2, SpvDecorationOffset, 8,\
 (3<<SpvWordCountShift)|SpvOpDecorate, ButterflyType_struct_PushConstants, SpvDecorationBlock,\
-/*TwiddleFactors Image*/\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, SpvDecorationDescriptorSet, 0,\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, SpvDecorationBinding, 0,\
-(3<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, SpvDecorationNonWritable,\
 /*InvocationID*/\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, SpvDecorationBuiltIn, SpvBuiltInGlobalInvocationId,\
-/*OUTPUT*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID, SpvDecorationBuiltIn, SpvBuiltInGlobalInvocationId,\
+/*StorageBuffer GPU_Particles*/\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particle, 0, SpvDecorationOffset, 0,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particle, 1, SpvDecorationOffset, 16,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particle, 2, SpvDecorationOffset, 32,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particle, 3, SpvDecorationOffset, 48,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particle, 4, SpvDecorationOffset, 64,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particle, 5, SpvDecorationOffset, 68,\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyType_RuntimeArray_struct_Particles, SpvDecorationArrayStride, 72,\
+(3<<SpvWordCountShift)|SpvOpDecorate, ButterflyType_struct_Particles, SpvDecorationBlock,\
+(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Particles, 0, SpvDecorationOffset, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_StorageBufferPointer_struct_Particles, SpvDecorationDescriptorSet, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_StorageBufferPointer_struct_Particles, SpvDecorationBinding, 0,\
 /*INPUT/OUTPUT*/\
-/*storagebuffer GPU_Atoms*/\
-(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Atom, 0, SpvDecorationOffset, 0,\
-(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Atom, 1, SpvDecorationOffset, 12,\
-(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Atom, 2, SpvDecorationOffset, 24,\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyType_RuntimeArray_struct_Atoms, SpvDecorationArrayStride, 28,\
-(3<<SpvWordCountShift)|SpvOpDecorate, ButterflyType_struct_Atoms, SpvDecorationBlock,\
-(5<<SpvWordCountShift)|SpvOpMemberDecorate, ButterflyType_struct_Atoms, 0, SpvDecorationOffset, 0,\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong0, SpvDecorationDescriptorSet, 1,\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong0, SpvDecorationBinding, 3,\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong1, SpvDecorationDescriptorSet, 1,\
-(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong1, SpvDecorationBinding, 4,\
-/*TYPES*/\
+/*Result Storage Image*/\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, SpvDecorationDescriptorSet, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, SpvDecorationBinding, 1,\
+\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1, SpvDecorationDescriptorSet, 0,\
+(4<<SpvWordCountShift)|SpvOpDecorate, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1, SpvDecorationBinding, 2,\
+/*BASIC TYPES*/\
 (2<<SpvWordCountShift)|SpvOpTypeVoid, ButterflyType_Void,\
 (3<<SpvWordCountShift)|SpvOpTypeFunction, ButterflyType_Function, ButterflyType_Void,\
 (2<<SpvWordCountShift)|SpvOpTypeBool, ButterflyType_bool,\
@@ -809,87 +829,136 @@ SPIRV_Header(ButterflyVariables_MAX)\
 (4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_float32vec2, ButterflyType_float32, 2,\
 (4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_float32vec3, ButterflyType_float32, 3,\
 (4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_float32vec4, ButterflyType_float32, 4,\
-/*unsigned int*/\
-(4<<SpvWordCountShift)|SpvOpTypeInt, ButterflyType_uint32, 32, 0,\
-(4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_uint32vec2, ButterflyType_uint32, 2,\
-(4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_uint32vec3, ButterflyType_uint32, 3,\
 /*signed int*/\
 (4<<SpvWordCountShift)|SpvOpTypeInt, ButterflyType_int32, 32, 1,\
 (4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_int32vec2, ButterflyType_int32, 2,\
-/*Basic Constants*/\
+(4<<SpvWordCountShift)|SpvOpTypeVector, ButterflyType_int32vec3, ButterflyType_int32, 3,\
+/*CONSTANTS*/\
 (4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_float32, ButterflyConstant_float32_0, 0,\
-(4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_uint32, ButterflyConstant_uint32_0, 0,\
-(4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_uint32, ButterflyConstant_uint32_1, 1,\
-(4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_uint32, ButterflyConstant_uint32_2, 2,\
+(4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_float32, ButterflyConstant_float32_7, 1088421888,\
+(4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_int32, ButterflyConstant_int32_N1, -1,\
 (4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_int32, ButterflyConstant_int32_0, 0,\
 (4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_int32, ButterflyConstant_int32_1, 1,\
+(4<<SpvWordCountShift)|SpvOpConstant, ButterflyType_int32, ButterflyConstant_int32_2, 2,\
 /*INPUT*/\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_InputPointer_uint32vec3, SpvStorageClassInput, ButterflyType_uint32vec3,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_InputPointer_uint32, SpvStorageClassInput, ButterflyType_uint32,\
 /*PushConstants*/\
-(4<<SpvWordCountShift)|SpvOpTypeStruct, ButterflyType_struct_PushConstants, ButterflyType_int32, ButterflyType_int32,\
+(5<<SpvWordCountShift)|SpvOpTypeStruct, ButterflyType_struct_PushConstants, ButterflyType_int32, ButterflyType_int32, ButterflyType_int32,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant, ButterflyType_struct_PushConstants,\
 (4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_PushConstantPointer_struct_PushConstants, ButterflyVariable_PushConstantPointer_struct_PushConstants, SpvStorageClassPushConstant,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_PushConstantPointer_int32, SpvStorageClassPushConstant, ButterflyType_int32,\
-/*TwiddleFactors Image*/\
-(9<<SpvWordCountShift)|SpvOpTypeImage, ButterflyType_Image_float32_2D_0_0_0_2_R32f, ButterflyType_float32, SpvDim2D, 0, 0, 0, 2, SpvImageFormatR32f,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, SpvStorageClassUniformConstant, ButterflyType_Image_float32_2D_0_0_0_2_R32f,\
-(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, SpvStorageClassUniformConstant,\
 /*InvocationID*/\
-(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_InputPointer_uint32vec3, ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, SpvStorageClassInput,\
-/*OUTPUT*/\
+(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_InputPointer_int32vec3, SpvStorageClassInput, ButterflyType_int32vec3,\
+(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_InputPointer_int32vec3, ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID, SpvStorageClassInput,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_InputPointer_int32, SpvStorageClassInput, ButterflyType_int32,\
+/*StorageBuffer GPU_Atoms*/\
+(8<<SpvWordCountShift)|SpvOpTypeStruct, ButterflyType_struct_Particle, ButterflyType_float32vec3, ButterflyType_float32vec3, ButterflyType_float32vec4, ButterflyType_float32vec4, ButterflyType_float32, ButterflyType_float32,\
+(3<<SpvWordCountShift)|SpvOpTypeRuntimeArray, ButterflyType_RuntimeArray_struct_Particles, ButterflyType_struct_Particle,\
+(3<<SpvWordCountShift)|SpvOpTypeStruct, ButterflyType_struct_Particles, ButterflyType_RuntimeArray_struct_Particles,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_StorageBufferPointer_struct_Particles, SpvStorageClassStorageBuffer, ButterflyType_struct_Particles,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_StorageBufferPointer_struct_Particle, SpvStorageClassStorageBuffer, ButterflyType_struct_Particle,\
+(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_StorageBufferPointer_struct_Particles, ButterflyVariable_StorageBufferPointer_struct_Particles, SpvStorageClassStorageBuffer,\
 /*INPUT/OUTPUT*/\
-/*storagebuffer GPU_Atoms*/\
-(5<<SpvWordCountShift)|SpvOpTypeStruct, ButterflyType_struct_Atom, ButterflyType_float32vec3, ButterflyType_float32vec3, ButterflyType_int32,\
-(3<<SpvWordCountShift)|SpvOpTypeRuntimeArray, ButterflyType_RuntimeArray_struct_Atoms, ButterflyType_struct_Atom,\
-(3<<SpvWordCountShift)|SpvOpTypeStruct, ButterflyType_struct_Atoms, ButterflyType_RuntimeArray_struct_Atoms,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_StorageBufferPointer_struct_Atoms, SpvStorageClassStorageBuffer, ButterflyType_struct_Atoms,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_StorageBufferPointer_struct_Atom, SpvStorageClassStorageBuffer, ButterflyType_struct_Atom,\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_StorageBufferPointer_float32vec3, SpvStorageClassStorageBuffer, ButterflyType_float32vec3,\
-(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_StorageBufferPointer_struct_Atoms, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong0, SpvStorageClassStorageBuffer,\
-(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_StorageBufferPointer_struct_Atoms, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong1, SpvStorageClassStorageBuffer,\
-\
-(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_FunctionPointer_struct_Atom, SpvStorageClassFunction, ButterflyType_struct_Atom,\
-/*starting function*/\
+/*Result Storage Image*/\
+(9<<SpvWordCountShift)|SpvOpTypeImage, ButterflyType_Image_float32_3D_0_0_0_2_R32f, ButterflyType_float32, SpvDim3D, 0, 0, 0, 2, SpvImageFormatR32f,\
+(4<<SpvWordCountShift)|SpvOpTypePointer, ButterflyType_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f, SpvStorageClassUniformConstant, ButterflyType_Image_float32_3D_0_0_0_2_R32f,\
+(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, SpvStorageClassUniformConstant,\
+(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1, SpvStorageClassUniformConstant,\
+/*MAIN FUNCTION*/\
 (5<<SpvWordCountShift)|SpvOpFunction, ButterflyType_Void, ButterflyFunction_Main, SpvFunctionControlMaskNone, ButterflyType_Function,\
 (2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_Start,\
 	/*getting invocation ID's*/\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_InputPointer_uint32, ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_0, ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, ButterflyConstant_uint32_0,\
-	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_uint32, ButterflyLoadedVariable_uint32_BuiltInInvocationID_0, ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_0,\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_InputPointer_uint32, ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_1, ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, ButterflyConstant_uint32_1,\
-	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_uint32, ButterflyLoadedVariable_uint32_BuiltInInvocationID_1, ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_1,\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_InputPointer_uint32, ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_2, ButterflyVariable_InputPointer_uint32vec3_BuiltInInvocationID, ButterflyConstant_uint32_2,\
-	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_uint32, ButterflyLoadedVariable_uint32_BuiltInInvocationID_2, ButterflyVariable_InputPointer_uint32_BuiltInInvocationID_2,\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID, ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_InputPointer_int32, ButterflyVariable_InputPointer_int32_BuiltInInvocationID_0, ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID, ButterflyConstant_int32_0,\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32, ButterflyLoadedVariable_int32_BuiltInInvocationID_0, ButterflyVariable_InputPointer_int32_BuiltInInvocationID_0,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_InputPointer_int32, ButterflyVariable_InputPointer_int32_BuiltInInvocationID_1, ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID, ButterflyConstant_int32_1,\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32, ButterflyLoadedVariable_int32_BuiltInInvocationID_1, ButterflyVariable_InputPointer_int32_BuiltInInvocationID_1,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_InputPointer_int32, ButterflyVariable_InputPointer_int32_BuiltInInvocationID_2, ButterflyVariable_InputPointer_int32vec3_BuiltInInvocationID, ButterflyConstant_int32_2,\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32, ButterflyLoadedVariable_int32_BuiltInInvocationID_2, ButterflyVariable_InputPointer_int32_BuiltInInvocationID_2,\
 	/*pushconstant accessing*/\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_PushConstantPointer_int32, ButterflyVariable_PushConstantPointer_int32_ButterflyStage, ButterflyVariable_PushConstantPointer_struct_PushConstants,  ButterflyConstant_int32_0,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_PushConstantPointer_int32, ButterflyVariable_PushConstantPointer_int32_ButterflyStage, ButterflyVariable_PushConstantPointer_struct_PushConstants, ButterflyConstant_int32_0,\
 	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32, ButterflyLoadedVariable_int32_ButterflyStage, ButterflyVariable_PushConstantPointer_int32_ButterflyStage,\
 	\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_PushConstantPointer_int32, ButterflyVariable_PushConstantPointer_int32_PingPongIndex, ButterflyVariable_PushConstantPointer_struct_PushConstants,  ButterflyConstant_int32_1,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_PushConstantPointer_int32, ButterflyVariable_PushConstantPointer_int32_PingPongIndex, ButterflyVariable_PushConstantPointer_struct_PushConstants, ButterflyConstant_int32_1,\
 	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32, ButterflyLoadedVariable_int32_PingPongIndex, ButterflyVariable_PushConstantPointer_int32_PingPongIndex,\
 	\
-	(5<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec2, ButterflyLoadedVariable_int32vec2_op0, ButterflyLoadedVariable_int32_ButterflyStage, ButterflyLoadedVariable_uint32_BuiltInInvocationID_1,\
-	(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_TwiddleFactors, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, ButterflyLoadedVariable_int32vec2_op0,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_PushConstantPointer_int32, ButterflyVariable_PushConstantPointer_int32_ButterflyDirection, ButterflyVariable_PushConstantPointer_struct_PushConstants, ButterflyConstant_int32_2,\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_int32, ButterflyLoadedVariable_int32_ButterflyDirection, ButterflyVariable_PushConstantPointer_int32_ButterflyDirection,\
 	\
-	(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op0, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 0,\
-	(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op1, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 1,\
-	(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op2, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 2,\
-	(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op3, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 3,\
-	(4<<SpvWordCountShift)|SpvOpConvertFToS, ButterflyType_int32, ButterflyLoadedVariable_int32_op0, ButterflyLoadedVariable_float32_op2,\
-	(4<<SpvWordCountShift)|SpvOpConvertFToS, ButterflyType_int32, ButterflyLoadedVariable_int32_op1, ButterflyLoadedVariable_float32_op3,\
+	/*Loading Images*/\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_Image_float32_3D_0_0_0_2_R32f, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0,\
+	(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_Image_float32_3D_0_0_0_2_R32f, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1, ButterflyVariable_UniformConstantPointer_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1,\
+	/*Creating coordinates*/\
+	(6<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op0, ButterflyConstant_int32_1, ButterflyConstant_int32_0, ButterflyConstant_int32_0,\
+	(6<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op1, ButterflyConstant_int32_N1, ButterflyConstant_int32_0, ButterflyConstant_int32_0,\
+	(6<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op2, ButterflyConstant_int32_0, ButterflyConstant_int32_1, ButterflyConstant_int32_0,\
+	(6<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op3, ButterflyConstant_int32_0, ButterflyConstant_int32_N1, ButterflyConstant_int32_0,\
+	(6<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op4, ButterflyConstant_int32_0, ButterflyConstant_int32_0, ButterflyConstant_int32_1,\
+	(6<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op5, ButterflyConstant_int32_0, ButterflyConstant_int32_0, ButterflyConstant_int32_N1,\
+	\
+	(5<<SpvWordCountShift)|SpvOpIAdd, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op6, ButterflyLoadedVariable_int32vec3_op0, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+	(5<<SpvWordCountShift)|SpvOpIAdd, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op7, ButterflyLoadedVariable_int32vec3_op1, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+	(5<<SpvWordCountShift)|SpvOpIAdd, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op8, ButterflyLoadedVariable_int32vec3_op2, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+	(5<<SpvWordCountShift)|SpvOpIAdd, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op9, ButterflyLoadedVariable_int32vec3_op3, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+	(5<<SpvWordCountShift)|SpvOpIAdd, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op10, ButterflyLoadedVariable_int32vec3_op4, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+	(5<<SpvWordCountShift)|SpvOpIAdd, ButterflyType_int32vec3, ButterflyLoadedVariable_int32vec3_op11, ButterflyLoadedVariable_int32vec3_op5, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+	\
 	/*IF pingpong == 0 or else*/\
-	(4<<SpvWordCountShift)|SpvOpVariable, ButterflyType_FunctionPointer_struct_Atom, ButterflyVariable_FunctionPointer_struct_Atom, SpvStorageClassFunction,\
-	(5<<SpvWordCountShift)|SpvOpIEqual, ButterflyType_bool, ButterflyLoadVariable_bool_op0, ButterflyLoadedVariable_int32_PingPongIndex, ButterflyConstant_int32_1,\
-	\
-	(3<<SpvWordCountShift)|SpvOpSelectionMerge, ButterflyLabel_PingPongSelectionMerge, SpvSelectionControlMaskNone,\
-	(4<<SpvWordCountShift)|SpvOpBranchConditional, ButterflyLoadVariable_bool_op0, ButterflyLabel_PingPongTrue, ButterflyLabel_PingPongFalse,\
+	(5<<SpvWordCountShift)|SpvOpIEqual, ButterflyType_bool, ButterflyLoadedVariable_bool_op0, ButterflyLoadedVariable_int32_PingPongIndex, ButterflyConstant_int32_0,\
+	(3<<SpvWordCountShift)|SpvOpSelectionMerge, ButterflyLabel_PingPongMerge, SpvSelectionControlMaskNone,\
+	(4<<SpvWordCountShift)|SpvOpBranchConditional, ButterflyLoadedVariable_bool_op0, ButterflyLabel_PingPongTrue, ButterflyLabel_PingPongFalse,\
 	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_PingPongTrue,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_0_0_0__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_1_0_0__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_op6,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_N1_0_0__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_op7,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_0_1_0__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_op8,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_0_N1_0__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_op9,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_0_0_1__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_op10,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_0_0_N1__0, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_op11,\
+		\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample0_0, ButterflyLoadedVariable_float32vec4_sample_0_0_0__0, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample1_0, ButterflyLoadedVariable_float32vec4_sample_1_0_0__0, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample2_0, ButterflyLoadedVariable_float32vec4_sample_N1_0_0__0, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample3_0, ButterflyLoadedVariable_float32vec4_sample_0_1_0__0, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample4_0, ButterflyLoadedVariable_float32vec4_sample_0_N1_0__0, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample5_0, ButterflyLoadedVariable_float32vec4_sample_0_0_1__0, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_force_sample6_0, ButterflyLoadedVariable_float32vec4_sample_0_0_N1__0, 0,\
+		\
+		(5<<SpvWordCountShift)|SpvOpFAdd, ButterflyType_float32, ButterflyLoadedVariable_float32_op0_0, ButterflyLoadedVariable_float32_force_sample1_0, ButterflyLoadedVariable_float32_force_sample2_0,\
+		(5<<SpvWordCountShift)|SpvOpFAdd, ButterflyType_float32, ButterflyLoadedVariable_float32_op1_0, ButterflyLoadedVariable_float32_force_sample3_0, ButterflyLoadedVariable_float32_force_sample4_0,\
+		(5<<SpvWordCountShift)|SpvOpFAdd, ButterflyType_float32, ButterflyLoadedVariable_float32_op2_0, ButterflyLoadedVariable_float32_force_sample5_0, ButterflyLoadedVariable_float32_force_sample6_0,\
+		(5<<SpvWordCountShift)|SpvOpFAdd, ButterflyType_float32, ButterflyLoadedVariable_float32_op3_0, ButterflyLoadedVariable_float32_op0_0, ButterflyLoadedVariable_float32_op1_0,\
+		(5<<SpvWordCountShift)|SpvOpFAdd, ButterflyType_float32, ButterflyLoadedVariable_float32_op4_0, ButterflyLoadedVariable_float32_op3_0, ButterflyLoadedVariable_float32_op2_0,\
+		(5<<SpvWordCountShift)|SpvOpFAdd, ButterflyType_float32, ButterflyLoadedVariable_float32_op5_0, ButterflyLoadedVariable_float32_op4_0, ButterflyLoadedVariable_float32_force_sample0_0,\
+		\
+		(5<<SpvWordCountShift)|SpvOpFDiv, ButterflyType_float32, ButterflyLoadedVariable_float32_op6_0, ButterflyLoadedVariable_float32_op5_0, ButterflyConstant_float32_7,\
+		\
+
+
+		(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_PingPongMerge,\
+	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_PingPongFalse,\
+		(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_PingPongMerge,\
+	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_PingPongMerge,\
+
+
+	/*butterfly direction == 0*/\
+	(5<<SpvWordCountShift)|SpvOpIEqual, ButterflyType_bool, ButterflyLoadedVariable_bool_op0, ButterflyLoadedVariable_int32_ButterflyDirection, ButterflyConstant_int32_0,\
+	(3<<SpvWordCountShift)|SpvOpSelectionMerge, ButterflyLabel_X_ButterfliesMerge, SpvSelectionControlMaskNone,\
+	(4<<SpvWordCountShift)|SpvOpBranchConditional, ButterflyLoadedVariable_bool_op0, ButterflyLabel_X_ButterfliesTrue, ButterflyLabel_X_ButterfliesMerge,\
+	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_X_ButterfliesTrue,\
+		(5<<SpvWordCountShift)|SpvOpCompositeConstruct, ButterflyType_int32vec2, ButterflyLoadedVariable_int32vec2_op0, ButterflyLoadedVariable_int32_ButterflyStage, ButterflyLoadedVariable_uint32_BuiltInInvocationID_1,\
+		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_TwiddleFactors, ButterflyVariable_UniformConstantPointer_Image_float32_2D_0_0_0_2_R32f, ButterflyLoadedVariable_int32vec2_op0,\
+		\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op0, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 0,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op1, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 1,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op2, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 2,\
+		(5<<SpvWordCountShift)|SpvOpCompositeExtract, ButterflyType_float32, ButterflyLoadedVariable_float32_op3, ButterflyLoadedVariable_float32vec4_TwiddleFactors, 3,\
+		(4<<SpvWordCountShift)|SpvOpConvertFToS, ButterflyType_int32, ButterflyLoadedVariable_int32_op0, ButterflyLoadedVariable_float32_op2,\
+	(4<<SpvWordCountShift)|SpvOpConvertFToS, ButterflyType_int32, ButterflyLoadedVariable_int32_op1, ButterflyLoadedVariable_float32_op3,\
 		(6<<SpvWordCountShift)|SpvOpAccessChain, ButterflyType_StorageBufferPointer_struct_Atom, ButterflyVariable_StorageBufferPointer_struct_AtomPingPong0, ButterflyVariable_StorageBufferPointer_struct_AtomsPingPong0, ButterflyConstant_int32_0, ButterflyVLoadedVariable_int32_MatricesOffset,\
 		(4<<SpvWordCountShift)|SpvOpLoad, ButterflyType_struct_Atom, ButterflyLoadedVariable_struct_AtomPingPong0, ButterflyVariable_StorageBufferPointer_struct_AtomPingPong0,\
 		(3<<SpvWordCountShift)|SpvOpStore, ButterflyVariable_FunctionPointer_struct_Atom, ButterflyLoadedVariable_struct_AtomPingPong0,\
-		(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_PingPongSelectionMerge,\
-	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_PingPongFalse,\
-		(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_PingPongSelectionMerge,\
-	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_PingPongSelectionMerge,\
+		(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_X_ButterfliesMerge,\
+	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_X_ButterfliesMerge,\
 /*end*/\
 (1<<SpvWordCountShift)|SpvOpReturn,\
 (1<<SpvWordCountShift)|SpvOpFunctionEnd,\
@@ -1406,17 +1475,13 @@ bool press = false;
 void Update_SimplifiedMolecular(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectSimplifiedMolecular* pEffect,
 	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
 {
-
 	Engine_Ref_Lock_Mutex(pEffect->mutex);
-
 	if (GPU_Buffers == NULL)
 	{
 		GPU_BufferPointers[0] += pEffect->ParticlesSize * sizeof(*pEffect->Particles);
 	}
 	else
-	{		
-
-		
+	{			
 		if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_R == KeyPress && press == false)
 		{
 			Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));

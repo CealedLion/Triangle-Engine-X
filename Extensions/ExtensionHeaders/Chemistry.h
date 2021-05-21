@@ -328,6 +328,14 @@ typedef struct PushConstantsQuantumAtomic {
 }PushConstantsQuantumAtomic;
 /*
 * Added in 1.0.0
+*/
+typedef struct PushConstantsButterfly {
+	int32_t PingPongIndex;
+	int32_t ButterflyStage;
+	int32_t ButterflyDirection;
+}PushConstantsButterfly;
+/*
+* Added in 1.0.0
 * Renders Simplified Molecular Simulation Effect.
 */
 typedef struct ChemistryEffectCreateInfoSimplifiedMolecular {
@@ -345,8 +353,7 @@ typedef struct ChemistryEffectSimplifiedMolecular {
 	GPU_Particle* Particles;
 
 	//every reinit
-
-	Mutex mutex;
+	Mutex mutex; //TEMPORARY for multithread safety
 
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipelineParticle;
