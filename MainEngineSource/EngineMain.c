@@ -2640,9 +2640,7 @@ TEXRESULT Initialize()
 		{
 			Destroy_ExtensionData(Extension);
 		}
-
-		free((void*)CreateInfo.Name);
-		
+		free((void*)CreateInfo.Name);	
 		CommandLinePointer += it + 1;
 	}
 	//end

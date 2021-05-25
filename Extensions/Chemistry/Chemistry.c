@@ -3199,6 +3199,9 @@ TEXRESULT Initialise_Chemistry()
 
 void Destroy_Chemistry()
 {
+	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.SimplifiedMolecularSignature);
+
+	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.QuantumAtomicSignature);
 
 }
 

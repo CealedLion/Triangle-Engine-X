@@ -1940,14 +1940,16 @@ unsigned char reverse(unsigned char n, size_t b){
 
 void Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	Engine_Ref_Lock_Mutex(pResourceHeader->mutex);
+
 	//every reinit
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 
 	LogicalDevice* pLogicalDevice = pGraphicsWindow->pLogicalDevice;
 
-	Engine_Ref_Destroy_Mutex(pResourceHeader->mutex);
 
 	Graphics_Ref_GPUfree(pLogicalDevice, &pResourceHeader->AllocationBitReversedIndices);
+
 	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Textureh0k);
 	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->TextureTwiddleFactors);
 	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Texturehkt_dy);
@@ -2006,6 +2008,9 @@ void Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, u
 	//	free(pResourceHeader->VkDescriptorSetInversion);
 	if (pResourceHeader->VkDescriptorPoolWater != NULL)
 		vkDestroyDescriptorPool(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorPoolWater, NULL);
+
+	Engine_Ref_Destroy_Mutex(pResourceHeader->mutex);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3575,25 +3580,25 @@ TEXRESULT Initialise_GraphicsEffects()
 
 void Destroy_GraphicsEffects()
 {
-	Engine_Ref_FunctionError("GRAPHICSEFFECTS", "START DESTROYING", 0);
+	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "START DESTROYING", 0);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderWaterRenderBuffer);
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
+	//Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderWaterRenderBuffer);
+	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//other
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.WaterSig);
+	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.WaterSig);
 
-	memset(&Utils, NULL, sizeof(Utils));
-	memset(&Config, NULL, sizeof(Config));
+	//memset(&Utils, NULL, sizeof(Utils));
+	//memset(&Config, NULL, sizeof(Config));
 
-	Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
+	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
