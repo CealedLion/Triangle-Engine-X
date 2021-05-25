@@ -103,9 +103,6 @@ void Destroy_AddressInfos(AddressInfo* addressinfos)
 	free(addressinfos);
 }
 
-
-
-
 TEXRESULT Connect(Socket* pSocket, AddressInfo** addressinfo)
 {
 	SOCKADDR_STORAGE_LH* storage = (SOCKADDR_STORAGE_LH*)((ADDRINFOW*)*addressinfo)->ai_addr;
@@ -181,9 +178,6 @@ TEXRESULT Poll_Events()
 	return Success;
 }
 
-
-
-
 TEXRESULT Initialise_Network()
 {
 	memset((void*)&Utils, 0, sizeof(Utils));
@@ -196,7 +190,6 @@ TEXRESULT Initialise_Network()
 	}
 	return Success;
 }
-
 
 void Destroy_Network()
 {
@@ -211,7 +204,6 @@ void Destroy_Network()
 //this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -228,23 +220,23 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData("Network::Utils"), &NetworkRes.pUtils, &Utils);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Initialise_Network"), &NetworkRes.pInitialise_Network, &Initialise_Network, Construct, Single_Thread, 0.1f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Destroy_Network"), &NetworkRes.pDestroy_Network, &Destroy_Network, Destruct, Single_Thread, 100.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Initialise_Network"), &NetworkRes.pInitialise_Network, &Initialise_Network, Construct, 0.1f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Destroy_Network"), &NetworkRes.pDestroy_Network, &Destroy_Network, Destruct, 100.0f, 0, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Get_AddressInfos"), &NetworkRes.pGet_AddressInfos, &Get_AddressInfos, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Get_AddressInfosSize"), &NetworkRes.pGet_AddressInfosSize, &Get_AddressInfosSize, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Destroy_AddressInfos"), &NetworkRes.pDestroy_AddressInfos, &Destroy_AddressInfos, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Get_AddressInfos"), &NetworkRes.pGet_AddressInfos, &Get_AddressInfos, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Get_AddressInfosSize"), &NetworkRes.pGet_AddressInfosSize, &Get_AddressInfosSize, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Destroy_AddressInfos"), &NetworkRes.pDestroy_AddressInfos, &Destroy_AddressInfos, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Connect"), &NetworkRes.pConnect, &Connect, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Disconnect"), &NetworkRes.pDisconnect, &Disconnect, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Connect"), &NetworkRes.pConnect, &Connect, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Disconnect"), &NetworkRes.pDisconnect, &Disconnect, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Send"), &NetworkRes.pSend, &Send, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Receive"), &NetworkRes.pReceive, &Receive, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Send"), &NetworkRes.pSend, &Send, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Receive"), &NetworkRes.pReceive, &Receive, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Get_BacklogMax"), &NetworkRes.pGet_BacklogMax, &Get_BacklogMax, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Listen"), &NetworkRes.pListen, &Listen, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Accept_Connection"), &NetworkRes.pAccept_Connection, &Accept_Connection, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Get_BacklogMax"), &NetworkRes.pGet_BacklogMax, &Get_BacklogMax, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Listen"), &NetworkRes.pListen, &Listen, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Network::Accept_Connection"), &NetworkRes.pAccept_Connection, &Accept_Connection, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 }
 

@@ -68,16 +68,6 @@ typedef enum CallFlagBits{
 
 /*
 * Added in 1.0.0
-* Inbuilt Multithreading
-* You can obviously do multithreading yourself, but this is for multithreading scheduled functions mainly.
-*/
-typedef enum FunctionThreadingMode{
-	Single_Thread =	0,
-	Multi_Thread =	1
-}FunctionThreadingMode;
-
-/*
-* Added in 1.0.0
 * Engine Binary Type, Used to make sure all extensions are compiled with the same setting.
 */
 typedef enum BinaryType{
@@ -1124,7 +1114,6 @@ typedef struct FunctionInfo{
 	void** ppFunction; //pointer to a pointer of a function
 
 	CallFlagBits CallFlags;
-	FunctionThreadingMode ThreadMode;
 	float Priority; //lower priority runs first
 
 	uint64_t NumArgs; //param size
@@ -1634,7 +1623,6 @@ void FunctionImport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSiz
 	pFunctionInfos[FunctionInfosSize]->Name = Name;
 	pFunctionInfos[FunctionInfosSize]->ppFunction = ppFunction;
 	pFunctionInfos[FunctionInfosSize]->CallFlags = (CallFlagBits)NULL; 
-	pFunctionInfos[FunctionInfosSize]->ThreadMode = (FunctionThreadingMode)NULL; 
 	pFunctionInfos[FunctionInfosSize]->Priority = 0.0f; 
 	pFunctionInfos[FunctionInfosSize]->NumArgs = NULL; 
 	pFunctionInfos[FunctionInfosSize]->Args = NULL;
@@ -1645,7 +1633,7 @@ void FunctionImport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSiz
 * Added in 1.0.0
 */
 void FunctionExport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSize, const UTF8* Name, void** ppFunction, void* pFunction,
-	CallFlagBits CallFlags, FunctionThreadingMode ThreadMode, float Priority, uint64_t NumArguments, ResourceInfo* pArguments)
+	CallFlagBits CallFlags, float Priority, uint64_t NumArguments, ResourceInfo* pArguments)
 {
 	uint64_t FunctionInfosSize = *pFunctionInfosSize;
 	Resize_Array((void**)ppFunctionInfos, FunctionInfosSize, FunctionInfosSize + 1, sizeof(FunctionInfo*));
@@ -1656,7 +1644,6 @@ void FunctionExport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSiz
 	pFunctionInfos[FunctionInfosSize]->ppFunction = ppFunction;
 	*pFunctionInfos[FunctionInfosSize]->ppFunction = pFunction;
 	pFunctionInfos[FunctionInfosSize]->CallFlags = CallFlags;
-	pFunctionInfos[FunctionInfosSize]->ThreadMode = ThreadMode;
 	pFunctionInfos[FunctionInfosSize]->Priority = Priority;
 	pFunctionInfos[FunctionInfosSize]->NumArgs = NumArguments;
 	pFunctionInfos[FunctionInfosSize]->Args = pArguments;

@@ -8287,7 +8287,7 @@ void Destroy_Graphics()
 	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderTextureBuffer);
 	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderBufferBuffer);
 	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderRenderBuffer);
-	//Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderGraphicsWindowBuffer);
+	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderGraphicsWindowBuffer);
 
 
 	Object_Ref_DeRegister_ElementSignature(&Utils.ElementGraphicsSig);
@@ -8305,7 +8305,7 @@ void Destroy_Graphics()
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderTextureSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderBufferSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderRenderSig);
-	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig);
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig);
 
 
 	DeRegister_GraphicsEffectSignature(&Utils.Generic2DSig);
@@ -8370,7 +8370,6 @@ void Destroy_Graphics()
 //this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -8406,45 +8405,45 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData((void*)"Graphics::Utils"), &GraphicsRes.pUtils, &Utils);
 
 	//Functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Initialise_Graphics"), &GraphicsRes.pInitialise_Graphics, &Initialise_Graphics, Construct, Single_Thread, 0.01f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_Graphics"), &GraphicsRes.pDestroy_Graphics, &Destroy_Graphics, Destruct, Single_Thread, 1000.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Update_Graphics"), &GraphicsRes.pUpdate_Graphics, &Update_Graphics, EveryFrame, Single_Thread, 101.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Initialise_Graphics"), &GraphicsRes.pInitialise_Graphics, &Initialise_Graphics, Construct, 0.01f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_Graphics"), &GraphicsRes.pDestroy_Graphics, &Destroy_Graphics, Destruct, 1000.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Update_Graphics"), &GraphicsRes.pUpdate_Graphics, &Update_Graphics, EveryFrame, 101.0f, 0, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_AttributeTypePriority"), &GraphicsRes.pGet_AttributeTypePriority, &Get_AttributeTypePriority, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_FormatDetails"), &GraphicsRes.pGet_FormatDetails, &Get_FormatDetails, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Calculate_TotalMatrix"), &GraphicsRes.pCalculate_TotalMatrix, &Calculate_TotalMatrix, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Check_Memory"), &GraphicsRes.pCheck_Memory, &Check_Memory, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_MemoryBuffer"), &GraphicsRes.pDestroy_GPU_MemoryBuffer, &Destroy_GPU_MemoryBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_GPU_MemoryBuffer"), &GraphicsRes.pCreate_GPU_MemoryBuffer, &Create_GPU_MemoryBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Resize_GPU_MemoryBuffer"), &GraphicsRes.pResize_GPU_MemoryBuffer, &Resize_GPU_MemoryBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUmalloc"), &GraphicsRes.pGPUmalloc, &GPUmalloc, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUfree"), &GraphicsRes.pGPUfree, &GPUfree, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Add_XtoTEXIconverter"), &GraphicsRes.pAdd_XtoTEXIconverter, &Add_XtoTEXIconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Add_TEXItoXconverter"), &GraphicsRes.pAdd_TEXItoXconverter, &Add_TEXItoXconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Remove_XtoTEXIconverter"), &GraphicsRes.pRemove_XtoTEXIconverter, &Remove_XtoTEXIconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Remove_TEXItoXconverter"), &GraphicsRes.pRemove_TEXItoXconverter, &Remove_TEXItoXconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::XtoTEXI"), &GraphicsRes.pXtoTEXI, &XtoTEXI, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::TEXItoX"), &GraphicsRes.pTEXItoX, &TEXItoX, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::Register_GraphicsEffectSignature"), &GraphicsRes.pRegister_GraphicsEffectSignature, &Register_GraphicsEffectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::DeRegister_GraphicsEffectSignature"), &GraphicsRes.pDeRegister_GraphicsEffectSignature, &DeRegister_GraphicsEffectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::Find_GraphicsEffectSignature"), &GraphicsRes.pFind_GraphicsEffectSignature, &Find_GraphicsEffectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::Get_GraphicsEffect"), &GraphicsRes.pGet_GraphicsEffect, &Get_GraphicsEffect, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_AttributeTypePriority"), &GraphicsRes.pGet_AttributeTypePriority, &Get_AttributeTypePriority, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_FormatDetails"), &GraphicsRes.pGet_FormatDetails, &Get_FormatDetails, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Calculate_TotalMatrix"), &GraphicsRes.pCalculate_TotalMatrix, &Calculate_TotalMatrix, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_DummyTEXI"), &GraphicsRes.pCreate_DummyTEXI, &Create_DummyTEXI, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_ImageAtlas"), &GraphicsRes.pCreate_ImageAtlas, &Create_ImageAtlas, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert_ImageData"), &GraphicsRes.pConvert_ImageData, &Convert_ImageData, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Update_Descriptor"), &GraphicsRes.pUpdate_Descriptor, &Update_Descriptor, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_Texture"), &GraphicsRes.pDestroy_GPU_Texture, &Destroy_GPU_Texture, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_Buffer"), &GraphicsRes.pDestroy_GPU_Buffer, &Destroy_GPU_Buffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Check_Memory"), &GraphicsRes.pCheck_Memory, &Check_Memory, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_MemoryBuffer"), &GraphicsRes.pDestroy_GPU_MemoryBuffer, &Destroy_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_GPU_MemoryBuffer"), &GraphicsRes.pCreate_GPU_MemoryBuffer, &Create_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Resize_GPU_MemoryBuffer"), &GraphicsRes.pResize_GPU_MemoryBuffer, &Resize_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUmalloc"), &GraphicsRes.pGPUmalloc, &GPUmalloc, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUfree"), &GraphicsRes.pGPUfree, &GPUfree, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Add_XtoTEXIconverter"), &GraphicsRes.pAdd_XtoTEXIconverter, &Add_XtoTEXIconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Add_TEXItoXconverter"), &GraphicsRes.pAdd_TEXItoXconverter, &Add_TEXItoXconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Remove_XtoTEXIconverter"), &GraphicsRes.pRemove_XtoTEXIconverter, &Remove_XtoTEXIconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::Remove_TEXItoXconverter"), &GraphicsRes.pRemove_TEXItoXconverter, &Remove_TEXItoXconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::XtoTEXI"), &GraphicsRes.pXtoTEXI, &XtoTEXI, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert::TEXItoX"), &GraphicsRes.pTEXItoX, &TEXItoX, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::Register_GraphicsEffectSignature"), &GraphicsRes.pRegister_GraphicsEffectSignature, &Register_GraphicsEffectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::DeRegister_GraphicsEffectSignature"), &GraphicsRes.pDeRegister_GraphicsEffectSignature, &DeRegister_GraphicsEffectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::Find_GraphicsEffectSignature"), &GraphicsRes.pFind_GraphicsEffectSignature, &Find_GraphicsEffectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Effects::Get_GraphicsEffect"), &GraphicsRes.pGet_GraphicsEffect, &Get_GraphicsEffect, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_DeviceIndex"), &GraphicsRes.pGet_DeviceIndex, &Get_DeviceIndex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_DummyTEXI"), &GraphicsRes.pCreate_DummyTEXI, &Create_DummyTEXI, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_ImageAtlas"), &GraphicsRes.pCreate_ImageAtlas, &Create_ImageAtlas, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Convert_ImageData"), &GraphicsRes.pConvert_ImageData, &Convert_ImageData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Update_Descriptor"), &GraphicsRes.pUpdate_Descriptor, &Update_Descriptor, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_Texture"), &GraphicsRes.pDestroy_GPU_Texture, &Destroy_GPU_Texture, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_Buffer"), &GraphicsRes.pDestroy_GPU_Buffer, &Destroy_GPU_Buffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_SwapChain"), &GraphicsRes.pDestroy_SwapChain, &Destroy_SwapChain, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::ReCreate_SwapChain"), &GraphicsRes.pReCreate_SwapChain, &ReCreate_SwapChain, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_DeviceIndex"), &GraphicsRes.pGet_DeviceIndex, &Get_DeviceIndex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_SwapChain"), &GraphicsRes.pDestroy_SwapChain, &Destroy_SwapChain, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::ReCreate_SwapChain"), &GraphicsRes.pReCreate_SwapChain, &ReCreate_SwapChain, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 }

@@ -1398,16 +1398,7 @@ void Run_ExternalFunction(FunctionInfo* pFunctionInfo) //could cause crash on li
 {
 	void* pfunction = *pFunctionInfo->ppFunction;
 	void(*function)(ResourceInfo*) = (void(*)(ResourceInfo*))pfunction;
-
-	switch (pFunctionInfo->ThreadMode)
-	{
-	case Single_Thread:
-		function(pFunctionInfo->Args);
-		break;
-	case Multi_Thread:
-		ArgsError("Run_ExternalFunction()", "Multithreading Disabled.");
-		break;
-	}
+	function(pFunctionInfo->Args);
 }
 /*
 * Added in 1.0.0
@@ -1447,7 +1438,6 @@ TEXRESULT Resolve_ResourceSymbol(ResourceInfo* ReturnResource)
 //////////////////////////////////////////
 
 #ifdef _WIN32
-
 Key WindowsKeyCode_To_TriangleEngine(Window* pWindow, KeyState state, uint32_t keycode)
 {
 	switch (keycode)
@@ -2553,63 +2543,63 @@ TEXRESULT Initialize()
 	ResourceExport(&pEngineExtension->pResources, &pEngineExtension->pResourcesSize, (const UTF8*)CopyData("Engine::Utils"), &EngineRes.pUtils, &Utils);
 
 	//FUNCTIONS
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resize_ExtensionDataBuffer"), &EngineRes.pResize_ExtensionDataBuffer, &Resize_ExtensionDataBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resize_ExtensionDataBuffer"), &EngineRes.pResize_ExtensionDataBuffer, &Resize_ExtensionDataBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_ExtensionDataPointer"), &EngineRes.pGet_ExtensionDataPointer, &Get_ExtensionDataPointer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_ExtensionData"), &EngineRes.pCreate_ExtensionData, &Create_ExtensionData, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_ExtensionData"), &EngineRes.pDestroy_ExtensionData, &Destroy_ExtensionData, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_ExtensionDataPointer"), &EngineRes.pGet_ExtensionDataPointer, &Get_ExtensionDataPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_ExtensionData"), &EngineRes.pCreate_ExtensionData, &Create_ExtensionData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_ExtensionData"), &EngineRes.pDestroy_ExtensionData, &Destroy_ExtensionData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resolve_Linkages"), &EngineRes.pResolve_Linkages, &Resolve_Linkages, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Recreate_Categories"), &EngineRes.pRecreate_Categories, &Recreate_Categories, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resolve_Linkages"), &EngineRes.pResolve_Linkages, &Resolve_Linkages, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Recreate_Categories"), &EngineRes.pRecreate_Categories, &Recreate_Categories, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resolve_FunctionSymbol"), &EngineRes.pResolve_FunctionSymbol, &Resolve_FunctionSymbol, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resolve_ResourceSymbol"), &EngineRes.pResolve_ResourceSymbol, &Resolve_ResourceSymbol, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resolve_FunctionSymbol"), &EngineRes.pResolve_FunctionSymbol, &Resolve_FunctionSymbol, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Resolve_ResourceSymbol"), &EngineRes.pResolve_ResourceSymbol, &Resolve_ResourceSymbol, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Window"), &EngineRes.pCreate_Window, &Create_Window, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Window"), &EngineRes.pDestroy_Window, &Destroy_Window, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Window"), &EngineRes.pCreate_Window, &Create_Window, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Window"), &EngineRes.pDestroy_Window, &Destroy_Window, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Set_WindowFullScreen"), &EngineRes.pSet_WindowFullScreen, &Set_WindowFullScreen, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Set_WindowFullScreen"), &EngineRes.pSet_WindowFullScreen, &Set_WindowFullScreen, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Read_ClipboardUTF8"), &EngineRes.pRead_ClipboardUTF8, &Read_ClipboardUTF8, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Write_ClipboardUTF8"), &EngineRes.pWrite_ClipboardUTF8, &Write_ClipboardUTF8, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Read_ClipboardUTF8"), &EngineRes.pRead_ClipboardUTF8, &Read_ClipboardUTF8, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Write_ClipboardUTF8"), &EngineRes.pWrite_ClipboardUTF8, &Write_ClipboardUTF8, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_PrimaryMonitor"), &EngineRes.pGet_PrimaryMonitor, &Get_PrimaryMonitor, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_MonitorInfo"), &EngineRes.pGet_MonitorInfo, &Get_MonitorInfo, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_PrimaryMonitor"), &EngineRes.pGet_PrimaryMonitor, &Get_PrimaryMonitor, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_MonitorInfo"), &EngineRes.pGet_MonitorInfo, &Get_MonitorInfo, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Exit_Application"), &EngineRes.pExit_Application, &Exit_Application, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Apply_Config"), &EngineRes.pApply_Config, &Apply_Config, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Exit_Application"), &EngineRes.pExit_Application, &Exit_Application, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Apply_Config"), &EngineRes.pApply_Config, &Apply_Config, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 
 	//Threading
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Mutex"), &EngineRes.pCreate_Mutex, &Create_Mutex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Mutex"), &EngineRes.pDestroy_Mutex, &Destroy_Mutex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Lock_Mutex"), &EngineRes.pLock_Mutex, &Lock_Mutex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedLock_Mutex"), &EngineRes.pTimedLock_Mutex, &TimedLock_Mutex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TryLock_Mutex"), &EngineRes.pTryLock_Mutex, &TryLock_Mutex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Unlock_Mutex"), &EngineRes.pUnlock_Mutex, &Unlock_Mutex, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Mutex"), &EngineRes.pCreate_Mutex, &Create_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Mutex"), &EngineRes.pDestroy_Mutex, &Destroy_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Lock_Mutex"), &EngineRes.pLock_Mutex, &Lock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedLock_Mutex"), &EngineRes.pTimedLock_Mutex, &TimedLock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TryLock_Mutex"), &EngineRes.pTryLock_Mutex, &TryLock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Unlock_Mutex"), &EngineRes.pUnlock_Mutex, &Unlock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Condition"), &EngineRes.pCreate_Condition, &Create_Condition, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Condition"), &EngineRes.pDestroy_Condition, &Destroy_Condition, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Signal_Condition"), &EngineRes.pSignal_Condition, &Signal_Condition, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Broadcast_Condition"), &EngineRes.pBroadcast_Condition, &Broadcast_Condition, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Wait_Condition"), &EngineRes.pWait_Condition, &Wait_Condition, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedWait_Condition"), &EngineRes.pTimedWait_Condition, &TimedWait_Condition, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Condition"), &EngineRes.pCreate_Condition, &Create_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Condition"), &EngineRes.pDestroy_Condition, &Destroy_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Signal_Condition"), &EngineRes.pSignal_Condition, &Signal_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Broadcast_Condition"), &EngineRes.pBroadcast_Condition, &Broadcast_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Wait_Condition"), &EngineRes.pWait_Condition, &Wait_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedWait_Condition"), &EngineRes.pTimedWait_Condition, &TimedWait_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Thread"), &EngineRes.pCreate_Thread, &Create_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Current_Thread"), &EngineRes.pCurrent_Thread, &Current_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Detach_Thread"), &EngineRes.pDetach_Thread, &Detach_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ThreadEqual"), &EngineRes.pThreadEqual, &ThreadEqual, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Exit_Thread"), &EngineRes.pExit_Thread, &Exit_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Join_Thread"), &EngineRes.pJoin_Thread, &Join_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Sleep_Thread"), &EngineRes.pSleep_Thread, &Sleep_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Yield_Thread"), &EngineRes.pYield_Thread, &Yield_Thread, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Thread"), &EngineRes.pCreate_Thread, &Create_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Current_Thread"), &EngineRes.pCurrent_Thread, &Current_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Detach_Thread"), &EngineRes.pDetach_Thread, &Detach_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ThreadEqual"), &EngineRes.pThreadEqual, &ThreadEqual, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Exit_Thread"), &EngineRes.pExit_Thread, &Exit_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Join_Thread"), &EngineRes.pJoin_Thread, &Join_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Sleep_Thread"), &EngineRes.pSleep_Thread, &Sleep_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Yield_Thread"), &EngineRes.pYield_Thread, &Yield_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	//FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Call_Once"), &EngineRes.pCall_Once, &Call_Once, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	//FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Call_Once"), &EngineRes.pCall_Once, &Call_Once, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 	//errorcallback
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ObjectError"), &EngineRes.pObjectError, &ObjectError, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::FunctionError"), &EngineRes.pFunctionError, &FunctionError, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ArgsError"), &EngineRes.pArgsError, &ArgsError, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ObjectError"), &EngineRes.pObjectError, &ObjectError, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::FunctionError"), &EngineRes.pFunctionError, &FunctionError, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ArgsError"), &EngineRes.pArgsError, &ArgsError, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	//Init Extensions

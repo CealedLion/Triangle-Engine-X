@@ -341,11 +341,15 @@ typedef struct PushConstantsButterfly {
 typedef struct ChemistryEffectCreateInfoSimplifiedMolecular {
 	vec3 Position; //optional
 
+	uint32_t SimulationResolution;
+
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
 }ChemistryEffectCreateInfoSimplifiedMolecular;
 typedef struct ChemistryEffectSimplifiedMolecular {
 	GraphicsEffectTemplate Header;
+
+	uint32_t SimulationResolution;
 
 	vec3 Position;
 
@@ -353,7 +357,27 @@ typedef struct ChemistryEffectSimplifiedMolecular {
 	GPU_Particle* Particles;
 
 	//every reinit
-	Mutex mutex; //TEMPORARY for multithread safety
+	Mutex mutex;
+
+#ifdef TEX_EXPOSE_GRAPHICS
+	VkPipeline VkPipelineCompute;
+	VkPipelineLayout VkPipelineLayoutCompute;
+
+	VkDescriptorSetLayout VkDescriptorSetLayoutCompute;
+	VkDescriptorSet VkDescriptorSetCompute;
+	VkDescriptorPool VkDescriptorPoolCompute;
+
+	VkShaderModule VkShaderCompute;
+#else
+	void* VkPipelineCompute;
+	void* VkPipelineLayoutCompute;
+
+	void* VkDescriptorSetLayoutCompute;
+	void* VkDescriptorSetCompute;
+	void* VkDescriptorPoolCompute;
+
+	void* VkShaderCompute;
+#endif
 
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipelineParticle;
@@ -416,6 +440,8 @@ typedef struct ChemistryEffectQuantumAtomic {
 
 #ifdef TEX_EXPOSE_CHEMISTRY
 #define ChemistrySimplifiedMolecularBuffersCount 1
+#define ChemistrySimplifiedMolecularImagesCount 2
+
 #define ChemistryQuantumAtomicBuffersCount 2
 typedef struct ChemistryUtils{
 	GraphicsEffectSignature SimplifiedMolecularSignature;

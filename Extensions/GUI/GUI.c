@@ -1202,11 +1202,10 @@ void Destroy_GUI()
 	//memset(&Config, NULL, sizeof(Config));
 }
 
-//entry poin t to the extension
+//entry point to the extension
 //this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -1230,8 +1229,8 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData((void*)"GUI::Utils"), &GUIRes.pUtils, &Utils);
 
 	//Functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Initialise_GUI"), &GUIRes.pInitialise_GUI, &Initialise_GUI, Construct, Single_Thread, 10.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Destroy_GUI"), &GUIRes.pDestroy_GUI, &Destroy_GUI, Destruct, Single_Thread, 100.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Update_GUI"), &GUIRes.pUpdate_GUI, &Update_GUI, MouseButton_Input, Single_Thread, 0.01f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Initialise_GUI"), &GUIRes.pInitialise_GUI, &Initialise_GUI, Construct, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Destroy_GUI"), &GUIRes.pDestroy_GUI, &Destroy_GUI, Destruct, 100.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Update_GUI"), &GUIRes.pUpdate_GUI, &Update_GUI, MouseButton_Input, 0.01f, 0, NULL);
 
 }

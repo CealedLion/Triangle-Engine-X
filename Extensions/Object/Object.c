@@ -3393,9 +3393,10 @@ void Destroy_Objects()
 	memset(&Config, NULL, sizeof(Config));
 }
 
+//entry point to the extension
+//this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -3417,79 +3418,79 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData("Object::Utils"), &ObjectsRes.pUtils, &Utils);
 
 	//Functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Initialise_Objects"), &ObjectsRes.pInitialise_Objects, &Initialise_Objects, Construct, Single_Thread, 0.001f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Objects"), &ObjectsRes.pDestroy_Objects, &Destroy_Objects, Destruct, Single_Thread, 10000.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Initialise_Objects"), &ObjectsRes.pInitialise_Objects, &Initialise_Objects, Construct, 0.001f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Objects"), &ObjectsRes.pDestroy_Objects, &Destroy_Objects, Destruct, 10000.0f, 0, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ObjectSignature"), &ObjectsRes.pFind_ObjectSignature, &Find_ObjectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ResourceHeaderSignature"), &ObjectsRes.pFind_ResourceHeaderSignature, &Find_ResourceHeaderSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ElementSignature"), &ObjectsRes.pFind_ElementSignature, &Find_ElementSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ObjectSignature"), &ObjectsRes.pFind_ObjectSignature, &Find_ObjectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ResourceHeaderSignature"), &ObjectsRes.pFind_ResourceHeaderSignature, &Find_ResourceHeaderSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ElementSignature"), &ObjectsRes.pFind_ElementSignature, &Find_ElementSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ObjectPointer"), &ObjectsRes.pGet_ObjectPointer, &Get_ObjectPointer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ResourceHeaderPointer"), &ObjectsRes.pGet_ResourceHeaderPointer, &Get_ResourceHeaderPointer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ElementPointer"), &ObjectsRes.pGet_ElementPointer, &Get_ElementPointer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ObjectPointer"), &ObjectsRes.pGet_ObjectPointer, &Get_ObjectPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ResourceHeaderPointer"), &ObjectsRes.pGet_ResourceHeaderPointer, &Get_ResourceHeaderPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ElementPointer"), &ObjectsRes.pGet_ElementPointer, &Get_ElementPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ObjectBuffer"), &ObjectsRes.pCreate_ObjectBuffer, &Create_ObjectBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ResourceHeaderBuffer"), &ObjectsRes.pCreate_ResourceHeaderBuffer, &Create_ResourceHeaderBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ElementBuffer"), &ObjectsRes.pCreate_ElementBuffer, &Create_ElementBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ObjectBuffer"), &ObjectsRes.pCreate_ObjectBuffer, &Create_ObjectBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ResourceHeaderBuffer"), &ObjectsRes.pCreate_ResourceHeaderBuffer, &Create_ResourceHeaderBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ElementBuffer"), &ObjectsRes.pCreate_ElementBuffer, &Create_ElementBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Resize_ObjectBuffer"), &ObjectsRes.pResize_ObjectBuffer, &Resize_ObjectBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Resize_ResourceHeaderBuffer"), &ObjectsRes.pResize_ResourceHeaderBuffer, &Resize_ResourceHeaderBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Resize_ElementBuffer"), &ObjectsRes.pResize_ElementBuffer, &Resize_ElementBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Resize_ObjectBuffer"), &ObjectsRes.pResize_ObjectBuffer, &Resize_ObjectBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Resize_ResourceHeaderBuffer"), &ObjectsRes.pResize_ResourceHeaderBuffer, &Resize_ResourceHeaderBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Resize_ElementBuffer"), &ObjectsRes.pResize_ElementBuffer, &Resize_ElementBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ObjectBuffer"), &ObjectsRes.pDestroy_ObjectBuffer, &Destroy_ObjectBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ResourceHeaderBuffer"), &ObjectsRes.pDestroy_ResourceHeaderBuffer, &Destroy_ResourceHeaderBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ElementBuffer"), &ObjectsRes.pDestroy_ElementBuffer, &Destroy_ElementBuffer, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ObjectBuffer"), &ObjectsRes.pDestroy_ObjectBuffer, &Destroy_ObjectBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ResourceHeaderBuffer"), &ObjectsRes.pDestroy_ResourceHeaderBuffer, &Destroy_ResourceHeaderBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ElementBuffer"), &ObjectsRes.pDestroy_ElementBuffer, &Destroy_ElementBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_Object"), &ObjectsRes.pCreateInstance_Object, &CreateInstance_Object, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_ResourceHeader"), &ObjectsRes.pCreateInstance_ResourceHeader, &CreateInstance_ResourceHeader, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_Element"), &ObjectsRes.pCreateInstance_Element, &CreateInstance_Element, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_Object"), &ObjectsRes.pCreateInstance_Object, &CreateInstance_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_ResourceHeader"), &ObjectsRes.pCreateInstance_ResourceHeader, &CreateInstance_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_Element"), &ObjectsRes.pCreateInstance_Element, &CreateInstance_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_Object"), &ObjectsRes.pCreate_Object, &Create_Object, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ResourceHeader"), &ObjectsRes.pCreate_ResourceHeader, &Create_ResourceHeader, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_Element"), &ObjectsRes.pCreate_Element, &Create_Element, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_Object"), &ObjectsRes.pCreate_Object, &Create_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ResourceHeader"), &ObjectsRes.pCreate_ResourceHeader, &Create_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_Element"), &ObjectsRes.pCreate_Element, &Create_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Object"), &ObjectsRes.pDestroy_Object, &Destroy_Object, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ResourceHeader"), &ObjectsRes.pDestroy_ResourceHeader, &Destroy_ResourceHeader, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Element"), &ObjectsRes.pDestroy_Element, &Destroy_Element, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Object"), &ObjectsRes.pDestroy_Object, &Destroy_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ResourceHeader"), &ObjectsRes.pDestroy_ResourceHeader, &Destroy_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Element"), &ObjectsRes.pDestroy_Element, &Destroy_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_Object"), &ObjectsRes.pReCreate_Object, &ReCreate_Object, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_ResourceHeader"), &ObjectsRes.pReCreate_ResourceHeader, &ReCreate_ResourceHeader, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_Element"), &ObjectsRes.pReCreate_Element, &ReCreate_Element, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_Object"), &ObjectsRes.pReCreate_Object, &ReCreate_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_ResourceHeader"), &ObjectsRes.pReCreate_ResourceHeader, &ReCreate_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_Element"), &ObjectsRes.pReCreate_Element, &ReCreate_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_Object"), &ObjectsRes.pStartThread_Object, &StartThread_Object, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_ResourceHeader"), &ObjectsRes.pStartThread_ResourceHeader, &StartThread_ResourceHeader, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_Element"), &ObjectsRes.pStartThread_Element, &StartThread_Element, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_Object"), &ObjectsRes.pStartThread_Object, &StartThread_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_ResourceHeader"), &ObjectsRes.pStartThread_ResourceHeader, &StartThread_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_Element"), &ObjectsRes.pStartThread_Element, &StartThread_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_Object"), &ObjectsRes.pEndThread_Object, &EndThread_Object, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_ResourceHeader"), &ObjectsRes.pEndThread_ResourceHeader, &EndThread_ResourceHeader, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_Element"), &ObjectsRes.pEndThread_Element, &EndThread_Element, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_ObjectChild"), &ObjectsRes.pAdd_ObjectChild, &Add_ObjectChild, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_Object_ResourceHeaderChild"), &ObjectsRes.pAdd_Object_ResourceHeaderChild, &Add_Object_ResourceHeaderChild, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_ResourceHeader_ElementChild"), &ObjectsRes.pAdd_ResourceHeader_ElementChild, &Add_ResourceHeader_ElementChild, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Remove_ObjectChild"), &ObjectsRes.pRemove_ObjectChild, &Remove_ObjectChild, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Remove_Object_ResourceHeaderChild"), &ObjectsRes.pRemove_Object_ResourceHeaderChild, &Remove_Object_ResourceHeaderChild, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Remove_ResourceHeader_ElementChild"), &ObjectsRes.pRemove_ResourceHeader_ElementChild, &Remove_ResourceHeader_ElementChild, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Register_ObjectSignature"), &ObjectsRes.pRegister_ObjectSignature, &Register_ObjectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Register_ResourceHeaderSignature"), &ObjectsRes.pRegister_ResourceHeaderSignature, &Register_ResourceHeaderSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Register_ElementSignature"), &ObjectsRes.pRegister_ElementSignature, &Register_ElementSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ObjectSignature"), &ObjectsRes.pDeRegister_ObjectSignature, &DeRegister_ObjectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ResourceHeaderSignature"), &ObjectsRes.pDeRegister_ResourceHeaderSignature, &DeRegister_ResourceHeaderSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ElementSignature"), &ObjectsRes.pDeRegister_ElementSignature, &DeRegister_ElementSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_Object"), &ObjectsRes.pEndThread_Object, &EndThread_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_ResourceHeader"), &ObjectsRes.pEndThread_ResourceHeader, &EndThread_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_Element"), &ObjectsRes.pEndThread_Element, &EndThread_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectChilds"), &ObjectsRes.pScan_ObjectChilds, &Scan_ObjectChilds, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectParents"), &ObjectsRes.pScan_ObjectParents, &Scan_ObjectParents, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectHeaders"), &ObjectsRes.pScan_ObjectHeaders, &Scan_ObjectHeaders, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectHeadersSingle"), &ObjectsRes.pScan_ObjectHeadersSingle, &Scan_ObjectHeadersSingle, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_ObjectChild"), &ObjectsRes.pAdd_ObjectChild, &Add_ObjectChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_Object_ResourceHeaderChild"), &ObjectsRes.pAdd_Object_ResourceHeaderChild, &Add_Object_ResourceHeaderChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_ResourceHeader_ElementChild"), &ObjectsRes.pAdd_ResourceHeader_ElementChild, &Add_ResourceHeader_ElementChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Write_TEIF"), &ObjectsRes.pWrite_TEIF, &Write_TEIF, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Read_TEIF"), &ObjectsRes.pRead_TEIF, &Read_TEIF, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Remove_ObjectChild"), &ObjectsRes.pRemove_ObjectChild, &Remove_ObjectChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Remove_Object_ResourceHeaderChild"), &ObjectsRes.pRemove_Object_ResourceHeaderChild, &Remove_Object_ResourceHeaderChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Remove_ResourceHeader_ElementChild"), &ObjectsRes.pRemove_ResourceHeader_ElementChild, &Remove_ResourceHeader_ElementChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Register_ObjectSignature"), &ObjectsRes.pRegister_ObjectSignature, &Register_ObjectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Register_ResourceHeaderSignature"), &ObjectsRes.pRegister_ResourceHeaderSignature, &Register_ResourceHeaderSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Register_ElementSignature"), &ObjectsRes.pRegister_ElementSignature, &Register_ElementSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ObjectSignature"), &ObjectsRes.pDeRegister_ObjectSignature, &DeRegister_ObjectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ResourceHeaderSignature"), &ObjectsRes.pDeRegister_ResourceHeaderSignature, &DeRegister_ResourceHeaderSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ElementSignature"), &ObjectsRes.pDeRegister_ElementSignature, &DeRegister_ElementSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectChilds"), &ObjectsRes.pScan_ObjectChilds, &Scan_ObjectChilds, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectParents"), &ObjectsRes.pScan_ObjectParents, &Scan_ObjectParents, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectHeaders"), &ObjectsRes.pScan_ObjectHeaders, &Scan_ObjectHeaders, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectHeadersSingle"), &ObjectsRes.pScan_ObjectHeadersSingle, &Scan_ObjectHeadersSingle, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Write_TEIF"), &ObjectsRes.pWrite_TEIF, &Write_TEIF, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Read_TEIF"), &ObjectsRes.pRead_TEIF, &Read_TEIF, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	
 	
 

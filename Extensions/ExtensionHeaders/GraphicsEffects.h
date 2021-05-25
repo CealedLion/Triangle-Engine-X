@@ -78,6 +78,8 @@ typedef struct RHeaderWaterRender {
 	vec2 FlowDirection;
 
 	//every reinit
+	Mutex mutex;
+
 	GPU_Allocation AllocationBitReversedIndices;
 	GPU_Texture Textureh0k;
 	GPU_Texture TextureTwiddleFactors;

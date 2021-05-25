@@ -1944,6 +1944,9 @@ void Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, u
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 
 	LogicalDevice* pLogicalDevice = pGraphicsWindow->pLogicalDevice;
+
+	Engine_Ref_Destroy_Mutex(pResourceHeader->mutex);
+
 	Graphics_Ref_GPUfree(pLogicalDevice, &pResourceHeader->AllocationBitReversedIndices);
 	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Textureh0k);
 	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->TextureTwiddleFactors);
@@ -2051,11 +2054,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 	pImageSource->ImageData->Depth = 1;
 	pImageSource->ImageData->Format = GraphicsFormat_R32G32B32A32_SFLOAT;
 	pImageSource->ImageData->MipmapCount = 1;
-	Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, NULL, 0);
+	Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, NULL, ThreadIndex);
 
 	TEXRESULT tres = Success;
 	VkResult res = VK_SUCCESS;
 
+	Engine_Ref_Create_Mutex(pResourceHeader->mutex, MutexType_Plain);
 
 	const SPIRV Shaderh0k[] = ComputeShaderh0k();
 	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pResourceHeader->VkShaderh0k, Shaderh0k, ComputeShaderh0kSize, "ReCreate_WaterRenderHeader()");
@@ -2902,6 +2906,8 @@ void Pack_WaterRenderHeader(const RHeaderWaterRender* pResourceHeader, RHeaderWa
 {
 	if (pData != NULL)
 	{
+		memset(&pCopiedResourceHeader->mutex, NULL, sizeof(pCopiedResourceHeader->mutex));
+
 		memset(&pCopiedResourceHeader->AllocationBitReversedIndices, NULL, sizeof(pCopiedResourceHeader->AllocationBitReversedIndices));
 
 		memset(&pCopiedResourceHeader->Textureh0k, NULL, sizeof(pCopiedResourceHeader->Textureh0k));
@@ -3010,6 +3016,8 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 			RHeaderGraphicsWindow* pGraphicsWindow1 = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 			if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pGraphicsWindow1->Header.Allocation) == Success)
 			{
+				Engine_Ref_Lock_Mutex(pResourceHeader->mutex);
+
 				pResourceHeader->Time = ((double)clock() / (double)CLOCKS_PER_SEC);
 
 				RHeaderTexture* pTexture = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget);
@@ -3493,7 +3501,10 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 							1, &Barrier
 						);
 					}
+
+					
 				}
+				Engine_Ref_Unlock_Mutex(pResourceHeader->mutex);
 			}
 
 			i += pResourceHeader->Header.AllocationSize;
@@ -3593,7 +3604,6 @@ void Destroy_GraphicsEffects()
 //this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -3615,7 +3625,7 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Utils"), &GraphicsEffectsRes.pUtils, &Utils);
 
 	//Functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Initialise_GraphicsEffects"), &GraphicsEffectsRes.pInitialise_GraphicsEffects, &Initialise_GraphicsEffects, Construct, Single_Thread, 10.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Destroy_GraphicsEffects"), &GraphicsEffectsRes.pDestroy_GraphicsEffects, &Destroy_GraphicsEffects, Destruct, Single_Thread, 100.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Update_GraphicsEffects"), &GraphicsEffectsRes.pUpdate_GraphicsEffects, &Update_GraphicsEffects, EveryFrame, Single_Thread, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Initialise_GraphicsEffects"), &GraphicsEffectsRes.pInitialise_GraphicsEffects, &Initialise_GraphicsEffects, Construct, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Destroy_GraphicsEffects"), &GraphicsEffectsRes.pDestroy_GraphicsEffects, &Destroy_GraphicsEffects, Destruct, 100.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Update_GraphicsEffects"), &GraphicsEffectsRes.pUpdate_GraphicsEffects, &Update_GraphicsEffects, EveryFrame, 10.0f, 0, NULL);
 }

@@ -1798,11 +1798,10 @@ void Destroy_Audio()
 }
 
 
-//entry poin t to the extension
+//entry point to the extension
 //this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -1823,32 +1822,32 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData("Audio::Utils"), &AudioRes.pUtils, &Utils);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Initialise_Audio"), &AudioRes.pInitialise_Audio, &Initialise_Audio, Construct, Single_Thread, 0.1f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Destroy_Audio"), &AudioRes.pDestroy_Audio, &Destroy_Audio, Destruct, Single_Thread, 100.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Update_Audio"), &AudioRes.pUpdate_Audio, &Update_Audio, EveryFrame, Single_Thread, 100.00f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Initialise_Audio"), &AudioRes.pInitialise_Audio, &Initialise_Audio, Construct, 0.1f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Destroy_Audio"), &AudioRes.pDestroy_Audio, &Destroy_Audio, Destruct, 100.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Update_Audio"), &AudioRes.pUpdate_Audio, &Update_Audio, EveryFrame, 100.00f, 0, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Add_XtoTEXAconverter"), &AudioRes.pAdd_XtoTEXAconverter, &Add_XtoTEXAconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Add_TEXAtoXconverter"), &AudioRes.pAdd_TEXAtoXconverter, &Add_TEXAtoXconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Remove_XtoTEXAconverter"), &AudioRes.pRemove_XtoTEXAconverter, &Remove_XtoTEXAconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Remove_TEXAtoXconverter"), &AudioRes.pRemove_TEXAtoXconverter, &Remove_TEXAtoXconverter, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::XtoTEXA"), &AudioRes.pXtoTEXA, &XtoTEXA, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::TEXAtoX"), &AudioRes.pTEXAtoX, &TEXAtoX, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Add_XtoTEXAconverter"), &AudioRes.pAdd_XtoTEXAconverter, &Add_XtoTEXAconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Add_TEXAtoXconverter"), &AudioRes.pAdd_TEXAtoXconverter, &Add_TEXAtoXconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Remove_XtoTEXAconverter"), &AudioRes.pRemove_XtoTEXAconverter, &Remove_XtoTEXAconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Remove_TEXAtoXconverter"), &AudioRes.pRemove_TEXAtoXconverter, &Remove_TEXAtoXconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::XtoTEXA"), &AudioRes.pXtoTEXA, &XtoTEXA, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::TEXAtoX"), &AudioRes.pTEXAtoX, &TEXAtoX, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::Register_AudioEffectSignature"), &AudioRes.pRegister_AudioEffectSignature, &Register_AudioEffectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::DeRegister_AudioEffectSignature"), &AudioRes.pDeRegister_AudioEffectSignature, &DeRegister_AudioEffectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::Find_AudioEffectSignature"), &AudioRes.pFind_AudioEffectSignature, &Find_AudioEffectSignature, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::Get_AudioEffect"), &AudioRes.pGet_AudioEffect, &Get_AudioEffect, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::Register_AudioEffectSignature"), &AudioRes.pRegister_AudioEffectSignature, &Register_AudioEffectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::DeRegister_AudioEffectSignature"), &AudioRes.pDeRegister_AudioEffectSignature, &DeRegister_AudioEffectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::Find_AudioEffectSignature"), &AudioRes.pFind_AudioEffectSignature, &Find_AudioEffectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Effects::Get_AudioEffect"), &AudioRes.pGet_AudioEffect, &Get_AudioEffect, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Get_FormatDetails"), &AudioRes.pGet_FormatDetails, &Get_FormatDetails, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Start_InputStream"), &AudioRes.pStart_InputStream, &Start_InputStream, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Start_OutputStream"), &AudioRes.pStart_OutputStream, &Start_OutputStream, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Pause_InputStream"), &AudioRes.pPause_InputStream, &Pause_InputStream, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Pause_OutputStream"), &AudioRes.pPause_OutputStream, &Pause_OutputStream, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Get_FormatDetails"), &AudioRes.pGet_FormatDetails, &Get_FormatDetails, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Start_InputStream"), &AudioRes.pStart_InputStream, &Start_InputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Start_OutputStream"), &AudioRes.pStart_OutputStream, &Start_OutputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Pause_InputStream"), &AudioRes.pPause_InputStream, &Pause_InputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Pause_OutputStream"), &AudioRes.pPause_OutputStream, &Pause_OutputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert_AudioData"), &AudioRes.pConvert_AudioData, &Convert_AudioData, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Create_DummyTEXA"), &AudioRes.pCreate_DummyTEXA, &Create_DummyTEXA, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert_AudioData"), &AudioRes.pConvert_AudioData, &Convert_AudioData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Create_DummyTEXA"), &AudioRes.pCreate_DummyTEXA, &Create_DummyTEXA, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 }
 
 

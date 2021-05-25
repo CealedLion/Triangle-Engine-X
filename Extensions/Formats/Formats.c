@@ -3057,11 +3057,10 @@ void Destroy_Formats()
 	Audio_Convert_Ref_Remove_TEXAtoXconverter(wav);
 }
 
-//entry poin t to the extension
+//entry point to the extension
 //this functions purpose is to register everything with the application. One time only.
 __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 {
-
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -3079,12 +3078,12 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	Audio_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 	GUI_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Initialise_Formats"), &FormatsRes.pInitialise_Formats, (void**)&Initialise_Formats, Construct, Single_Thread, 10.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Destroy_Formats"), &FormatsRes.pDestroy_Formats, (void**)&Destroy_Formats, Destruct, Single_Thread, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Initialise_Formats"), &FormatsRes.pInitialise_Formats, (void**)&Initialise_Formats, Construct, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Destroy_Formats"), &FormatsRes.pDestroy_Formats, (void**)&Destroy_Formats, Destruct, 10.0f, 0, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Load_2Dscene"), &FormatsRes.pLoad_2Dscene, (void**)&Load_2Dscene, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Load_3Dscene"), &FormatsRes.pLoad_3Dscene, (void**)&Load_3Dscene, (CallFlagBits)NULL, (FunctionThreadingMode)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Load_2Dscene"), &FormatsRes.pLoad_2Dscene, (void**)&Load_2Dscene, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Load_3Dscene"), &FormatsRes.pLoad_3Dscene, (void**)&Load_3Dscene, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 }
 
