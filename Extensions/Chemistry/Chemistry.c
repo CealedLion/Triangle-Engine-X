@@ -873,16 +873,10 @@ SPIRV_Header(ButterflyVariables_MAX)\
 		(4<<SpvWordCountShift)|SpvOpBranchConditional, ButterflyLoadedVariable_bool_op1, ButterflyLabel_LoopContinueTarget, ButterflyLabel_LoopMerge,\
 		(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_LoopContinueTarget,\
 			(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong0, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
-
 			(3<<SpvWordCountShift)|SpvOpStore, ButterflyVariable_FunctionPointer_float32vec4_Sample_1, ButterflyLoadedVariable_float32vec4_sample_1_0_0__0,\
-
 			(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_LoopContinueTarget,\
 		(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_LoopMerge,\
 		(2<<SpvWordCountShift)|SpvOpBranch, ButterflyLabel_PingPongMerge,\
-
-
-
-
 	(2<<SpvWordCountShift)|SpvOpLabel, ButterflyLabel_PingPongFalse,\
 		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_0_0_0__1, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1, ButterflyLoadedVariable_int32vec3_BuiltInInvocationID,\
 		(5<<SpvWordCountShift)|SpvOpImageRead, ButterflyType_float32vec4, ButterflyLoadedVariable_float32vec4_sample_1_0_0__1, ButterflyLoadedVariable_Image_float32_3D_0_0_0_2_R32f_ResultPingPong1, ButterflyLoadedVariable_int32vec3_op6,\

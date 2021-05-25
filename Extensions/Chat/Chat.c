@@ -127,9 +127,7 @@ TEXRESULT Initialise_Chat()
 			}
 		}
 		/*
-
 		{
-
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
 				ResourceHeaderCreateInfo MainCreateInfo;
@@ -302,9 +300,7 @@ TEXRESULT Initialise_Chat()
 			}
 		}
 		*/
-
-
-		
+		/*
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -368,7 +364,7 @@ TEXRESULT Initialise_Chat()
 					Info.Particles[1 + i].Size = 0.0005f;
 					Info.Particles[1 + i].Charge = -1.0f;
 				}
-				*/
+				
 
 
 
@@ -381,12 +377,10 @@ TEXRESULT Initialise_Chat()
 				free(CreateInfo.EffectCreateInfos);
 				free(Info.Particles);
 			}
-		}
-		
-
+		}	
+		*/
 	}
 	
-
 	/*
 	ResourceHeaderAllocation iAudioSource;
 	{
@@ -449,12 +443,8 @@ TEXRESULT Initialise_Chat()
 	//RHeaderOutputStream* pOutputStream = (RHeaderOutputStream*)Object_Ref_Get_ResourceHeaderPointer(oheader);
 	Audio_Ref_Start_OutputStream(pAudioElement);
 	*/
-
-
-
 	//Object_Ref_Write_TEIF((const UTF8*)"BIN.teif", 0);	
-	//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);
-	
+	//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
 	return (TEXRESULT)(Success);
 }
 
