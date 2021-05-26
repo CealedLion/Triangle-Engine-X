@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 //C
 #include <stdint.h>
 #include <stdlib.h>
@@ -61,7 +61,225 @@ uint64_t SelectedTextEndIndex1;
 
 
 TEXRESULT Initialise_Chat()
-{	
+{
+	
+	ObjectAllocation iObject;
+	{
+		ObjectCreateInfo MainCreateInfo;
+		memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+		MainCreateInfo.Identifier = (uint32_t)Object_Generic;
+		MainCreateInfo.Name = NULL;
+		Object_Ref_Create_Object(&iObject, MainCreateInfo, NULL, 0);
+	}
+	ResourceHeaderAllocation iGraphicsWindow;
+	{
+		RHeaderGraphicsWindowCreateInfo CreateInfo;
+		memset(&CreateInfo, NULL, sizeof(CreateInfo));
+		CreateInfo.TargetExtentWidth = 1000;
+		CreateInfo.TargetExtentHeight = 1000;
+		CreateInfo.TargetFrameBuffersSize = 1;
+		ResourceHeaderCreateInfo MainCreateInfo;
+		memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
+		MainCreateInfo.Name = "Triangle Engine X";
+		Object_Ref_Create_ResourceHeader(&iGraphicsWindow, MainCreateInfo, &CreateInfo, 0);
+		Object_Ref_Add_Object_ResourceHeaderChild(iGraphicsWindow, iObject);
+	}
+
+	ResourceHeaderAllocation iScene;
+	{
+		RHeaderSceneCreateInfo CreateInfo;
+		memset(&CreateInfo, NULL, sizeof(CreateInfo));
+		CreateInfo.InitialActive = true;
+		ResourceHeaderCreateInfo MainCreateInfo;
+		memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Scene;
+		MainCreateInfo.Name = NULL;
+		Object_Ref_Create_ResourceHeader(&iScene, MainCreateInfo, &CreateInfo, 0);
+		Object_Ref_Add_Object_ResourceHeaderChild(iScene, iObject);
+	}
+
+	Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json",
+		(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
+	
+	TEXRESULT ress = Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\gnessieu\\scene.gltf",
+		(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
+	
+	/*
+	{
+		ResourceHeaderAllocation iResourceHeaderParent;
+		{
+			ResourceHeaderCreateInfo MainCreateInfo;
+			memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+			MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
+			MainCreateInfo.Name = NULL;
+			Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
+			Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject);
+
+		}
+
+
+		ResourceHeaderAllocation iMaterial;
+		{
+			RHeaderMaterialCreateInfo CreateInfoMaterial;
+			memset(&CreateInfoMaterial, NULL, sizeof(CreateInfoMaterial));
+
+			CreateInfoMaterial.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
+
+			CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
+			CreateInfoMaterial.BaseColourFactor[1] = 0.0f;
+			CreateInfoMaterial.BaseColourFactor[2] = 0.0f;
+			CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
+
+			CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
+
+			{
+				ResourceHeaderAllocation iImageSource;
+				{
+					RHeaderImageSourceCreateInfo Info;
+					memset(&Info, NULL, sizeof(Info));
+					Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
+					free(Info.ImageData);
+				}
+				ResourceHeaderAllocation iTextureHeader;
+				{
+					RHeaderTextureCreateInfo Info;
+					memset(&Info, NULL, sizeof(Info));
+					Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
+					Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
+					Info.AllocationType = AllocationType_Linear;
+					Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
+				}
+				CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
+			}
+
+			{
+				ResourceHeaderAllocation iImageSource;
+				{
+					RHeaderImageSourceCreateInfo Info;
+					memset(&Info, NULL, sizeof(Info));
+					Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
+					free(Info.ImageData);
+				}
+				ResourceHeaderAllocation iTextureHeader;
+				{
+					RHeaderTextureCreateInfo Info;
+					memset(&Info, NULL, sizeof(Info));
+					Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
+					Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
+					Info.AllocationType = AllocationType_Linear;
+					Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
+				}
+				CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
+			}
+
+			ResourceHeaderCreateInfo MainCreateInfo;
+			memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
+			MainCreateInfo.Name = NULL;
+			Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
+			Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject);
+		}
+
+		{
+			RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(iMaterial);
+			ElementGraphicsCreateInfo CreateInfo;
+			memset(&CreateInfo, NULL, sizeof(CreateInfo));
+			CreateInfo.pMaterial = pMaterial;
+			CreateInfo.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
+
+			CreateInfo.EffectCreateInfosSize = 1;
+			CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
+
+			pMaterial->BaseColourMode = MaterialMode_Alpha;
+			GraphicsEffectCreateInfoText InfoText;
+			memset(&InfoText, NULL, sizeof(InfoText));
+
+			CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)GUIEffect_Text;
+			CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &InfoText;
+
+			InfoText.Text = (UTF8*)"FPS:";
+			InfoText.FontSize = 100;
+
+			InfoText.pFontsSize = 2;
+			InfoText.pFonts = (RHeaderFont**)calloc(InfoText.pFontsSize, sizeof(*InfoText.pFonts));
+			{
+				ResourceHeaderAllocation iFont;
+				RHeaderFontCreateInfo CreateInfoFont;
+				memset(&CreateInfoFont, NULL, sizeof(CreateInfoFont));
+				Open_Data(&CreateInfoFont.Data, (UTF8*)"data\\Fonts\\NotoSerif\\NotoSerif-Regular.ttf");
+				ResourceHeaderCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
+				Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject);
+				InfoText.pFonts[0] = (RHeaderFont*)Object_Ref_Get_ResourceHeaderPointer(iFont);
+				free(CreateInfoFont.Data.pData);
+			}
+			{
+				ResourceHeaderAllocation iFont;
+				RHeaderFontCreateInfo CreateInfoFont;
+				memset(&CreateInfoFont, NULL, sizeof(CreateInfoFont));
+				Open_Data(&CreateInfoFont.Data, (UTF8*)"data\\Fonts\\NotoColorEmoji\\NotoColorEmoji.ttf");
+				ResourceHeaderCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
+				Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject);
+				InfoText.pFonts[1] = (RHeaderFont*)Object_Ref_Get_ResourceHeaderPointer(iFont);
+				free(CreateInfoFont.Data.pData);
+			}
+
+			InfoText.Size[0] = 0.4f;
+			InfoText.Size[1] = 0.10f;
+
+			InfoText.Position[0] = 0.4f;
+			InfoText.Position[1] = 1.0f;
+
+			for (size_t i1 = 0; i1 < 2; i1++)
+				InfoText.BoundingBoxSize[i1] = InfoText.Size[i1];
+
+			for (size_t i1 = 0; i1 < 2; i1++)
+				InfoText.BoundingBoxPosition[i1] = InfoText.Position[i1];
+
+			ElementCreateInfo MainCreateInfo;
+			memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
+			MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
+			MainCreateInfo.Name = NULL;
+			Object_Ref_Create_Element(&iFPS_DisplayText, MainCreateInfo, &CreateInfo, 0);
+			Object_Ref_Add_ResourceHeader_ElementChild(iFPS_DisplayText, iResourceHeaderParent);
+			free(CreateInfo.EffectCreateInfos);
+			free(InfoText.pFonts);
+		}
+	}
+	*/
+	/*
 	for (size_t i = 0; i < 1; i++)
 	{
 		ObjectAllocation iObject;
@@ -103,9 +321,6 @@ TEXRESULT Initialise_Chat()
 		Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json",
 			(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
 
-		//Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf",
-		//	(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
-
 
 
 
@@ -126,180 +341,7 @@ TEXRESULT Initialise_Chat()
 				}
 			}
 		}
-		/*
-		{
-			ResourceHeaderAllocation iResourceHeaderParent;
-			{
-				ResourceHeaderCreateInfo MainCreateInfo;
-				memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
-				MainCreateInfo.Name = NULL;
-				Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
-				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject);
 
-			}
-
-
-			ResourceHeaderAllocation iMaterial;
-			{
-				RHeaderMaterialCreateInfo CreateInfoMaterial;
-				memset(&CreateInfoMaterial, NULL, sizeof(CreateInfoMaterial));
-
-				CreateInfoMaterial.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-
-				CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
-				CreateInfoMaterial.BaseColourFactor[1] = 0.0f;
-				CreateInfoMaterial.BaseColourFactor[2] = 0.0f;
-				CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
-
-				CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
-
-				{
-					ResourceHeaderAllocation iImageSource;
-					{
-						RHeaderImageSourceCreateInfo Info;
-						memset(&Info, NULL, sizeof(Info));
-						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
-						free(Info.ImageData);
-					}
-					ResourceHeaderAllocation iTextureHeader;
-					{
-						RHeaderTextureCreateInfo Info;
-						memset(&Info, NULL, sizeof(Info));
-						Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-						Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
-						Info.AllocationType = AllocationType_Linear;
-						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
-					}
-					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
-				}
-
-				{
-					ResourceHeaderAllocation iImageSource;
-					{
-						RHeaderImageSourceCreateInfo Info;
-						memset(&Info, NULL, sizeof(Info));
-						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
-						free(Info.ImageData);
-					}
-					ResourceHeaderAllocation iTextureHeader;
-					{
-						RHeaderTextureCreateInfo Info;
-						memset(&Info, NULL, sizeof(Info));
-						Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-						Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
-						Info.AllocationType = AllocationType_Linear;
-						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
-					}
-					CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
-				}
-
-				ResourceHeaderCreateInfo MainCreateInfo;
-				memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
-				MainCreateInfo.Name = NULL;
-				Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
-				Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject);
-			}
-
-			{
-				RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(iMaterial);
-				ElementGraphicsCreateInfo CreateInfo;
-				memset(&CreateInfo, NULL, sizeof(CreateInfo));
-				CreateInfo.pMaterial = pMaterial;
-				CreateInfo.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-
-				CreateInfo.EffectCreateInfosSize = 1;
-				CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
-
-				pMaterial->BaseColourMode = MaterialMode_Alpha;
-				GraphicsEffectCreateInfoText InfoText;
-				memset(&InfoText, NULL, sizeof(InfoText));
-
-				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)GUIEffect_Text;
-				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &InfoText;
-
-				InfoText.Text = (UTF8*)"FPS:";
-				InfoText.FontSize = 100;
-
-				InfoText.pFontsSize = 2;
-				InfoText.pFonts = (RHeaderFont**)calloc(InfoText.pFontsSize, sizeof(*InfoText.pFonts));
-				{
-					ResourceHeaderAllocation iFont;
-					RHeaderFontCreateInfo CreateInfoFont;
-					memset(&CreateInfoFont, NULL, sizeof(CreateInfoFont));
-					Open_Data(&CreateInfoFont.Data, (UTF8*)"data\\Fonts\\NotoSerif\\NotoSerif-Regular.ttf");
-					ResourceHeaderCreateInfo MainCreateInfo;
-					memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-					MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
-					MainCreateInfo.Name = NULL;
-					Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject);
-					InfoText.pFonts[0] = (RHeaderFont*)Object_Ref_Get_ResourceHeaderPointer(iFont);
-					free(CreateInfoFont.Data.pData);
-				}
-				{
-					ResourceHeaderAllocation iFont;
-					RHeaderFontCreateInfo CreateInfoFont;
-					memset(&CreateInfoFont, NULL, sizeof(CreateInfoFont));
-					Open_Data(&CreateInfoFont.Data, (UTF8*)"data\\Fonts\\NotoColorEmoji\\NotoColorEmoji.ttf");
-					ResourceHeaderCreateInfo MainCreateInfo;
-					memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-					MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
-					MainCreateInfo.Name = NULL;
-					Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject);
-					InfoText.pFonts[1] = (RHeaderFont*)Object_Ref_Get_ResourceHeaderPointer(iFont);
-					free(CreateInfoFont.Data.pData);
-				}
-
-				InfoText.Size[0] = 0.4f;
-				InfoText.Size[1] = 0.10f;
-
-				InfoText.Position[0] = 0.4f;
-				InfoText.Position[1] = 1.0f;
-
-				for (size_t i1 = 0; i1 < 2; i1++)
-					InfoText.BoundingBoxSize[i1] = InfoText.Size[i1];
-
-				for (size_t i1 = 0; i1 < 2; i1++)
-					InfoText.BoundingBoxPosition[i1] = InfoText.Position[i1];
-
-				ElementCreateInfo MainCreateInfo;
-				memset(&MainCreateInfo, NULL, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
-				MainCreateInfo.Name = NULL;
-				Object_Ref_Create_Element(&iFPS_DisplayText, MainCreateInfo, &CreateInfo, 0);
-				Object_Ref_Add_ResourceHeader_ElementChild(iFPS_DisplayText, iResourceHeaderParent);
-				free(CreateInfo.EffectCreateInfos);
-				free(InfoText.pFonts);
-			}
-		}
-		*/
 		/*
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
@@ -379,7 +421,7 @@ TEXRESULT Initialise_Chat()
 			}
 		}	
 		*/
-	}
+	//}
 	
 	/*
 	ResourceHeaderAllocation iAudioSource;
@@ -445,6 +487,9 @@ TEXRESULT Initialise_Chat()
 	*/
 	//Object_Ref_Write_TEIF((const UTF8*)"BIN.teif", 0);	
 	//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
+
+
+
 	return (TEXRESULT)(Success);
 }
 
@@ -452,6 +497,9 @@ void Destroy_Chat()
 {
 
 }
+
+
+
 
 void ButtonClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocation ClickedResourceHeader, ObjectAllocation ClickedObject, RHeaderButton* pButton, GUIButtonCallbackState Action)
 {
@@ -591,6 +639,12 @@ void RemoveCodepoint(RHeaderGraphicsWindow* pGraphicsWindow)
 	UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
 	Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
 	Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
+}
+
+void Close_Callback()
+{
+	Object_Ref_Write_TEIF((const UTF8*)"BIN.teif", 0);
+	Engine_Ref_Exit_Application();
 }
 
 void Character_Callback()
@@ -1157,18 +1211,14 @@ void Update_Chat()
 			Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 		}
 	}
-	
-	/*if ((((EngineUtils*)EngineRes.pUtils)->CurrentTime - lasttime) > 1.0)//fps counter shit
+	/*
+	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0)//fps counter shit
 	{	
-		(((EngineUtils*)EngineRes.pUtils)->CurrentTime = ((double)clock() / (double)CLOCKS_PER_SEC));
-		
 		double FPS = ((double)pGraphicsWindow->FramesDone);
 		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
 		pGraphicsWindow->FramesDone = 0;
 		
-		lasttime = ((EngineUtils*)EngineRes.pUtils)->CurrentTime;
-
-
+		lasttime = ((double)clock() / (double)CLOCKS_PER_SEC);
 
 		ElementInstance ElementInstance;
 		Object_Ref_CreateInstance_Element(iFPS_DisplayText, &ElementInstance, 0);
@@ -1191,8 +1241,7 @@ void Update_Chat()
 	
 	float framehorizontalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentWidth / 2.0f - ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position);
 	float frameverticalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentHeight / 2.0f - ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position);
-	framehorizontalAngle = 0;
-	frameverticalAngle = 0;
+
 	vec4 Translation;
 	glm_vec3_zero(Translation);
 	mat4 Rotation;
@@ -1312,6 +1361,7 @@ struct ChatResStruct
 	void* pCharacter_Callback;
 	void* pClick_Callback;
 	void* pScroll_Callback;
+	void* pClose_Callback;
 
 }ChatRes;
 
@@ -1340,7 +1390,7 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	//exports
 	//resources
 	//functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Initialise_Chat"), &ChatRes.pInitialise_Chat, &Initialise_Chat, Construct, 1000.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Initialise_Chat"), &ChatRes.pInitialise_Chat, &Initialise_Chat, Construct, 10000.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Destroy_Chat"), &ChatRes.pDestroy_Chat, &Destroy_Chat, Destruct, 0.001f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Update_Chat"), &ChatRes.pUpdate_Chat, &Update_Chat, EveryFrame, 0.1f, 0, NULL);
 	
@@ -1349,6 +1399,7 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Key_Callback"), &ChatRes.pKey_Callback, &Key_Callback, Key_Input, 0.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Click_Callback"), &ChatRes.pClick_Callback, &Click_Callback, MouseButton_Input, 0.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Scroll_Callback"), &ChatRes.pScroll_Callback, &Scroll_Callback, Scroll_Input, 0.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Close_Callback"), &ChatRes.pClose_Callback, &Close_Callback, Window_Close, 0.0f, 0, NULL);
 
 
 }

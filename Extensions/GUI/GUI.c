@@ -376,15 +376,13 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	ResourceHeaderInstance Texture0Instance;
 	Object_Ref_CreateInstance_ResourceHeader(pMaterial->BaseColourTexture.iTexture, &Texture0Instance, ThreadIndex);
 	RHeaderTexture* pTexture0 = Texture0Instance.pInstance;
-
 	RHeaderImageSource* pImageSource0 = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource);
 
 	ResourceHeaderInstance Texture1Instance;
 	Object_Ref_CreateInstance_ResourceHeader(pMaterial->EmissiveTexture.iTexture, &Texture1Instance, ThreadIndex);
 	RHeaderTexture* pTexture1 = Texture1Instance.pInstance;
-
 	RHeaderImageSource* pImageSource1 = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource);
-
+	
 	pEffect->GPU_GraphicsEffectInfos = NULL;
 	pEffect->GPU_GraphicsEffectInfosSize = NULL;
 	{
@@ -618,7 +616,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 				free(pTextImages1[i]);
 			free(pTextImages1);
 			//Object_Ref_ReCreate_ResourceHeader(pImageSource1->Header.Allocation);
-			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, &Texture1Instance, 0);
+			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, &Texture1Instance, ThreadIndex);
 		}
 		else
 		{
@@ -628,7 +626,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 			if ((res = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource1->ImageData)) != Success)
 				return;
 			//Object_Ref_ReCreate_ResourceHeader(pImageSource1->Header.Allocation);
-			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, &Texture1Instance, 0);
+			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, &Texture1Instance, ThreadIndex);
 		}
 		if (pTextImages0Size != NULL)
 		{
@@ -643,7 +641,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 				free(pTextImages0[i]);
 			free(pTextImages0);
 			//Object_Ref_ReCreate_ResourceHeader(pImageSource0->Header.Allocation, );
-			Object_Ref_ReCreate_ResourceHeader(pTexture0->Header.Allocation, &Texture0Instance, 0);
+			Object_Ref_ReCreate_ResourceHeader(pTexture0->Header.Allocation, &Texture0Instance, ThreadIndex);
 		}
 	}
 
@@ -1229,7 +1227,7 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData((void*)"GUI::Utils"), &GUIRes.pUtils, &Utils);
 
 	//Functions
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Initialise_GUI"), &GUIRes.pInitialise_GUI, &Initialise_GUI, Construct, 10.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Initialise_GUI"), &GUIRes.pInitialise_GUI, &Initialise_GUI, Construct, 100.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Destroy_GUI"), &GUIRes.pDestroy_GUI, &Destroy_GUI, Destruct, 100.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Update_GUI"), &GUIRes.pUpdate_GUI, &Update_GUI, MouseButton_Input, 0.01f, 0, NULL);
 

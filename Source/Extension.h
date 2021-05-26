@@ -514,11 +514,8 @@ void bitshiftL_array(uint8_t* pData, const uint32_t datasize, const uint32_t bit
 	}
 }
 
-
-
 TEXRESULT Open_Data(FileData* filedata, const UTF8* path)
 {
-
 	FILE* file = fopen((char*)path, "rb"); //open file
 	if (file == NULL)
 	{
@@ -527,8 +524,11 @@ TEXRESULT Open_Data(FileData* filedata, const UTF8* path)
 	fseek(file, 0, SEEK_END); //find end of file
 	filedata->LinearSize = ftell(file); //ftell returns position of seeker and hence size of file
 	rewind(file); //back to start
-	filedata->pData = (unsigned char*)malloc(sizeof(unsigned char) * filedata->LinearSize + 1); //allocate enough memory +1 for file ending
-
+	filedata->pData = malloc(filedata->LinearSize + (uint64_t)1); //allocate enough memory +1 for file ending
+	if (filedata->pData == NULL)
+	{
+		return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+	}
 	fread(filedata->pData, (size_t)filedata->LinearSize, 1, file); //insert pData into memory
 
 	((char*)filedata->pData)[filedata->LinearSize] = '\0'; //add line ending
@@ -537,21 +537,17 @@ TEXRESULT Open_Data(FileData* filedata, const UTF8* path)
 	fclose(file);
 
 	return Success;
-
 }
 
 TEXRESULT Save_data(FileData* filedata, const UTF8* path)
 {
-
 	FILE* file = fopen((char*)path, "wb"); //open file
 	if (file == NULL)
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 
-
 	fwrite(filedata->pData, sizeof(unsigned char), filedata->LinearSize, file);
 
 	fclose(file);
-
 	return Success;
 }
 

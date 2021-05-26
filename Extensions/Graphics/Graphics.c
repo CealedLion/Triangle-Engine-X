@@ -847,9 +847,10 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 	}
 	
 	//Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
+	
 	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
 		Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], (Size / ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads), Type);
-
+	
 	pBuffer->Size = Size;
 	pBuffer->Alignment = pBuffer->ArenaAllocaters[0].Alignment;
 	return (TEXRESULT)(Success);
@@ -1015,6 +1016,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		}
 
 		GPU_ArenaAllocater* pArenaAllocater = NULL;	
+		
 		if (Engine_Ref_TryLock_Mutex(TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]].mutex) != Success)
 		{
 			for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
@@ -1031,6 +1033,9 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		{
 			pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
 		}
+		
+		//pArenaAllocater = &TargetBuffer->ArenaAllocaters[0];
+		//Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
 		if (pArenaAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("GPUmalloc()", "Arena Allocater could not be found. ", pArenaAllocater);

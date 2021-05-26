@@ -3164,7 +3164,7 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
-	FileData data;
+	FileData data = { 0, 0 };
 	Open_Data(&data, Path);
 	if (data.pData == NULL)
 	{
@@ -3173,7 +3173,6 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 	}
 
 	TEIF_HEADER* pHeader = (TEIF_HEADER*)data.pData;
-
 	if (strncmp(pHeader->filecode, "TEIF", 4) != 0)
 	{
 		Engine_Ref_ArgsError("Read_TEIF()", "Filecode Not Equal To TEIF, Invalid File Format!");
