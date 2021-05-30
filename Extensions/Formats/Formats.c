@@ -3039,7 +3039,7 @@ TEXRESULT Initialise_Formats()
 	return (TEXRESULT)(Success);
 }
 
-void Destroy_Formats()
+TEXRESULT Destroy_Formats()
 {
 	Graphics_Convert_Ref_Remove_XtoTEXIconverter(bmp);
 	Graphics_Convert_Ref_Remove_TEXItoXconverter(bmp);
@@ -3055,6 +3055,8 @@ void Destroy_Formats()
 
 	Audio_Convert_Ref_Remove_XtoTEXAconverter(wav);
 	Audio_Convert_Ref_Remove_TEXAtoXconverter(wav);
+
+	return Success;
 }
 
 //entry point to the extension

@@ -989,9 +989,14 @@ void Call_Once(once_flag* flag, void (*func)(void))
 #endif
 }
 
+//////////////////////////////////////////
+//DLL Functions
+//////////////////////////////////////////
+
 /*
 * Added in 1.0.0
-* @param
+* @param pDLL_Handle, pointer to a handle where the result will be stored.
+* @param Path, file path of the DLL to load.
 */
 TEXRESULT Open_DLL(void** pDLL_Handle, const UTF8* Path)
 {
@@ -1029,7 +1034,9 @@ TEXRESULT Open_DLL(void** pDLL_Handle, const UTF8* Path)
 }
 /*
 * Added in 1.0.0
-* @param
+* @param DLL_Handle, The handle of the DLL to get the function from.
+* @param pFunction, Pointer to a pointer where the resulting function pointer will be stored.
+* @param Name, Name of the function to get. (Note: on windows you need to __declspec(dllexport))
 */
 TEXRESULT Get_ExternalFunction(void* DLL_Handle, void** pFunction, const UTF8* Name)
 {
@@ -1060,7 +1067,7 @@ TEXRESULT Get_ExternalFunction(void* DLL_Handle, void** pFunction, const UTF8* N
 }
 /*
 * Added in 1.0.0
-* @param
+* @param DLL_Handle, The handle of the DLL to close.
 */
 void Close_DLL(void* DLL_Handle)
 {
@@ -1079,16 +1086,16 @@ void Close_DLL(void* DLL_Handle)
 #endif
 }
 
-
 //////////////////////////////////////////
 //Misc Functions
 //////////////////////////////////////////
 
-
 /*
 * Added in 1.0.0
-* Compares specified version set to engine main version
-* returns success if they are within range
+* Compares specified version set to engine version.
+* @param MinVersion, the three version numbers of mininium compatibility.
+* @param MaxVersion, the three version numbers of maxinium compatibility.
+* @return Success if they are within range.
 */
 TEXRESULT Check_VersionCompatibility(uint32_t MinVersion[3], uint32_t MaxVersion[3])
 {
@@ -1112,15 +1119,17 @@ TEXRESULT Check_VersionCompatibility(uint32_t MinVersion[3], uint32_t MaxVersion
 /*
 * Added in 1.0.0
 * Gets pointer that is an index that points to the ExtensionData in the main ExtensionDataBuffer from the Allocation.
+* @param Allocation, Allocation of the extension to get pointer of.
 */
 ExtensionData* Get_ExtensionDataPointer(ExtensionAllocation Allocation)
 {
 	return &Utils.ExtensionBuffer.Buffer[Allocation];
 }
-
 /*
 * Added in 1.0.0
 * when CreateInfo == NULLPTR the extensiondata will be blank.
+* @param pAllocation, Pointer to a allocation to store the refrence to the newly created object.
+* @param CreateInfo, Pointer to the createinfo that specifies parameters for the object.
 */
 TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCreateInfo* CreateInfo)
 {
@@ -1235,10 +1244,10 @@ TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCr
 	Unlock_Mutex(Utils.ExtensionBuffer.mutex);
 	return Success;
 }
-
 /*
 * Added in 1.0.0
 * Destroys everything, including functioninfos and resourceinfos in it. 
+* @param Allocation, Allocation of the extension to destroy.
 */
 void Destroy_ExtensionData(ExtensionAllocation Allocation)
 {
@@ -1297,7 +1306,7 @@ void Destroy_ExtensionData(ExtensionAllocation Allocation)
 /*
 * Added in 1.0.0
 * Creates main ExtensionDataBuffer.
-* Size is in allocation chunks. (1 ExtensionData == 1 chunk).
+* @param InitialSize is the size in allocation chunks. (1 ExtensionData == 1 chunk).
 */
 TEXRESULT Create_ExtensionDataBuffer(uint64_t InitialSize)
 {
@@ -1317,11 +1326,10 @@ TEXRESULT Create_ExtensionDataBuffer(uint64_t InitialSize)
 
 	return Success;
 }
-
 /*
 * Added in 1.0.0
 * Resizes the internal ExtensionDataBuffer
-* Size is in allocation chunks. (1 ExtensionData == 1 chunk).
+* @param NewSize is the size in allocation chunks. (1 ExtensionData == 1 chunk).
 */
 TEXRESULT Resize_ExtensionDataBuffer(uint64_t NewSize)
 {
@@ -1338,7 +1346,6 @@ TEXRESULT Resize_ExtensionDataBuffer(uint64_t NewSize)
 	Unlock_Mutex(Utils.ExtensionBuffer.mutex);
 	return Success;
 }
-
 /*
 * Added in 1.0.0
 * Destroys main ExtensionDataBuffer.
@@ -1433,7 +1440,7 @@ void Resolve_Linkages()
 }
 
 
-int cmpfunc(FunctionInfo** a, FunctionInfo** b) 
+int Recreate_Categories_cmpfunc(FunctionInfo** a, FunctionInfo** b)
 {
 	if ((*a)->Priority < (*b)->Priority)  return -1;
 	if ((*a)->Priority == (*b)->Priority)  return 0;
@@ -1584,7 +1591,7 @@ void Recreate_Categories()
 
 #define sort(Category, CategorySize)\
 	if (CategorySize != NULL && Category != NULL)\
-		qsort(Category, CategorySize, sizeof(*Category), cmpfunc);
+		qsort(Category, CategorySize, sizeof(*Category), Recreate_Categories_cmpfunc);
 
 
 	sort(Utils.Category.Construct, Utils.Category.ConstructSize);
@@ -1609,28 +1616,34 @@ void Recreate_Categories()
 	sort(Utils.Category.Window_Open, Utils.Category.Window_OpenSize);
 	
 }
-
 /*
 * Added in 1.0.0
 * Runs FunctionInfo.
+* @param pFunctionInfo Pointer to FunctionInfo of the function to run.
 */
 void Run_ExternalFunction(FunctionInfo* pFunctionInfo) //could cause crash on linux
 {
 	void* pfunction = *pFunctionInfo->ppFunction;
-	void(*function)(ResourceInfo*) = (void(*)(ResourceInfo*))pfunction;
-	function(pFunctionInfo->Args);
+	TEXRESULT(*function)(ResourceInfo*) = (TEXRESULT(*)(ResourceInfo*))pfunction;
+	TEXRESULT res = Success;
+	if ((res = function(pFunctionInfo->Args)) != Success)
+	{
+		FunctionError(pFunctionInfo->Name, "Returned Non-Success. TEXRESULT == ", res);
+		return;
+	}
 }
 /*
 * Added in 1.0.0
 * Like Resolve_Linkages but only resolves 1 item.
+* @param pReturnInfo Pointer to a FunctionInfo struct where the resolved symbol will be stored.
 */
-TEXRESULT Resolve_FunctionSymbol(FunctionInfo* ReturnInfo)
+TEXRESULT Resolve_FunctionSymbol(FunctionInfo* pReturnInfo)
 {
 	for (size_t i2 = 0; i2 < Utils.Category.ExternalFunctionsSize; i2++)
 	{
-		if (strcmp(ReturnInfo->Name, Utils.Category.ExternalFunctions[i2]->Name) == 0 && *Utils.Category.ExternalFunctions[i2]->ppFunction != NULL)
+		if (strcmp(pReturnInfo->Name, Utils.Category.ExternalFunctions[i2]->Name) == 0 && *Utils.Category.ExternalFunctions[i2]->ppFunction != NULL)
 		{
-			*ReturnInfo->ppFunction = *Utils.Category.ExternalFunctions[i2]->ppFunction;
+			*pReturnInfo->ppFunction = *Utils.Category.ExternalFunctions[i2]->ppFunction;
 			break;
 		}
 	}
@@ -1639,14 +1652,15 @@ TEXRESULT Resolve_FunctionSymbol(FunctionInfo* ReturnInfo)
 /*
 * Added in 1.0.0
 * Like Resolve_Linkages but only resolves 1 item.
+* @param pReturnResource Pointer to a ResourceInfo struct where the resolved symbol will be stored.
 */
-TEXRESULT Resolve_ResourceSymbol(ResourceInfo* ReturnResource)
+TEXRESULT Resolve_ResourceSymbol(ResourceInfo* pReturnResource)
 {
 	for (size_t i2 = 0; i2 < Utils.Category.ExternalResourcesSize; i2++)
 	{
-		if (strcmp(ReturnResource->Name, Utils.Category.ExternalResources[i2]->Name) == 0 && *Utils.Category.ExternalResources[i2]->ppResource != NULL)
+		if (strcmp(pReturnResource->Name, Utils.Category.ExternalResources[i2]->Name) == 0 && *Utils.Category.ExternalResources[i2]->ppResource != NULL)
 		{
-			*ReturnResource->ppResource = *Utils.Category.ExternalResources[i2]->ppResource;
+			*pReturnResource->ppResource = *Utils.Category.ExternalResources[i2]->ppResource;
 			break;
 		}
 	}
@@ -1785,7 +1799,6 @@ Key WindowsKeyCode_To_TriangleEngine(Window* pWindow, KeyState state, uint32_t k
 	case VK_MENU: pWindow->STATE_KEY_LEFT_ALT = state; pWindow->STATE_KEY_RIGHT_ALT = state; break;
 	}
 }
-
 
 void SetValue_To_KeyState(Window* pWindow, KeyState state, Key key)
 {
@@ -2217,11 +2230,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 #endif
 
+//////////////////////////////////////////
+//Window Functions
+//////////////////////////////////////////
+
 /*
 * Added in 1.0.0
 * Creates a window in the OS.
 * @param Height/Width Desired value in pixels.
-* @param Name will be displayed on window/
+* @param Name will be displayed on window
 */
 TEXRESULT Create_Window(Window** ppWindow, uint32_t Width, uint32_t Height, const UTF8* Name)
 {

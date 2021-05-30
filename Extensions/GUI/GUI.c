@@ -1066,7 +1066,7 @@ void Check_Click(ElementAllocation* pReturnElement, ResourceHeaderAllocation* pR
 	}
 }
 
-void Update_GUI()
+TEXRESULT Update_GUI()
 {
 	ElementAllocation ClickedElement = {0, 0};
 	ResourceHeaderAllocation ClickedResourceHeader = { 0, 0 };
@@ -1096,6 +1096,7 @@ void Update_GUI()
 			}
 		}
 	}
+	return Success;
 }
 
 TEXRESULT Initialise_GUI()
@@ -1166,7 +1167,7 @@ TEXRESULT Initialise_GUI()
 	return (TEXRESULT)(Success);
 }
 
-void Destroy_GUI()
+TEXRESULT Destroy_GUI()
 {
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
@@ -1198,6 +1199,7 @@ void Destroy_GUI()
 
 	//memset(&Utils, NULL, sizeof(Utils));
 	//memset(&Config, NULL, sizeof(Config));
+	return Success;
 }
 
 //entry point to the extension

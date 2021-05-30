@@ -3525,10 +3525,10 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 //Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Update_GraphicsEffects()
+TEXRESULT Update_GraphicsEffects()
 {
 
-
+	return Success;
 }
 
 TEXRESULT Initialise_GraphicsEffects()
@@ -3578,7 +3578,7 @@ TEXRESULT Initialise_GraphicsEffects()
 	return (TEXRESULT)(Success);
 }
 
-void Destroy_GraphicsEffects()
+TEXRESULT Destroy_GraphicsEffects()
 {
 	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "START DESTROYING", 0);
 
@@ -3599,6 +3599,7 @@ void Destroy_GraphicsEffects()
 	//memset(&Config, NULL, sizeof(Config));
 
 	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
+	return Success;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

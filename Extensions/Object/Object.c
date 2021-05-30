@@ -3348,7 +3348,7 @@ TEXRESULT Initialise_Objects()
 	return Success;
 }
 
-void Destroy_Objects()
+TEXRESULT Destroy_Objects()
 {
 	Destroy_ElementBuffer(&Utils.GenericElementBuffer);
 	Destroy_ResourceHeaderBuffer(&Utils.GenericResourceHeaderBuffer);
@@ -3390,6 +3390,7 @@ void Destroy_Objects()
 
 	memset(&Utils, NULL, sizeof(Utils));
 	memset(&Config, NULL, sizeof(Config));
+	return Success;
 }
 
 //entry point to the extension

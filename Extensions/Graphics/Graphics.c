@@ -846,10 +846,10 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 		return (TEXRESULT)(Out_Of_Memory_Result);
 	}
 	
-	Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
+	//Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
 	
-	//for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	//	Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], (Size / ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads), Type);
+	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+		Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], (Size / ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads), Type);
 	
 	pBuffer->Size = Size;
 	pBuffer->Alignment = pBuffer->ArenaAllocaters[0].Alignment;
@@ -1016,7 +1016,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		}
 
 		GPU_ArenaAllocater* pArenaAllocater = NULL;	
-		/*
+		
 		if (Engine_Ref_TryLock_Mutex(TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]].mutex) != Success)
 		{
 			for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
@@ -1032,10 +1032,11 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		else
 		{
 			pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
-		}*/
+		}
 		
-		pArenaAllocater = &TargetBuffer->ArenaAllocaters[0];
-		Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
+	//	pArenaAllocater = &TargetBuffer->ArenaAllocaters[0];
+	//	Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
+
 		if (pArenaAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("GPUmalloc()", "Arena Allocater could not be found. ", pArenaAllocater);
@@ -1121,11 +1122,6 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 void GPUfree(LogicalDevice* pLogicalDevice, GPU_Allocation* pAllocation)
 {
 #ifndef NDEBUG
-	if (pAllocation->Allocater.pArenaAllocater == NULL)
-	{
-		Engine_Ref_ObjectError("GPUfree()", "pAllocation.Allocater", pAllocation->Allocater.pArenaAllocater, "pAllocation.Allocater == NULLPTR");
-		return;
-	}
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("GPUfree()", "pLogicalDevice == NULLPTR");
@@ -1134,6 +1130,14 @@ void GPUfree(LogicalDevice* pLogicalDevice, GPU_Allocation* pAllocation)
 #endif
 	if (pAllocation->AllocationType == AllocationType_Linear)
 	{
+#ifndef NDEBUG
+		if (pAllocation->Allocater.pArenaAllocater == NULL)
+		{
+			Engine_Ref_ObjectError("GPUfree()", "pAllocation.Allocater", pAllocation->Allocater.pArenaAllocater, "pAllocation.Allocater == NULLPTR");
+			return;
+		}
+#endif
+
 		GPU_MemoryBuffer* TargetBuffer = NULL;
 		switch (pAllocation->TargetMemory)
 		{
@@ -6777,7 +6781,6 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 	while (pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag == true)
 	{
-		Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		VkResult res = VK_SUCCESS;
 		GPU_Allocation** ppTotalAllocations = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppTotalAllocations));
 		uint64_t** ppPointers = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppPointers));
@@ -7174,7 +7177,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 				Utils.GraphicsEffectSignatures[i]->DrawSignature(Utils.GraphicsEffectSignatures[i], pGraphicsWindow, pFrameBuffer->FrameIndex, ppTotalAllocations[i], ppPointers[i]);
 		}
 
-		//Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+		Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		if ((res = vkAcquireNextImageKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain,
 			UINT64_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT)
 		{
@@ -7433,13 +7436,11 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 				}
 			}
 			pGraphicsWindow->FramesDone++;
-			//Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+			Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		
 			vkWaitForFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence, VK_TRUE, UINT64_MAX);
 			vkResetFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence);
 			Engine_Ref_Unlock_Mutex(pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex1]);
-			
-
 		}
 
 		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
@@ -7535,7 +7536,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		}
 		free(ppTotalAllocations);
 		free(ppPointers);
-		Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+
 		if (pGraphicsWindow->RecreateFlag == false && pGraphicsWindow->CloseFlag == false)
 		{
 			//c89atomic_flag_test_and_set(&pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].RenderingFlag);
@@ -7549,7 +7550,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 	Engine_Ref_Exit_Thread(0);
 }
 
-void Update_Graphics()
+TEXRESULT Update_Graphics()
 {
 	size_t windowcount = 0;
 	for (size_t iWindow = 0; iWindow < Utils.RHeaderGraphicsWindowBuffer.Size;)
@@ -7620,6 +7621,7 @@ void Update_Graphics()
 			iWindow++;
 		}
 	}
+	return Success;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -8261,7 +8263,7 @@ TEXRESULT Initialise_Graphics()
 	return (TEXRESULT)Success;
 }
 
-void Destroy_Graphics()
+TEXRESULT Destroy_Graphics()
 {
 	//to destroy all rendering threads.
 	for (size_t iWindow = 0; iWindow < Utils.RHeaderGraphicsWindowBuffer.Size;)
@@ -8350,8 +8352,6 @@ void Destroy_Graphics()
 		}
 		if (Utils.GenericResources[i].VkDescriptorPool3D != NULL)
 			vkDestroyDescriptorPool(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorPool3D, NULL);
-
-
 		Destroy_LogicalDevice((LogicalDevice*)&Utils.LogicalDevices[i]);
 		Clear_PhysicalDevice((PhysicalDevice*)&Utils.PhysicalDevices[i]);
 	}
@@ -8366,6 +8366,9 @@ void Destroy_Graphics()
 
 	memset(&Config, NULL, sizeof(Config));
 	memset(&Utils, NULL, sizeof(Utils));
+
+
+	return Success;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

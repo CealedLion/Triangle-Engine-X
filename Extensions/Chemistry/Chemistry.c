@@ -1400,7 +1400,8 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 	mat4 CameraPositionMatrix;
 	glm_mat4_identity(CameraPositionMatrix);
 	Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCamera->Header.iParents[0]);
-	
+	glm_mat4_inv_precise_sse2(CameraPositionMatrix, CameraPositionMatrix);
+
 	vec4 Translation;
 	glm_vec3_zero(Translation);
 	mat4 Rotation;
@@ -1411,6 +1412,12 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 	glm_decompose(CameraPositionMatrix, Translation, Rotation, Scale);
 
 	glm_mat4_copy(Rotation, PushConstants.Rotation);
+	//gl
+	//glm_euler_angles(CameraPositionMatrix, PushConstants.Rotation);
+	//char buffer[200];
+	//snprintf(buffer, 200, "EULER %f %f\n", PushConstants.Rotation[0], PushConstants.Rotation[1]);
+	//Engine_Ref_FunctionError("AA", buffer, 0);
+
 	glm_vec4_copy(Translation, PushConstants.Position);
 	PushConstants.PingPongIndex = pEffect->PingPongIndex;
 	PushConstants.FieldOfView = 70.0f;
@@ -2778,16 +2785,17 @@ TEXRESULT Initialise_Chemistry()
 	return (TEXRESULT)(Success);
 }
 
-void Destroy_Chemistry()
+TEXRESULT Destroy_Chemistry()
 {
 	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.SimplifiedMolecularSignature);
 
 	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.QuantumAtomicSignature);
+	return Success;
 }
 
-void Update_Chemistry()
+TEXRESULT Update_Chemistry()
 {	
-	
+	return Success;
 }
 
 //entry point to the extension

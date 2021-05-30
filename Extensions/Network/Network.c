@@ -191,11 +191,12 @@ TEXRESULT Initialise_Network()
 	return Success;
 }
 
-void Destroy_Network()
+TEXRESULT Destroy_Network()
 {
 	WSACleanup();
 	memset((void*)&Utils, 0, sizeof(Utils));
 	memset((void*)&Config, 0, sizeof(Config));
+	return Success;
 }
 
 

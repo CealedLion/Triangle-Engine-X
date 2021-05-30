@@ -1562,7 +1562,7 @@ TEXRESULT Create_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, co
 //main 3 funcs
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Update_Audio()
+TEXRESULT Update_Audio()
 {
 	soundio_flush_events(Utils.AudioHandle);
 
@@ -1571,6 +1571,7 @@ void Update_Audio()
 		if (Utils.AudioEffectSignatures[i]->UpdateSignature != NULL)
 			Utils.AudioEffectSignatures[i]->UpdateSignature(Utils.AudioEffectSignatures[i]);
 	}
+	return Success;
 }
 
 TEXRESULT Initialise_Audio()
@@ -1759,7 +1760,7 @@ TEXRESULT Initialise_Audio()
 	return (TEXRESULT)(Success);
 }
 
-void Destroy_Audio()
+TEXRESULT Destroy_Audio()
 {
 	Object_Ref_Destroy_ElementBuffer(&Utils.ElementAudioBuffer);
 	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderAudioSourceBuffer);
@@ -1793,6 +1794,8 @@ void Destroy_Audio()
 
 	memset(&Utils, 0, sizeof(Utils));
 	memset(&Config, 0, sizeof(Config));
+
+	return Success;
 }
 
 

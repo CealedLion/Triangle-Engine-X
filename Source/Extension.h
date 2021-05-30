@@ -1850,20 +1850,20 @@ void Engine_Ref_Recreate_Categories()
 	function();
 }
 
-TEXRESULT Engine_Ref_Resolve_FunctionSymbol(FunctionInfo* ReturnInfo)
+TEXRESULT Engine_Ref_Resolve_FunctionSymbol(FunctionInfo* pReturnInfo)
 {
-	TEXRESULT(*function)(FunctionInfo * ReturnInfo) =
-		(TEXRESULT(*)(FunctionInfo * ReturnInfo))EngineRes.pResolve_FunctionSymbol;
+	TEXRESULT(*function)(FunctionInfo * pReturnInfo) =
+		(TEXRESULT(*)(FunctionInfo * pReturnInfo))EngineRes.pResolve_FunctionSymbol;
 
-	return function(ReturnInfo);
+	return function(pReturnInfo);
 }
 
-TEXRESULT Engine_Ref_Resolve_ResourceSymbol(ResourceInfo* ReturnResource)
+TEXRESULT Engine_Ref_Resolve_ResourceSymbol(ResourceInfo* pReturnResource)
 {
-	TEXRESULT(*function)(ResourceInfo * ReturnResource) =
-		(TEXRESULT(*)(ResourceInfo * ReturnResource))EngineRes.pResolve_ResourceSymbol;
+	TEXRESULT(*function)(ResourceInfo * pReturnResource) =
+		(TEXRESULT(*)(ResourceInfo * pReturnResource))EngineRes.pResolve_ResourceSymbol;
 
-	return function(ReturnResource);
+	return function(pReturnResource);
 }
 
 
