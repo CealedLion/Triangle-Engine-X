@@ -846,10 +846,10 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 		return (TEXRESULT)(Out_Of_Memory_Result);
 	}
 	
-	//Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
+	Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
 	
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], (Size / ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads), Type);
+	//for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+	//	Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], (Size / ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads), Type);
 	
 	pBuffer->Size = Size;
 	pBuffer->Alignment = pBuffer->ArenaAllocaters[0].Alignment;
@@ -1016,7 +1016,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		}
 
 		GPU_ArenaAllocater* pArenaAllocater = NULL;	
-		
+		/*
 		if (Engine_Ref_TryLock_Mutex(TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]].mutex) != Success)
 		{
 			for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
@@ -1032,10 +1032,10 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		else
 		{
 			pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
-		}
+		}*/
 		
-		//pArenaAllocater = &TargetBuffer->ArenaAllocaters[0];
-		//Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
+		pArenaAllocater = &TargetBuffer->ArenaAllocaters[0];
+		Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
 		if (pArenaAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("GPUmalloc()", "Arena Allocater could not be found. ", pArenaAllocater);
@@ -3921,8 +3921,6 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 
 		GPUfree(pGraphicsWindow->pLogicalDevice, &SrcAllocation);
 	}
-
-
 }
 
 void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
@@ -6779,6 +6777,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 	while (pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag == true)
 	{
+		Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		VkResult res = VK_SUCCESS;
 		GPU_Allocation** ppTotalAllocations = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppTotalAllocations));
 		uint64_t** ppPointers = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppPointers));
@@ -7175,7 +7174,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 				Utils.GraphicsEffectSignatures[i]->DrawSignature(Utils.GraphicsEffectSignatures[i], pGraphicsWindow, pFrameBuffer->FrameIndex, ppTotalAllocations[i], ppPointers[i]);
 		}
 
-		Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+		//Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		if ((res = vkAcquireNextImageKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain,
 			UINT64_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT)
 		{
@@ -7434,11 +7433,13 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 				}
 			}
 			pGraphicsWindow->FramesDone++;
-			Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+			//Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		
 			vkWaitForFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence, VK_TRUE, UINT64_MAX);
 			vkResetFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence);
 			Engine_Ref_Unlock_Mutex(pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex1]);
+			
+
 		}
 
 		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
@@ -7534,7 +7535,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		}
 		free(ppTotalAllocations);
 		free(ppPointers);
-
+		Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		if (pGraphicsWindow->RecreateFlag == false && pGraphicsWindow->CloseFlag == false)
 		{
 			//c89atomic_flag_test_and_set(&pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].RenderingFlag);
@@ -7543,6 +7544,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		{
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
 		}
+
 	}
 	Engine_Ref_Exit_Thread(0);
 }
@@ -7558,8 +7560,7 @@ void Update_Graphics()
 			VkResult res = VK_SUCCESS;
 
 			if (pGraphicsWindow->RecreateFlag == true)
-			{
-				
+			{		
 				if (ReCreate_SwapChain(pGraphicsWindow, false) == Invalid_Parameter)
 				{
 					return;
@@ -7647,8 +7648,8 @@ TEXRESULT Initialise_Graphics()
 	Config.InitialElementsMax = 1024;
 	Config.InitialHeadersMax = 1024;
 
-	Config.InitialStagingGPUBufferSize = MebiBytes(180);
-	Config.InitialNativeGPUBufferSize = MebiBytes(300);
+	Config.InitialStagingGPUBufferSize = MebiBytes(100);
+	Config.InitialNativeGPUBufferSize = MebiBytes(200);
 
 	Config.Samples = VK_SAMPLE_COUNT_1_BIT;
 	Config.MaxAnisotropy = 16;

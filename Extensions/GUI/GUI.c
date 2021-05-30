@@ -948,37 +948,37 @@ void UnPack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElemen
 //Effect Constructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Create_Text(ElementGraphics* pElement, GraphicsEffectText* EffectInfo, GraphicsEffectCreateInfoText* EffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
+TEXRESULT Create_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, GraphicsEffectCreateInfoText* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
 {
-	if (EffectInfo == NULL)
+	if (pEffect == NULL)
 	{
 
 	}
 	else
 	{
 #ifndef NDEBUG
-		if (EffectCreateInfo == NULL)
+		if (pEffectCreateInfo == NULL)
 		{
-			Engine_Ref_ArgsError("Create_Text()", "EffectCreateInfo == NULLPTR");
+			Engine_Ref_ArgsError("Create_Text()", "pEffectCreateInfo == NULLPTR");
 			return (TEXRESULT)Invalid_Parameter;
 		}
 #endif
-		glm_vec2_copy(EffectCreateInfo->Size, EffectInfo->Size);
-		glm_vec3_copy(EffectCreateInfo->Position, EffectInfo->Position);
+		glm_vec2_copy(pEffectCreateInfo->Size, pEffect->Size);
+		glm_vec3_copy(pEffectCreateInfo->Position, pEffect->Position);
 
-		glm_vec2_copy(EffectCreateInfo->BoundingBoxSize, EffectInfo->BoundingBoxSize);
-		glm_vec2_copy(EffectCreateInfo->BoundingBoxPosition, EffectInfo->BoundingBoxPosition);
+		glm_vec2_copy(pEffectCreateInfo->BoundingBoxSize, pEffect->BoundingBoxSize);
+		glm_vec2_copy(pEffectCreateInfo->BoundingBoxPosition, pEffect->BoundingBoxPosition);
 
-		EffectInfo->UTF8_Text = (UTF8*)CopyData((void*)EffectCreateInfo->Text);
-		EffectInfo->FontSize = EffectCreateInfo->FontSize;
-		EffectInfo->iFontsSize = EffectCreateInfo->pFontsSize;
-		for (size_t i = 0; i < EffectInfo->iFontsSize; i++)
+		pEffect->UTF8_Text = (UTF8*)CopyData((void*)pEffectCreateInfo->Text);
+		pEffect->FontSize = pEffectCreateInfo->FontSize;
+		pEffect->iFontsSize = pEffectCreateInfo->pFontsSize;
+		for (size_t i = 0; i < pEffect->iFontsSize; i++)
 		{
-			EffectInfo->iFonts[i] = EffectCreateInfo->pFonts[i]->Header.Allocation;
+			pEffect->iFonts[i] = pEffectCreateInfo->pFonts[i]->Header.Allocation;
 		}
-		ReCreate_Text(pElement, EffectInfo, ThreadIndex);
+		ReCreate_Text(pElement, pEffect, ThreadIndex);
 	}
-	*pAllocationSize = sizeof(GraphicsEffectText) + (sizeof(ResourceHeaderAllocation) * EffectCreateInfo->pFontsSize);
+	*pAllocationSize = sizeof(GraphicsEffectText) + (sizeof(ResourceHeaderAllocation) * pEffectCreateInfo->pFontsSize);
 	return (TEXRESULT)Success;
 }
 

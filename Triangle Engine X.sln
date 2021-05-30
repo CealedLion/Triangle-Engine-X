@@ -39,6 +39,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Formats", "Extensions\Forma
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Chemistry", "Extensions\Chemistry\Chemistry.vcxproj", "{DAEC510D-1AC9-48FA-8540-26C7B3A9553B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tempshaders", "tempshaders", "{58950D2D-3E61-4EBD-AF57-5E5C5B983644}"
+	ProjectSection(SolutionItems) = preProject
+		Builds\data\Shaders\ChemistryCompute.comp = Builds\data\Shaders\ChemistryCompute.comp
+		Builds\data\Shaders\ChemistryProjection.frag = Builds\data\Shaders\ChemistryProjection.frag
+		Builds\data\Shaders\ChemistryProjection.vert = Builds\data\Shaders\ChemistryProjection.vert
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Extensions\ExtensionHeaders\ExtensionHeaders.vcxitems*{0184a285-38be-48e8-b2e0-03790cc225af}*SharedItemsImports = 4
@@ -217,6 +224,7 @@ Global
 		{4881ED08-4FB2-4C10-B997-AB8C1A232268} = {88FDCDE0-E4D7-4C4B-B3DB-E237AC87F4D8}
 		{843848D1-0A83-426C-8A99-231FED096E8B} = {88FDCDE0-E4D7-4C4B-B3DB-E237AC87F4D8}
 		{DAEC510D-1AC9-48FA-8540-26C7B3A9553B} = {88FDCDE0-E4D7-4C4B-B3DB-E237AC87F4D8}
+		{58950D2D-3E61-4EBD-AF57-5E5C5B983644} = {A97CCDCD-A84D-429C-9630-28E66FF2176B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AF460088-937B-4C49-B440-298586F68AEF}

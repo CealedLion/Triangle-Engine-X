@@ -1531,7 +1531,6 @@ TEXRESULT Create_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, cons
 		}
 #endif
 		pEffect->Volume = pEffectCreateInfo->Volume;
-
 		ReCreate_Volume(pElement, pEffect, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(AudioEffectVolume);
@@ -1553,7 +1552,6 @@ TEXRESULT Create_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, co
 			return (TEXRESULT)Invalid_Parameter;
 		}
 #endif
-
 		ReCreate_Audio3D(pElement, pEffect, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(AudioEffectAudio3D);

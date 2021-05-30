@@ -11,15 +11,32 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+//Platform specific includes 
+#if defined(_TEX_POSIX_)
+#include <xcb/xcb.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sched.h>
+//#include <unistd.h>
+//#include <sys/time.h>
+#include <errno.h>
+#include <dlfcn.h>
+#elif defined(_TEX_WIN32_)
+#include <Windows.h>
+//#include <shellapi.h>
+//#include <process.h>
+//#include <sys/timeb.h>
+#include <windowsx.h>
+#endif
 //Main
 #include "Extension.h"
 //end
 
-struct{
+struct {
 	uint64_t InitialExtensionMax;
 }Config;
 
-uint32_t EngineVersion[3] = {1, 0, 0};
+uint32_t EngineVersion[3] = { 1, 0, 0 };
 #ifdef NDEBUG
 BinaryType EngineBinType = Release;
 #else
@@ -28,23 +45,6 @@ BinaryType EngineBinType = Debug;
 
 volatile EngineUtils Utils;
 
-/* Platform specific includes */
-#if defined(_TEX_POSIX_)
-#include <pthread.h>
-#include <signal.h>
-#include <sched.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <dlfcn.h>
-#elif defined(_TEX_WIN32_)
-#include <Windows.h>
-#include <shellapi.h>
-#include <process.h>
-#include <sys/timeb.h>
-#include <windowsx.h>
-#include <mshtmcid.h>
-#endif
 
 /* Mutex */
 #if defined(_TEX_WIN32_)
@@ -62,6 +62,11 @@ typedef pthread_mutex_t mtx_t;
 #endif
 
 /* Condition variable */
+#ifdef _TEX_WIN32_
+#define _CONDITION_EVENT_ONE 0
+#define _CONDITION_EVENT_ALL 1
+#endif
+
 #if defined(_TEX_WIN32_)
 typedef struct {
 	HANDLE mEvents[2];                  /* Signal and broadcast event HANDLEs. */
@@ -72,7 +77,25 @@ typedef struct {
 typedef pthread_cond_t cnd_t;
 #endif
 
+#ifdef _TEX_WIN32_
+typedef struct {
+	LONG volatile status;
+	CRITICAL_SECTION lock;
+} once_flag;
+#define ONCE_FLAG_INIT {0,}
+#else
+#define once_flag pthread_once_t
+#define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
+#endif
 
+/*
+* Added in 1.0.0
+* Error Reporting Function, variant used for invalid data in structs.
+* @param FunctionName, Name of the function to trace back to.
+* @param ObjectName, Name of the object with invalid data.
+* @param ObjectPointer, Pointer to the object with invalid data.
+* @param Error, Error message.
+*/
 void ObjectError(const UTF8* FunctionName, const UTF8* ObjectName, void* ObjectPointer, const UTF8* Error)
 {
 	char buffer[512];
@@ -87,7 +110,13 @@ void ObjectError(const UTF8* FunctionName, const UTF8* ObjectName, void* ObjectP
 	free(Path1);
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Error Reporting Function, variant used for critical function errors that arent related to any input.
+* @param FunctionName, Name of the function to trace back to.
+* @param Error, Error message.
+* @param Value, Error Code.
+*/
 void FunctionError(const UTF8* FunctionName, const UTF8* Error, uint64_t Value)
 {
 	char buffer[512];
@@ -102,7 +131,12 @@ void FunctionError(const UTF8* FunctionName, const UTF8* Error, uint64_t Value)
 	free(Path1);
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Error Reporting Function, variant used for invalid arguments in a function.
+* @param FunctionName, Name of the function to trace back to.
+* @param Error, Error message.
+*/
 void ArgsError(const UTF8* FunctionName, const UTF8* Error)
 {
 	char buffer[512];
@@ -118,7 +152,18 @@ void ArgsError(const UTF8* FunctionName, const UTF8* Error)
 #endif
 }
 
-
+/*
+* Added in 1.0.0
+* Create a mutex object.
+* @param mtx A mutex object.
+* @param type Bit-mask that must have one of the following six values:
+*   @li @c mtx_plain for a simple non-recursive mutex
+*   @li @c mtx_timed for a non-recursive mutex that supports timeout
+*   @li @c mtx_plain | @c mtx_recursive (same as @c mtx_plain, but recursive)
+*   @li @c mtx_timed | @c mtx_recursive (same as @c mtx_timed, but recursive)
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Create_Mutex(mtx_t* pMutex, MutexType Type)
 {
 #ifdef _TEX_WIN32_
@@ -149,7 +194,11 @@ TEXRESULT Create_Mutex(mtx_t* pMutex, MutexType Type)
 	return ret == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Release any resources used by the given mutex.
+* @param mtx A mutex object.
+*/
 void Destroy_Mutex(mtx_t* pMutex)
 {
 #ifdef _TEX_WIN32_
@@ -161,7 +210,16 @@ void Destroy_Mutex(mtx_t* pMutex)
 	pthread_mutex_destroy(pMutex);
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Lock the given mutex.
+* Blocks until the given mutex can be locked. If the mutex is non-recursive, and
+* the calling thread already has a lock on the mutex, this call will block
+* forever.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Lock_Mutex(mtx_t* pMutex)
 {
 #ifdef _TEX_WIN32_
@@ -191,7 +249,17 @@ TEXRESULT Lock_Mutex(mtx_t* pMutex)
 	return pthread_mutex_lock(pMutex) == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Lock the given mutex, or block until a specific point in time.
+* Blocks until either the given mutex can be locked, or the specified TIME_UTC
+* based time.
+* @param mtx A mutex object.
+* @param ts A UTC based calendar time
+* @return @ref The mtx_timedlock function returns thrd_success on success, or
+* thrd_timedout if the time specified was reached without acquiring the
+* requested resource, or thrd_error if the request could not be honored.
+*/
 TEXRESULT TimedLock_Mutex(mtx_t* pMutex, const struct timespec* ts)
 {
 #ifdef _TEX_WIN32_
@@ -284,7 +352,16 @@ TEXRESULT TimedLock_Mutex(mtx_t* pMutex, const struct timespec* ts)
 	}
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Try to lock the given mutex.
+* The specified mutex shall support either test and return or timeout. If the
+* mutex is already locked, the function returns without blocking.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_busy if the resource
+* requested is already in use, or @ref thrd_error if the request could not be
+* honored.
+*/
 TEXRESULT TryLock_Mutex(mtx_t* pMutex)
 {
 #ifdef _TEX_WIN32_
@@ -315,7 +392,13 @@ TEXRESULT TryLock_Mutex(mtx_t* pMutex)
 	return (pthread_mutex_trylock(pMutex) == 0) ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Unlock the given mutex.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Unlock_Mutex(mtx_t* pMutex)
 {
 #ifdef _TEX_WIN32_
@@ -336,12 +419,13 @@ TEXRESULT Unlock_Mutex(mtx_t* pMutex)
 	return pthread_mutex_unlock(pMutex) == 0 ? Success : Failure;
 #endif
 }
-
-#ifdef _TEX_WIN32_
-#define _CONDITION_EVENT_ONE 0
-#define _CONDITION_EVENT_ALL 1
-#endif
-
+/*
+* Added in 1.0.0
+* Create a condition variable object.
+* @param cond A condition variable object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Create_Condition(cnd_t* pCondition)
 {
 #ifdef _TEX_WIN32_
@@ -370,7 +454,11 @@ TEXRESULT Create_Condition(cnd_t* pCondition)
 	return pthread_cond_init(pCondition, NULL) == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Release any resources used by the given condition variable.
+* @param cond A condition variable object.
+*/
 void Destroy_Condition(cnd_t* pCondition)
 {
 #ifdef _TEX_WIN32_
@@ -387,7 +475,16 @@ void Destroy_Condition(cnd_t* pCondition)
 	pthread_cond_destroy(pCondition);
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Signal a condition variable.
+* Unblocks one of the threads that are blocked on the given condition variable
+* at the time of the call. If no threads are blocked on the condition variable
+* at the time of the call, the function does nothing and return success.
+* @param cond A condition variable object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Signal_Condition(cnd_t* pCondition)
 {
 #ifdef _TEX_WIN32_
@@ -412,7 +509,16 @@ TEXRESULT Signal_Condition(cnd_t* pCondition)
 	return pthread_cond_signal(pCondition) == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Broadcast a condition variable.
+* Unblocks all of the threads that are blocked on the given condition variable
+* at the time of the call. If no threads are blocked on the condition variable
+* at the time of the call, the function does nothing and return success.
+* @param cond A condition variable object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Broadcast_Condition(cnd_t* pCondition)
 {
 #ifdef _TEX_WIN32_
@@ -491,6 +597,18 @@ static TEXRESULT _TimedWait_Condition_win32(cnd_t* pCondition, mtx_t* pMutex, DW
 }
 #endif
 
+/*
+* Added in 1.0.0
+* Wait for a condition variable to become signaled.
+* The function atomically unlocks the given mutex and endeavors to block until
+* the given condition variable is signaled by a call to cnd_signal or to
+* cnd_broadcast. When the calling thread becomes unblocked it locks the mutex
+* before it returns.
+* @param cond A condition variable object.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Wait_Condition(cnd_t* pCondition, mtx_t* pMutex)
 {
 #ifdef _TEX_WIN32_
@@ -499,7 +617,19 @@ TEXRESULT Wait_Condition(cnd_t* pCondition, mtx_t* pMutex)
 	return pthread_cond_wait(pCondition, pMutex) == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Wait for a condition variable to become signaled.
+* The function atomically unlocks the given mutex and endeavors to block until
+* the given condition variable is signaled by a call to cnd_signal or to
+* cnd_broadcast, or until after the specified time. When the calling thread
+* becomes unblocked it locks the mutex before it returns.
+* @param cond A condition variable object.
+* @param mtx A mutex object.
+* @param xt A point in time at which the request will time out (absolute time).
+* @return @ref thrd_success upon success, or @ref thrd_timeout if the time
+* specified in the call was reached without acquiring the requested resource, or
+* @ref thrd_error if the request could not be honored.
+*/
 TEXRESULT TimedWait_Condition(cnd_t* pCondition, mtx_t* pMutex, const struct timespec* ts)
 {
 #ifdef _TEX_WIN32_
@@ -525,7 +655,24 @@ TEXRESULT TimedWait_Condition(cnd_t* pCondition, mtx_t* pMutex, const struct tim
 #endif
 }
 
+/*
+//If TIME_UTC is missing, provide it and provide a wrapper for timespec_get.
+#ifndef TIME_UTC
+#define TIME_UTC 1
+#define _TTHREAD_EMULATE_TIMESPEC_GET_
 
+#if defined(_TTHREAD_WIN32_)
+struct _tthread_timespec {
+	time_t tv_sec;
+	long   tv_nsec;
+};
+#define timespec _tthread_timespec
+#endif
+
+int _tthread_timespec_get(struct timespec* ts, int base);
+#define timespec_get _tthread_timespec_get
+#endif
+*/
 /** Information to pass to the new thread (what to run). */
 typedef struct {
 	thrd_start_t mFunction; /**< Pointer to the function to be executed. */
@@ -560,7 +707,20 @@ static void* _thrd_wrapper_function(void* aArg)
 	return (void*)(intptr_t)res;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Create a new thread.
+* @param thr Identifier of the newly created thread.
+* @param func A function pointer to the function that will be executed in
+*        the new thread.
+* @param arg An argument to the thread function.
+* @return @ref thrd_success on success, or @ref thrd_nomem if no memory could
+* be allocated for the thread requested, or @ref thrd_error if the request
+* could not be honored.
+* @note A thread’s identifier may be reused for a different thread once the
+* original thread has exited and either been detached or joined to another
+* thread.
+*/
 TEXRESULT Create_Thread(Thread** pThread, thrd_start_t Function, void* arg)
 {
 	/* Fill out the thread startup information (passed to the thread wrapper,
@@ -590,7 +750,11 @@ TEXRESULT Create_Thread(Thread** pThread, thrd_start_t Function, void* arg)
 	}
 	return Success;
 }
-
+/*
+* Added in 1.0.0
+* Identify the calling thread.
+* @return The identifier of the calling thread.
+*/
 Thread* Current_Thread(void)
 {
 #ifdef _TEX_WIN32_
@@ -599,7 +763,11 @@ Thread* Current_Thread(void)
 	return pthread_self();
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Dispose of any resources allocated to the thread when that thread exits.
+* @return thrd_success, or thrd_error on error
+*/
 TEXRESULT Detach_Thread(Thread* Thread)
 {
 #ifdef _TEX_WIN32_
@@ -609,7 +777,13 @@ TEXRESULT Detach_Thread(Thread* Thread)
 	return pthread_detach(Thread) == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Compare two thread identifiers.
+* The function determines if two thread identifiers refer to the same thread.
+* @return Zero if the two thread identifiers refer to different threads.
+* Otherwise a nonzero value is returned.
+*/
 TEXRESULT ThreadEqual(Thread* Thread0, Thread* Thread1)
 {
 #ifdef _TEX_WIN32_
@@ -618,7 +792,11 @@ TEXRESULT ThreadEqual(Thread* Thread0, Thread* Thread1)
 	return (pthread_equal(Thread0, Thread1)) ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Terminate execution of the calling thread.
+* @param res Result code of the calling thread.
+*/
 void Exit_Thread(int res)
 {
 #ifdef _TEX_WIN32_
@@ -627,7 +805,17 @@ void Exit_Thread(int res)
 	pthread_exit((void*)(intptr_t)res);
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Wait for a thread to terminate.
+* The function joins the given thread with the current thread by blocking
+* until the other thread has terminated.
+* @param thr The thread to join with.
+* @param res If this pointer is not NULL, the function will store the result
+*        code of the given thread in the integer pointed to by @c res.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
 TEXRESULT Join_Thread(Thread* Thread, int* res)
 {
 #ifdef _TEX_WIN32_
@@ -662,7 +850,19 @@ TEXRESULT Join_Thread(Thread* Thread, int* res)
 #endif
 	return Success;
 }
-
+/*
+* Added in 1.0.0
+* Put the calling thread to sleep.
+* Suspend execution of the calling thread.
+* @param duration  Interval to sleep for
+* @param remaining If non-NULL, this parameter will hold the remaining
+*                  time until time_point upon return. This will
+*                  typically be zero, but if the thread was woken up
+*                  by a signal that is not ignored before duration was
+*                  reached @c remaining will hold a positive time.
+* @return 0 (zero) on successful sleep, -1 if an interrupt occurred,
+*         or a negative value if the operation fails.
+*/
 TEXRESULT Sleep_Thread(const struct timespec* duration, struct timespec* remaining)
 {
 #ifdef _TEX_WIN32_
@@ -705,7 +905,12 @@ TEXRESULT Sleep_Thread(const struct timespec* duration, struct timespec* remaini
 	}
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Yield execution to another thread.
+* Permit other threads to run, even if the current thread would ordinarily
+* continue to run.
+*/
 void Yield_Thread(void)
 {
 #ifdef _TEX_WIN32_
@@ -714,7 +919,6 @@ void Yield_Thread(void)
 	sched_yield();
 #endif
 }
-
 /*
 #if defined(_TTHREAD_EMULATE_TIMESPEC_GET_)
 int _tthread_timespec_get(struct timespec* ts, int base)
@@ -746,7 +950,14 @@ int _tthread_timespec_get(struct timespec* ts, int base)
 }
 #endif
 */
+
 /*
+* Added in 1.0.0
+* Invoke a callback exactly once
+* @param flag Flag used to ensure the callback is invoked exactly
+*        once.
+* @param func Callback to invoke.
+*/
 void Call_Once(once_flag* flag, void (*func)(void))
 {
 #ifdef _TEX_WIN32_
@@ -776,9 +987,12 @@ void Call_Once(once_flag* flag, void (*func)(void))
 #else
 	pthread_once(flag, func);
 #endif
-}*/
+}
 
-
+/*
+* Added in 1.0.0
+* @param
+*/
 TEXRESULT Open_DLL(void** pDLL_Handle, const UTF8* Path)
 {
 #ifndef NDEBUG
@@ -813,7 +1027,10 @@ TEXRESULT Open_DLL(void** pDLL_Handle, const UTF8* Path)
 #endif
 	return Success;
 }
-
+/*
+* Added in 1.0.0
+* @param
+*/
 TEXRESULT Get_ExternalFunction(void* DLL_Handle, void** pFunction, const UTF8* Name)
 {
 #ifndef NDEBUG
@@ -841,7 +1058,10 @@ TEXRESULT Get_ExternalFunction(void* DLL_Handle, void** pFunction, const UTF8* N
 #endif
 	return Success;
 }
-
+/*
+* Added in 1.0.0
+* @param
+*/
 void Close_DLL(void* DLL_Handle)
 {
 #ifndef NDEBUG
@@ -1785,15 +2005,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_CHAR:
 	case WM_SYSCHAR:
 		if (wParam >= 0xd800 && wParam <= 0xdbff)
-			pWindow->win32.highSurrogate = (WCHAR)wParam;
+			pWindow->OpSys.win32.highSurrogate = (WCHAR)wParam;
 		else
 		{
 			unsigned int codepoint = 0;
 			if (wParam >= 0xdc00 && wParam <= 0xdfff)
 			{
-				if (pWindow->win32.highSurrogate)
+				if (pWindow->OpSys.win32.highSurrogate)
 				{
-					codepoint += (pWindow->win32.highSurrogate - 0xd800) << 10;
+					codepoint += (pWindow->OpSys.win32.highSurrogate - 0xd800) << 10;
 					codepoint += (WCHAR)wParam - 0xdc00;
 					codepoint += 0x10000;
 				}
@@ -1801,7 +2021,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			else
 				codepoint = (WCHAR)wParam;
 
-			pWindow->win32.highSurrogate = 0;
+			pWindow->OpSys.win32.highSurrogate = 0;
 
 			Utils.Character_Callback_state.pWindow = pWindow;
 			Utils.Character_Callback_state.CodePoint = codepoint;
@@ -2159,8 +2379,6 @@ TEXRESULT Create_Window(Window** ppWindow, uint32_t Width, uint32_t Height, cons
 	}
 	return Success;
 }
-
-
 /*
 * Added in 1.0.0
 * Destroys specified window.
@@ -2201,9 +2419,6 @@ TEXRESULT Destroy_Window(Window* pWindow, const UTF8* Name)
 	FunctionError("Destroy_Window()", "Window Not Found, Window == ", pWindow);
 	return Invalid_Parameter | Failure;
 }
-#ifdef _WIN32
-WINDOWPLACEMENT g_wpPrev = { sizeof(g_wpPrev) };
-#endif
 /*
 * Added in 1.0.0
 * @param pWindow Pointer to a window created with Create_Window()
@@ -2217,7 +2432,7 @@ TEXRESULT Set_WindowFullScreen(Window* pWindow, bool FullScreen)
 	if (pWindow->FullScreen == true)
 	{
 		MONITORINFO mi = { sizeof(mi) };
-		if (GetWindowPlacement(pWindow->Window, &g_wpPrev) && GetMonitorInfo(MonitorFromWindow(pWindow->Window, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+		if (GetWindowPlacement(pWindow->Window, &pWindow->OpSys.win32.WindowPreviousPlacement) && GetMonitorInfo(MonitorFromWindow(pWindow->Window, MONITOR_DEFAULTTOPRIMARY), &mi)) {
 			SetWindowLong(pWindow->Window, GWL_STYLE, dwStyle & ~WS_OVERLAPPEDWINDOW);
 			SetWindowPos(pWindow->Window, HWND_TOP,
 				mi.rcMonitor.left, mi.rcMonitor.top,
@@ -2229,13 +2444,11 @@ TEXRESULT Set_WindowFullScreen(Window* pWindow, bool FullScreen)
 	else
 	{
 		SetWindowLong(pWindow->Window, GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
-		SetWindowPlacement(pWindow->Window, &g_wpPrev);
+		SetWindowPlacement(pWindow->Window, &pWindow->OpSys.win32.WindowPreviousPlacement);
 		SetWindowPos(pWindow->Window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 	}
 #endif
 }
-
-
 /*
 * Added in 1.0.0
 * @param pWindow Pointer to a window created with Create_Window().
@@ -2322,8 +2535,6 @@ TEXRESULT Write_ClipboardUTF8(Window* pWindow, UTF8* pData)
 	}
 #endif
 }
-
-
 /*
 * Added in 1.0.0
 * @param pWindow Pointer to a window created with Create_Window().
@@ -2491,7 +2702,6 @@ PWSTR gpCmdLine = NULL;
 int gnCmdShow = NULL;
 #endif
 
-
 TEXRESULT Initialize()
 {
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -2594,7 +2804,7 @@ TEXRESULT Initialize()
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Sleep_Thread"), &EngineRes.pSleep_Thread, &Sleep_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Yield_Thread"), &EngineRes.pYield_Thread, &Yield_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	//FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Call_Once"), &EngineRes.pCall_Once, &Call_Once, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Call_Once"), &EngineRes.pCall_Once, &Call_Once, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 	//errorcallback
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ObjectError"), &EngineRes.pObjectError, &ObjectError, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -2698,7 +2908,6 @@ void Destroy()
 	memset(&Config, NULL, sizeof(Config));
 	memset(&Utils, NULL, sizeof(Utils));
 }
-
 
 #ifdef _WIN32
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow){	

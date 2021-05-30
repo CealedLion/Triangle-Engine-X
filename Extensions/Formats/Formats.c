@@ -1778,7 +1778,7 @@ void parse_g2d(Value* src_v, ObjectAllocation** piObjects, size_t* piObjectsSize
 					memset(&CreateInfo, 0, sizeof(CreateInfo));
 					CreateInfo.Clear[0] = 0.0f;
 					CreateInfo.Clear[1] = 0.0f;
-					CreateInfo.Clear[2] = 1.0f;
+					CreateInfo.Clear[2] = 0.0f;
 					CreateInfo.Clear[3] = 1.0f;
 					CreateInfo.pGraphicsWindow = pGraphicsWindow;
 					CreateInfo.pTextureTarget = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(iTextureTarget);

@@ -13,7 +13,6 @@ it needs to.
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 #pragma once
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Enums
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +62,7 @@ typedef enum CallFlagBits{
 	Window_Close =		0x00100000, //when a window is closed.
 	Window_Open =		0x00200000, //when a window is Opened.
 	//end
-	CallFlags_MAX = 0x00100000
+	CallFlags_MAX =		0x00400000
 }CallFlagBits;
 
 /*
@@ -350,18 +349,18 @@ typedef uint32_t UTF32;
 /*
 * Mutex types 
 */
-typedef enum MutexType
-{
+typedef enum MutexType {
 	MutexType_Plain = 0,
 	MutexType_Timed = 1,
 	MutexType_Recursive = 2,
 }MutexType;
 
 
-typedef char Mutex[56];//big enough to fit windows and linux mutex
-typedef char Condition[64]; //big enough to fit windows and linux condition
-typedef void Thread;
+typedef char Mutex[56];//big enough to fit windows and linux Mutex
+typedef char Condition[64]; //big enough to fit windows and linux Condition
+typedef char OnceFlag[48]; //big enough to fit windows and linux OnceFlag
 
+typedef void Thread;
 
 /** Thread start function.
 * Any thread that is started with the @ref thrd_create() function must be
@@ -377,18 +376,7 @@ typedef int (*thrd_start_t)(void* arg);
 * @param val The value of the destructed thread-specific storage.
 */
 typedef void (*tss_dtor_t)(void* val);
-/*
-#ifdef _TEX_WIN32_
-typedef struct {
-	LONG volatile status;
-	CRITICAL_SECTION lock;
-} once_flag;
-#define ONCE_FLAG_INIT {0,}
-#else
-#define once_flag pthread_once_t
-#define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
-#endif
-*/
+
 
 
 typedef struct FormatDetails
@@ -708,7 +696,7 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 	uint64_t srcComponents = ((src->LinearSize * 8) / (srcdetails->Stride)); //we care about all the channels
 
 
-	FileData dst;
+	FileData dst = { 0, 0 };
 	dst.LinearSize = ((uint64_t)srcComponents * ((uint64_t)dstdetails->Stride / ((uint64_t)8))) + ((uint64_t)1);
 	dst.pData = (unsigned char*)malloc(dst.LinearSize);
 
@@ -1237,10 +1225,23 @@ typedef void Monitor;
 typedef struct Window{
 	void* Window; //native window handle
 
-	struct
+	union OSDATA
 	{
-		unsigned short highSurrogate;
-	}win32;
+#ifdef _TEX_WIN32_
+		struct
+		{
+			WINDOWPLACEMENT WindowPreviousPlacement; //used for fullscreen
+			unsigned short highSurrogate;
+		}win32;
+#endif
+#ifdef _TEX_POSIX_
+		struct
+		{
+			uint32_t padding;
+		}POSIX;
+#endif
+		char PADDING[128];
+	}OpSys;
 
 	bool FullScreen;
 
@@ -1725,7 +1726,7 @@ struct EngineResStruct
 	void* pSleep_Thread;
 	void* pYield_Thread;
 
-	//void* pCall_Once;
+	void* pCall_Once;
 
 	void* pObjectError;
 	void* pFunctionError;
@@ -1793,7 +1794,7 @@ void Engine_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pEx
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Sleep_Thread"), &EngineRes.pSleep_Thread);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Yield_Thread"), &EngineRes.pYield_Thread);
 
-		//FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Call_Once"), &EngineRes.pCall_Once);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Call_Once"), &EngineRes.pCall_Once);
 
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::ObjectError"), &EngineRes.pObjectError);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::FunctionError"), &EngineRes.pFunctionError);
@@ -1938,44 +1939,13 @@ void Engine_Ref_Apply_Config(const UTF8* ConfigParameterName, void* pConfigParam
 	function(ConfigParameterName, pConfigParameterToApply, ArrayElementsCount, ElementArrayIndex);
 }
 
-/*
-//If TIME_UTC is missing, provide it and provide a wrapper for timespec_get.
-#ifndef TIME_UTC
-#define TIME_UTC 1
-#define _TTHREAD_EMULATE_TIMESPEC_GET_
-
-#if defined(_TTHREAD_WIN32_)
-struct _tthread_timespec {
-	time_t tv_sec;
-	long   tv_nsec;
-};
-#define timespec _tthread_timespec
-#endif
-
-int _tthread_timespec_get(struct timespec* ts, int base);
-#define timespec_get _tthread_timespec_get
-#endif
-*/
-
-/** Create a mutex object.
-* @param mtx A mutex object.
-* @param type Bit-mask that must have one of the following six values:
-*   @li @c mtx_plain for a simple non-recursive mutex
-*   @li @c mtx_timed for a non-recursive mutex that supports timeout
-*   @li @c mtx_plain | @c mtx_recursive (same as @c mtx_plain, but recursive)
-*   @li @c mtx_timed | @c mtx_recursive (same as @c mtx_timed, but recursive)
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Create_Mutex(Mutex* pMutex, MutexType Type)
 {
 	TEXRESULT(*function)(Mutex * pMutex, MutexType Type) =
 		(TEXRESULT(*)(Mutex * pMutex, MutexType Type))EngineRes.pCreate_Mutex;
 	return function(pMutex, Type);
 }
-/** Release any resources used by the given mutex.
-* @param mtx A mutex object.
-*/
+
 void Engine_Ref_Destroy_Mutex(Mutex* pMutex)
 {
 	void(*function)(Mutex * pMutex) =
@@ -1983,14 +1953,6 @@ void Engine_Ref_Destroy_Mutex(Mutex* pMutex)
 	function(pMutex);
 }
 
-/** Lock the given mutex.
-* Blocks until the given mutex can be locked. If the mutex is non-recursive, and
-* the calling thread already has a lock on the mutex, this call will block
-* forever.
-* @param mtx A mutex object.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Lock_Mutex(Mutex* pMutex)
 {
 	TEXRESULT(*function)(Mutex * pMutex) =
@@ -1998,15 +1960,6 @@ TEXRESULT Engine_Ref_Lock_Mutex(Mutex* pMutex)
 	return function(pMutex);
 }
 
-/** Lock the given mutex, or block until a specific point in time.
-* Blocks until either the given mutex can be locked, or the specified TIME_UTC
-* based time.
-* @param mtx A mutex object.
-* @param ts A UTC based calendar time
-* @return @ref The mtx_timedlock function returns thrd_success on success, or
-* thrd_timedout if the time specified was reached without acquiring the
-* requested resource, or thrd_error if the request could not be honored.
-*/
 TEXRESULT Engine_Ref_TimedLock_Mutex(Mutex* pMutex, const struct timespec* ts)
 {
 	TEXRESULT(*function)(Mutex * pMutex, const struct timespec* ts) =
@@ -2014,14 +1967,6 @@ TEXRESULT Engine_Ref_TimedLock_Mutex(Mutex* pMutex, const struct timespec* ts)
 	return function(pMutex, ts);
 }
 
-/** Try to lock the given mutex.
-* The specified mutex shall support either test and return or timeout. If the
-* mutex is already locked, the function returns without blocking.
-* @param mtx A mutex object.
-* @return @ref thrd_success on success, or @ref thrd_busy if the resource
-* requested is already in use, or @ref thrd_error if the request could not be
-* honored.
-*/
 TEXRESULT Engine_Ref_TryLock_Mutex(Mutex* pMutex)
 {
 	TEXRESULT(*function)(Mutex * pMutex) =
@@ -2029,11 +1974,6 @@ TEXRESULT Engine_Ref_TryLock_Mutex(Mutex* pMutex)
 	return function(pMutex);
 }
 
-/** Unlock the given mutex.
-* @param mtx A mutex object.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Unlock_Mutex(Mutex* pMutex)
 {
 	TEXRESULT(*function)(Mutex * pMutex) =
@@ -2041,11 +1981,6 @@ TEXRESULT Engine_Ref_Unlock_Mutex(Mutex* pMutex)
 	return function(pMutex);
 }
 
-/** Create a condition variable object.
-* @param cond A condition variable object.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Create_Condition(Condition* pCondition)
 {
 	TEXRESULT(*function)(Condition* pCondition) =
@@ -2053,9 +1988,6 @@ TEXRESULT Engine_Ref_Create_Condition(Condition* pCondition)
 	return function(pCondition);
 }
 
-/** Release any resources used by the given condition variable.
-* @param cond A condition variable object.
-*/
 void Engine_Ref_Destroy_Condition(Condition* pCondition)
 {
 	void(*function)(Condition * pCondition) =
@@ -2063,14 +1995,6 @@ void Engine_Ref_Destroy_Condition(Condition* pCondition)
 	function(pCondition);
 }
 
-/** Signal a condition variable.
-* Unblocks one of the threads that are blocked on the given condition variable
-* at the time of the call. If no threads are blocked on the condition variable
-* at the time of the call, the function does nothing and return success.
-* @param cond A condition variable object.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Signal_Condition(Condition* pCondition)
 {
 	TEXRESULT(*function)(Condition * pCondition) =
@@ -2078,14 +2002,6 @@ TEXRESULT Engine_Ref_Signal_Condition(Condition* pCondition)
 	return function(pCondition);
 }
 
-/** Broadcast a condition variable.
-* Unblocks all of the threads that are blocked on the given condition variable
-* at the time of the call. If no threads are blocked on the condition variable
-* at the time of the call, the function does nothing and return success.
-* @param cond A condition variable object.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Broadcast_Condition(Condition* pCondition)
 {
 	TEXRESULT(*function)(Condition * pCondition) =
@@ -2093,16 +2009,6 @@ TEXRESULT Engine_Ref_Broadcast_Condition(Condition* pCondition)
 	return function(pCondition);
 }
 
-/** Wait for a condition variable to become signaled.
-* The function atomically unlocks the given mutex and endeavors to block until
-* the given condition variable is signaled by a call to cnd_signal or to
-* cnd_broadcast. When the calling thread becomes unblocked it locks the mutex
-* before it returns.
-* @param cond A condition variable object.
-* @param mtx A mutex object.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Wait_Condition(Condition* pCondition, Mutex* pMutex)
 {
 	TEXRESULT(*function)(Condition * pCondition, Mutex * pMutex) =
@@ -2110,18 +2016,6 @@ TEXRESULT Engine_Ref_Wait_Condition(Condition* pCondition, Mutex* pMutex)
 	return function(pCondition, pMutex);
 }
 
-/** Wait for a condition variable to become signaled.
-* The function atomically unlocks the given mutex and endeavors to block until
-* the given condition variable is signaled by a call to cnd_signal or to
-* cnd_broadcast, or until after the specified time. When the calling thread
-* becomes unblocked it locks the mutex before it returns.
-* @param cond A condition variable object.
-* @param mtx A mutex object.
-* @param xt A point in time at which the request will time out (absolute time).
-* @return @ref thrd_success upon success, or @ref thrd_timeout if the time
-* specified in the call was reached without acquiring the requested resource, or
-* @ref thrd_error if the request could not be honored.
-*/
 TEXRESULT Engine_Ref_TimedWait_Condition(Condition* pCondition, Mutex* pMutex, const struct timespec* ts)
 {
 	TEXRESULT(*function)(Condition * pCondition, Mutex * pMutex, const struct timespec* ts) =
@@ -2129,18 +2023,6 @@ TEXRESULT Engine_Ref_TimedWait_Condition(Condition* pCondition, Mutex* pMutex, c
 	return function(pCondition, pMutex, ts);
 }
 
-/** Create a new thread.
-* @param thr Identifier of the newly created thread.
-* @param func A function pointer to the function that will be executed in
-*        the new thread.
-* @param arg An argument to the thread function.
-* @return @ref thrd_success on success, or @ref thrd_nomem if no memory could
-* be allocated for the thread requested, or @ref thrd_error if the request
-* could not be honored.
-* @note A thread’s identifier may be reused for a different thread once the
-* original thread has exited and either been detached or joined to another
-* thread.
-*/
 TEXRESULT Engine_Ref_Create_Thread(Thread** ppThread, thrd_start_t Function, void* arg)
 {
 	TEXRESULT(*function)(Thread** ppThread, thrd_start_t Function, void* arg) =
@@ -2148,9 +2030,6 @@ TEXRESULT Engine_Ref_Create_Thread(Thread** ppThread, thrd_start_t Function, voi
 	return function(ppThread, Function, arg);
 }
 
-/** Identify the calling thread.
-* @return The identifier of the calling thread.
-*/
 Thread* Engine_Ref_Current_Thread(void)
 {
 	Thread*(*function)(void) =
@@ -2158,9 +2037,6 @@ Thread* Engine_Ref_Current_Thread(void)
 	return function();
 }
 
-/** Dispose of any resources allocated to the thread when that thread exits.
- * @return thrd_success, or thrd_error on error
-*/
 TEXRESULT Engine_Ref_Detach_Thread(Thread* pThread)
 {
 	TEXRESULT(*function)(Thread* pThread) =
@@ -2168,11 +2044,6 @@ TEXRESULT Engine_Ref_Detach_Thread(Thread* pThread)
 	return function(pThread);
 }
 
-/** Compare two thread identifiers.
-* The function determines if two thread identifiers refer to the same thread.
-* @return Zero if the two thread identifiers refer to different threads.
-* Otherwise a nonzero value is returned.
-*/
 TEXRESULT Engine_Ref_ThreadEqual(Thread* pThread0, Thread* pThread1)
 {
 	TEXRESULT(*function)(Thread * pThread, Thread * pThread1) =
@@ -2180,9 +2051,6 @@ TEXRESULT Engine_Ref_ThreadEqual(Thread* pThread0, Thread* pThread1)
 	return function(pThread0, pThread1);
 }
 
-/** Terminate execution of the calling thread.
-* @param res Result code of the calling thread.
-*/
 void Engine_Ref_Exit_Thread(int res)
 {
 	void(*function)(int res) =
@@ -2190,15 +2058,6 @@ void Engine_Ref_Exit_Thread(int res)
 	function(res);
 }
 
-/** Wait for a thread to terminate.
-* The function joins the given thread with the current thread by blocking
-* until the other thread has terminated.
-* @param thr The thread to join with.
-* @param res If this pointer is not NULL, the function will store the result
-*        code of the given thread in the integer pointed to by @c res.
-* @return @ref thrd_success on success, or @ref thrd_error if the request could
-* not be honored.
-*/
 TEXRESULT Engine_Ref_Join_Thread(Thread* pThread, int* res)
 {
 	TEXRESULT(*function)(Thread * pThread, int* res) =
@@ -2206,17 +2065,6 @@ TEXRESULT Engine_Ref_Join_Thread(Thread* pThread, int* res)
 	return function(pThread, res);
 }
 
-/** Put the calling thread to sleep.
-* Suspend execution of the calling thread.
-* @param duration  Interval to sleep for
-* @param remaining If non-NULL, this parameter will hold the remaining
-*                  time until time_point upon return. This will
-*                  typically be zero, but if the thread was woken up
-*                  by a signal that is not ignored before duration was
-*                  reached @c remaining will hold a positive time.
-* @return 0 (zero) on successful sleep, -1 if an interrupt occurred,
-*         or a negative value if the operation fails.
-*/
 TEXRESULT Engine_Ref_Sleep_Thread(const struct timespec* duration, struct timespec* remaining)
 {
 	TEXRESULT(*function)(const struct timespec* duration, struct timespec* remaining) =
@@ -2224,10 +2072,6 @@ TEXRESULT Engine_Ref_Sleep_Thread(const struct timespec* duration, struct timesp
 	return function(duration, remaining);
 }
 
-/** Yield execution to another thread.
-* Permit other threads to run, even if the current thread would ordinarily
-* continue to run.
-*/
 void Engine_Ref_Yield_Thread(void)
 {
 	void(*function)(void) =
@@ -2235,18 +2079,12 @@ void Engine_Ref_Yield_Thread(void)
 	function();
 }
 
-/** Invoke a callback exactly once
- * @param flag Flag used to ensure the callback is invoked exactly
- *        once.
- * @param func Callback to invoke.
- */
-/*
-void Engine_Ref_Call_Once(once_flag* flag, void (*func)(void))
+void Engine_Ref_Call_Once(OnceFlag* pFlag, void (*func)(void))
 {
-	void(*function)(once_flag * flag, void (*func)(void)) =
-		(void(*)(once_flag * flag, void (*func)(void)))EngineRes.pCall_Once;
-	function(flag, func);
-}*/
+	void(*function)(OnceFlag* pFlag, void (*func)(void)) =
+		(void(*)(OnceFlag* pFlag, void (*func)(void)))EngineRes.pCall_Once;
+	function(pFlag, func);
+}
 
 void Engine_Ref_ObjectError(const UTF8* FunctionName, const UTF8* ObjectName, void* ObjectPointer, const UTF8* Error)
 {

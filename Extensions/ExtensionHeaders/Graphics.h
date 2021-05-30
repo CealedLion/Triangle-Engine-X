@@ -10,13 +10,11 @@ SPECIFICATION:
  * Utils can be imported. Graphics::Utils
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
-
 #pragma once
 
 #define TEX_GRAPHICS_API
 
-#include <cglm/cglm.h>   /* for inline */
-
+#include <cglm/cglm.h>
 #ifdef TEX_EXPOSE_GRAPHICS
 #include <vulkan/vulkan.h>
 #include <vulkan/spirv.h>
@@ -2985,12 +2983,12 @@ FormatDetails Graphics_Ref_Get_FormatDetails(GraphicsFormat format)
 
 	return function(format);
 }
-void Graphics_Ref_Calculate_TotalMatrix(RHeaderPosition* pPosition, mat4* pMatrix)
+void Graphics_Ref_Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent)
 {
-	void(*function)(RHeaderPosition * pPosition, mat4 * pMatrix) =
-		(void(*)(RHeaderPosition * pPosition, mat4 * pMatrix))GraphicsRes.pCalculate_TotalMatrix;
+	void(*function)(mat4 * pMatrix, ObjectAllocation Parent) =
+		(void(*)(mat4 * pMatrix, ObjectAllocation Parent))GraphicsRes.pCalculate_TotalMatrix;
 
-	return function(pPosition, pMatrix);
+	return function(pMatrix, Parent);
 }
 
 #ifdef TEX_EXPOSE_GRAPHICS
