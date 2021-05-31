@@ -345,18 +345,24 @@ typedef struct ChemistryEffectFullModel {
 	Mutex mutex;
 
 #ifdef TEX_EXPOSE_GRAPHICS
-	VkPipeline VkPipelineCompute;
-	VkShaderModule VkShaderCompute;
+	VkPipeline VkPipelineComputeSource;
+	VkShaderModule VkShaderComputeSource;
+
+	VkPipeline VkPipelineComputeField;
+	VkShaderModule VkShaderComputeField;
+
 
 
 	VkPipelineLayout VkPipelineLayout;
 	VkDescriptorSetLayout VkDescriptorSetLayout;
 	VkDescriptorSet* VkDescriptorSets;
 	VkDescriptorPool VkDescriptorPool;
-
 #else
-	void* VkPipelineCompute;
-	void* VkShaderCompute;
+	void* VkPipelineComputeSource;
+	void* VkShaderComputeSource;
+
+	void* VkPipelineComputeField;
+	void* VkShaderComputeField;
 
 	void* VkPipelineLayout;
 	void* VkDescriptorSetLayout;

@@ -1086,7 +1086,7 @@ FragmentFullModelVariable_PushConstantPointer_struct_PushConstants, FragmentFull
 }
 
 
-#ifdef gay
+#ifdef aaa
 typedef enum ComputeShaderButterflyVariables {
 	ButterflyVariable_ExtInstGLSL450 = 1,
 	ButterflyFunction_Main,
@@ -1663,20 +1663,34 @@ void DrawSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphic
 							1, &Barrier
 						);
 					}
+					{
+						vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineComputeSource);
 
-					vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineCompute);
+						PushConstantsFullModelCompute PushConstants;
+						memset(&PushConstants, 0, sizeof(PushConstants));
+						PushConstants.PingPongIndex = pEffect->PingPongIndex;
+						vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+							pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
-					PushConstantsFullModelCompute PushConstants;
-					memset(&PushConstants, 0, sizeof(PushConstants));
-					PushConstants.PingPongIndex = pEffect->PingPongIndex;
+						vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+							pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
 
-					vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-						pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+						vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
+					}
+					{
+						vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineComputeField);
 
-					vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-						pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
+						PushConstantsFullModelCompute PushConstants;
+						memset(&PushConstants, 0, sizeof(PushConstants));
+						PushConstants.PingPongIndex = pEffect->PingPongIndex;
+						vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+							pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
-					vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8);
+						vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+							pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
+
+						vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8);
+					}
 
 					{
 						VkImageMemoryBarrier Barrier;
@@ -1758,13 +1772,19 @@ void Destroy_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEff
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 
-	if (pEffect->VkPipelineCompute != NULL)
-		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineCompute, NULL);
-	pEffect->VkPipelineCompute = NULL;
+	if (pEffect->VkPipelineComputeSource != NULL)
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineComputeSource, NULL);
+	pEffect->VkPipelineComputeSource = NULL;
+	if (pEffect->VkShaderComputeSource != NULL)
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderComputeSource, NULL);
+	pEffect->VkShaderComputeSource = NULL;
 
-	if (pEffect->VkShaderCompute != NULL)
-		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderCompute, NULL);
-	pEffect->VkShaderCompute = NULL;
+	if (pEffect->VkPipelineComputeField != NULL)
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineComputeField, NULL);
+	pEffect->VkPipelineComputeField = NULL;
+	if (pEffect->VkShaderComputeField != NULL)
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderComputeField, NULL);
+	pEffect->VkShaderComputeField = NULL;
 
 
 	if (pEffect->VkPipelineLayout != NULL)
@@ -1775,7 +1795,6 @@ void Destroy_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEff
 		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorSetLayout, NULL);
 	pEffect->VkDescriptorSetLayout = NULL;
 
-	
 	if (pEffect->VkDescriptorSets != NULL)
 	{
 		//vkFreeDescriptorSets(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkWindowDescriptorPool, pResourceHeader->CurrentFrameBuffersSize, pResourceHeader->VkDescriptorSetsInputAttachment);
@@ -1792,13 +1811,13 @@ void Destroy_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEff
 	if (pEffect->VkPipeline != NULL)
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipeline, NULL);
 	pEffect->VkPipeline = NULL;
-
 	if (pEffect->VkShaderVertex != NULL)
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
 	pEffect->VkShaderVertex = NULL;
 	if (pEffect->VkShaderFragment != NULL)
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
 	pEffect->VkShaderFragment = NULL;
+
 
 	Engine_Ref_Destroy_Mutex(pEffect->mutex);
 
@@ -2199,34 +2218,57 @@ void ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEf
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	{
-
 		FileData DataCompute = { 0, 0 };
-		Open_Data(&DataCompute, "data\\Shaders\\ChemistryCompute.comp.spv");
+		Open_Data(&DataCompute, "data\\Shaders\\ChemistryComputeSource.comp.spv");
 
 		//const SPIRV ShaderButterfly[] = ComputeShaderButterfly();
-		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderCompute, DataCompute.pData, DataCompute.LinearSize - 1, "ReCreate_FullModel()");
+		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderComputeSource, DataCompute.pData, DataCompute.LinearSize - 1, "ReCreate_FullModel()");
 
 		VkComputePipelineCreateInfo Info;
 		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-		Info.stage.module = pEffect->VkShaderCompute;
+		Info.stage.module = pEffect->VkShaderComputeSource;
 		Info.stage.pName = "main";
 		Info.layout = pEffect->VkPipelineLayout;
 		Info.flags = NULL;
 		Info.pNext = NULL;
 		Info.basePipelineHandle = VK_NULL_HANDLE;
 		Info.basePipelineIndex = -1;
-		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipelineCompute)) != VK_SUCCESS)
+		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipelineComputeSource)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_FullModel()", "vkCreateComputePipelines Failed. VkResult == ", res);
 			return;
 		}
 		free(DataCompute.pData);
 	}
+	{
+		FileData DataCompute = { 0, 0 };
+		Open_Data(&DataCompute, "data\\Shaders\\ChemistryComputeField.comp.spv");
 
+		//const SPIRV ShaderButterfly[] = ComputeShaderButterfly();
+		CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pEffect->VkShaderComputeField, DataCompute.pData, DataCompute.LinearSize - 1, "ReCreate_FullModel()");
 
+		VkComputePipelineCreateInfo Info;
+		memset(&Info, 0, sizeof(Info));
+		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+		Info.stage.module = pEffect->VkShaderComputeField;
+		Info.stage.pName = "main";
+		Info.layout = pEffect->VkPipelineLayout;
+		Info.flags = NULL;
+		Info.pNext = NULL;
+		Info.basePipelineHandle = VK_NULL_HANDLE;
+		Info.basePipelineIndex = -1;
+		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipelineComputeField)) != VK_SUCCESS)
+		{
+			Engine_Ref_FunctionError("ReCreate_FullModel()", "vkCreateComputePipelines Failed. VkResult == ", res);
+			return;
+		}
+		free(DataCompute.pData);
+	}
 	{
 		//FileData DataVertex = { 0, 0 };
 		//Open_Data(&DataVertex, "data\\Shaders\\ChemistryProjection.vert.spv");
@@ -2646,8 +2688,11 @@ void Pack_FullModel(const ElementGraphics* pElement, ElementGraphics* pCopiedEle
 	{
 		memset(&pCopiedEffect->PingPongIndex, 0, sizeof(pCopiedEffect->PingPongIndex));
 
-		memset(&pCopiedEffect->VkPipelineCompute, 0, sizeof(pCopiedEffect->VkPipelineCompute));
-		memset(&pCopiedEffect->VkShaderCompute, 0, sizeof(pCopiedEffect->VkShaderCompute));
+		memset(&pCopiedEffect->VkPipelineComputeSource, 0, sizeof(pCopiedEffect->VkPipelineComputeSource));
+		memset(&pCopiedEffect->VkShaderComputeSource, 0, sizeof(pCopiedEffect->VkShaderComputeSource));
+
+		memset(&pCopiedEffect->VkPipelineComputeField, 0, sizeof(pCopiedEffect->VkPipelineComputeField));
+		memset(&pCopiedEffect->VkShaderComputeField, 0, sizeof(pCopiedEffect->VkShaderComputeField));
 
 		memset(&pCopiedEffect->VkPipelineLayout, 0, sizeof(pCopiedEffect->VkPipelineLayout));
 		memset(&pCopiedEffect->VkDescriptorSetLayout, 0, sizeof(pCopiedEffect->VkDescriptorSetLayout));

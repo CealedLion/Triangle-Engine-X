@@ -2881,7 +2881,7 @@ TEXRESULT Initialize()
 	return Success;
 }
 
-void Destroy()
+TEXRESULT Destroy()
 {
 	for (size_t i = 0; i < Utils.Category.DestructSize; i++)
 	{
@@ -2924,6 +2924,8 @@ void Destroy()
 
 	memset(&Config, NULL, sizeof(Config));
 	memset(&Utils, NULL, sizeof(Utils));
+
+	return Success;
 }
 
 #ifdef _WIN32
@@ -2951,7 +2953,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 			Run_ExternalFunction(Utils.Category.EveryFrame[i]);
 		}
 	}
-	Destroy();
-	return 0;
+	return Destroy();
 }
 #endif

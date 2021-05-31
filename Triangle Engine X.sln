@@ -41,7 +41,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Chemistry", "Extensions\Che
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tempshaders", "tempshaders", "{58950D2D-3E61-4EBD-AF57-5E5C5B983644}"
 	ProjectSection(SolutionItems) = preProject
-		Builds\data\Shaders\ChemistryCompute.comp = Builds\data\Shaders\ChemistryCompute.comp
+		Builds\data\Shaders\ChemistryComputeField.comp = Builds\data\Shaders\ChemistryComputeField.comp
+		Builds\data\Shaders\ChemistryComputeSource.comp = Builds\data\Shaders\ChemistryComputeSource.comp
 		Builds\data\Shaders\ChemistryProjection.frag = Builds\data\Shaders\ChemistryProjection.frag
 		Builds\data\Shaders\ChemistryProjection.vert = Builds\data\Shaders\ChemistryProjection.vert
 	EndProjectSection

@@ -967,9 +967,9 @@ TEXRESULT Initialise_Chat()
 	Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json",
 		(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
 
-	TEXRESULT ress = Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\z-23\\scene.gltf",
-		(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
-	/*
+	//TEXRESULT ress = Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\z-23\\scene.gltf",
+	//	(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
+	
 	{
 		ResourceHeaderAllocation iResourceHeaderParent;
 		{
@@ -1086,20 +1086,24 @@ TEXRESULT Initialise_Chat()
 			CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
 
 
-			Info.SimulationResolution = 512;
+			Info.SimulationResolution = 256;
 
 
-			Info.ParticlesSize = 9;
+			Info.ParticlesSize = 3;
 			Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
-			Info.Particles[0].Position[0] = 0.0f;
+			Info.Particles[0].Position[0] = 128.0f;
+			Info.Particles[0].Position[1] = 128.0f;
+			Info.Particles[0].Position[2] = 128.0f;
 			Info.Particles[0].Size = 1.0f;
 			Info.Particles[0].Charge = 1.0f;
-
-			for (size_t i = 0; i < 8; i++)
+			
+			for (size_t i = 0; i < 2; i++)
 			{
-				Info.Particles[1 + i].Position[0] = 0.0f;
-				Info.Particles[1 + i].Size = 0.0005f;
+				Info.Particles[1 + i].Position[0] = 170.0f;
+				Info.Particles[1 + i].Position[1] = 128.0f;
+				Info.Particles[1 + i].Position[2] = 128.0f;
+				Info.Particles[1 + i].Size = 1.0f;
 				Info.Particles[1 + i].Charge = -1.0f;
 			}
 
@@ -1116,7 +1120,7 @@ TEXRESULT Initialise_Chat()
 			free(Info.Particles);
 		}
 	}
-	*/
+	
 	/*
 	{
 		ResourceHeaderAllocation iResourceHeaderParent;

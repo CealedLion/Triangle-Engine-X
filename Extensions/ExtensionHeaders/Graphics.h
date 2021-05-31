@@ -2448,7 +2448,7 @@ typedef struct RHeaderWeights{
 }RHeaderWeights;
 /*
 * Added in 1.0.0
-*  Requires RHeaderAnimationChannel To transmit actions onto a gameobject.
+* Requires RHeaderAnimationChannel To transmit actions onto a gameobject.
 * animations and animation channel input and output follow format of gltf animations.
 https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#animations
 CreateInfo Parameters:
@@ -2460,11 +2460,8 @@ typedef struct RHeaderAnimationCreateInfo{
 
 	AnimationPlaybackMode PlaybackMode;
 	double Speed;
-
 }RHeaderAnimationCreateInfo;
 typedef struct RHeaderAnimation{
-	//acts as a channel for animation.
-
 	ResourceHeaderTEMPLATE Header;
 
 	//custom
@@ -2484,20 +2481,15 @@ typedef struct RHeaderAnimation{
 * subserviant to RHeaderAnimation
 * Drop this into a gameobject for it to be animated by a animation.
 */
-typedef struct RHeaderAnimationChannelCreateInfo
-{
+typedef struct RHeaderAnimationChannelCreateInfo {
 	AnimationSampler Sampler;              // required
 	AnimationTargetType Target; //required
 	RHeaderAnimation* pAnimation;  //required
 }RHeaderAnimationChannelCreateInfo;
-typedef struct RHeaderAnimationChannel
-{
-	//acts as a channel for animation.
-
+typedef struct RHeaderAnimationChannel {
 	ResourceHeaderTEMPLATE Header;
 
 	//custom
-
 	AnimationSampler Sampler; // required
 	AnimationTargetType Target; //required
 	ResourceHeaderAllocation iAnimation; //required
