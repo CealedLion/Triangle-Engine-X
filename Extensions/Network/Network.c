@@ -24,12 +24,12 @@ TEXRESULT Get_AddressInfos(const UTF8* DNS, const UTF8* Service, AddressInfo** p
 	if (DNS == NULL)
 	{
 		Engine_Ref_ArgsError("Get_AddressInfos()", "DNS == NULLPTR");
-		return Invalid_Parameter | Failure;
+		return (Invalid_Parameter | Failure);
 	}
 	if (DNS == NULL)
 	{
 		Engine_Ref_ArgsError("Get_AddressInfos()", "DNS == NULLPTR");
-		return Invalid_Parameter | Failure;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 
@@ -84,7 +84,7 @@ TEXRESULT Get_AddressInfos(const UTF8* DNS, const UTF8* Service, AddressInfo** p
 
 	free(dns);
 	free(srv);
-	return Success;
+	return (Success);
 }
 
 
@@ -113,16 +113,15 @@ TEXRESULT Connect(Socket* pSocket, AddressInfo** addressinfo)
 	{
 		closesocket(*pSocket);
 		Engine_Ref_FunctionError("Connect()", WSAGetLastError(), 0);
-		return Failure;
+		return (Failure);
 	}
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Disconnect(Socket* pSocket)
 {
 	closesocket(*pSocket);
-
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Send(Socket* pSocket, char* data, uint32_t size, SendFlagBits flagbits)
@@ -132,7 +131,7 @@ TEXRESULT Send(Socket* pSocket, char* data, uint32_t size, SendFlagBits flagbits
 		Engine_Ref_FunctionError("Send()", WSAGetLastError(), 0);
 		return Failure;
 	}
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Receive(Socket* pSocket, char* data, uint32_t size, RecieveFlagBits flagbits)
@@ -142,7 +141,7 @@ TEXRESULT Receive(Socket* pSocket, char* data, uint32_t size, RecieveFlagBits fl
 		Engine_Ref_FunctionError("Receive()", WSAGetLastError(), 0);
 		return Failure;
 	}
-	return Success;
+	return (Success);
 }
 
 uint64_t Get_BacklogMax()
@@ -158,7 +157,7 @@ TEXRESULT Listen(Socket* pSocket, uint64_t backlog)
 		Engine_Ref_FunctionError("Listen()", WSAGetLastError(), 0);
 		return Failure;
 	}
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Accept_Connection(Socket* pSocket)
@@ -166,16 +165,16 @@ TEXRESULT Accept_Connection(Socket* pSocket)
 	if (accept(*pSocket, 0, 0) == SOCKET_ERROR)
 	{
 		Engine_Ref_FunctionError("Accept_Connection()", WSAGetLastError(), 0);
-		return Failure;
+		return (Failure);
 	}
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Poll_Events()
 {
 
 
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Initialise_Network()
@@ -186,9 +185,9 @@ TEXRESULT Initialise_Network()
 	if (WSAStartup(MAKEWORD(2, 2), &Utils.wsa) != 0)
 	{
 		Engine_Ref_FunctionError("Initialise_Network()", WSAGetLastError(), 0);
-		return Failure;
+		return (Failure);
 	}
-	return Success;
+	return (Success);
 }
 
 TEXRESULT Destroy_Network()
@@ -196,7 +195,7 @@ TEXRESULT Destroy_Network()
 	WSACleanup();
 	memset((void*)&Utils, 0, sizeof(Utils));
 	memset((void*)&Config, 0, sizeof(Config));
-	return Success;
+	return (Success);
 }
 
 

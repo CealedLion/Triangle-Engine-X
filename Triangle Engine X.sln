@@ -40,6 +40,15 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Chemistry", "Extensions\Chemistry\Chemistry.vcxproj", "{DAEC510D-1AC9-48FA-8540-26C7B3A9553B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tempshaders", "tempshaders", "{58950D2D-3E61-4EBD-AF57-5E5C5B983644}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fundamental", "Fundamental", "{E9C75819-08C5-4B85-ACCF-46050354C1BD}"
+	ProjectSection(SolutionItems) = preProject
+		Builds\data\Shaders\ChemistryComputeFundamental.comp = Builds\data\Shaders\ChemistryComputeFundamental.comp
+		Builds\data\Shaders\ChemistryComputeFundamental.frag = Builds\data\Shaders\ChemistryComputeFundamental.frag
+		Builds\data\Shaders\ChemistryComputeFundamental.vert = Builds\data\Shaders\ChemistryComputeFundamental.vert
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FullModel", "FullModel", "{ACC86F2E-A093-4F6C-BDD7-F87DDA3E83CC}"
 	ProjectSection(SolutionItems) = preProject
 		Builds\data\Shaders\ChemistryComputeField.comp = Builds\data\Shaders\ChemistryComputeField.comp
 		Builds\data\Shaders\ChemistryComputeSource.comp = Builds\data\Shaders\ChemistryComputeSource.comp
@@ -226,6 +235,8 @@ Global
 		{843848D1-0A83-426C-8A99-231FED096E8B} = {88FDCDE0-E4D7-4C4B-B3DB-E237AC87F4D8}
 		{DAEC510D-1AC9-48FA-8540-26C7B3A9553B} = {88FDCDE0-E4D7-4C4B-B3DB-E237AC87F4D8}
 		{58950D2D-3E61-4EBD-AF57-5E5C5B983644} = {A97CCDCD-A84D-429C-9630-28E66FF2176B}
+		{E9C75819-08C5-4B85-ACCF-46050354C1BD} = {58950D2D-3E61-4EBD-AF57-5E5C5B983644}
+		{ACC86F2E-A093-4F6C-BDD7-F87DDA3E83CC} = {58950D2D-3E61-4EBD-AF57-5E5C5B983644}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AF460088-937B-4C49-B440-298586F68AEF}

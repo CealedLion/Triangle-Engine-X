@@ -3,7 +3,6 @@
 //Enums
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 /*
 * Added in 1.0.0
 */
@@ -127,8 +126,9 @@ typedef enum ChemistryElementType {
 	ChemistryElementType_Tennessine,
 	ChemistryElementType_Oganesson,
 }ChemistryElementType;
-
-
+/*
+* Added in 1.0.0
+*/
 const uint8_t ChemistryElementsElectrons[][8] = {
 	{0, 0, 0, 0, 0, 0, 0, 0,}, //UNDEFEIND
 	{1, 0, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Hydrogen
@@ -251,26 +251,18 @@ const uint8_t ChemistryElementsElectrons[][8] = {
 	{2, 8, 18, 32, 32, 18, 8, 0,}, //ChemistryElementType_Oganesson
 };
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Structs
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
 * Added in 1.0.0
-* Simplified Atom
+* The fundamental unit of nature.
 */
 typedef struct GPU_Particle {
-	vec3 Position;
-	vec3 PositionVelocity;
-
-	versor Rotation;
-	versor RotationVelocity;
-
-	float Size;
-	float Charge;
+	vec4 Position;
+	vec4 PositionVelocity;
 }GPU_Particle;
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Utils
@@ -282,6 +274,7 @@ typedef struct GPU_Particle {
 typedef enum ChemistryEffectsType {
 	ChemistryEffects_SimpleModel = 1000000,
 	ChemistryEffects_FullModel = 1000001,
+	ChemistryEffects_Fundamental = 1000002,
 }ChemistryEffectsType;
 /*
 * Added in 1.0.0
@@ -304,9 +297,22 @@ typedef struct PushConstantsFullModel {
 /*
 * Added in 1.0.0
 */
-typedef struct PushConstantsFullModelCompute {
+typedef struct PushConstantsComputeFullModel {
 	int32_t PingPongIndex;
-}PushConstantsFullModelCompute;
+	float Time;
+}PushConstantsComputeFullModel;
+/*
+* Added in 1.0.0
+*/
+typedef struct PushConstantsFundamental {
+	mat4 VP;
+}PushConstantsFundamental;
+/*
+* Added in 1.0.0
+*/
+typedef struct PushConstantsComputeFundamental {
+	int PingPongIndex;
+}PushConstantsComputeFundamental;
 /*
 * Added in 1.0.0
 * Renders Simplified Molecular Simulation Effect.
@@ -322,7 +328,6 @@ typedef struct ChemistryEffectSimpleModel {
 * Added in 1.0.0
 */
 typedef struct ChemistryEffectCreateInfoFullModel {
-	vec3 Position; //optional
 
 	uint32_t SimulationResolution;
 
@@ -334,8 +339,6 @@ typedef struct ChemistryEffectFullModel {
 
 	uint32_t SimulationResolution;
 
-	vec3 Position;
-
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
 
@@ -343,6 +346,8 @@ typedef struct ChemistryEffectFullModel {
 	int32_t PingPongIndex;
 
 	Mutex mutex;
+
+	GPU_Allocation AllocationParticles;
 
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipelineComputeSource;
@@ -380,17 +385,75 @@ typedef struct ChemistryEffectFullModel {
 	void* VkShaderFragment;
 #endif
 }ChemistryEffectFullModel;
+/*
+* Added in 1.0.0
+*/
+typedef struct ChemistryEffectCreateInfoFundamental {
+	uint64_t ParticlesSize;
+	GPU_Particle* Particles;
+}ChemistryEffectCreateInfoFundamental;
+typedef struct ChemistryEffectFundamental {
+	GraphicsEffectTemplate Header;
+
+	uint64_t ParticlesSize;
+	GPU_Particle* Particles;
+
+	//every reinit
+	Mutex mutex;
+
+	GPU_Allocation AllocationParticlesPingPong0;
+	GPU_Allocation AllocationParticlesPingPong1;
+
+#ifdef TEX_EXPOSE_GRAPHICS
+	VkPipeline VkPipelineCompute;
+	VkShaderModule VkShaderCompute;
+
+	/////VkPipeline VkPipelineComputePass1;
+	///VkShaderModule VkShaderComputePass1;
+
+
+	VkPipelineLayout VkPipelineLayout;
+	VkDescriptorSetLayout VkDescriptorSetLayout;
+	VkDescriptorSet* VkDescriptorSets;
+	VkDescriptorPool VkDescriptorPool;
+#else
+	void* VkPipelineComputePass0;
+	void* VkShaderComputePass0;
+
+	void* VkPipelineComputePass1;
+	void* VkShaderComputePass1;
+
+	void* VkPipelineLayout;
+	void* VkDescriptorSetLayout;
+	void** VkDescriptorSets;
+	void* VkDescriptorPool;
+#endif
+
+#ifdef TEX_EXPOSE_GRAPHICS
+	VkPipeline VkPipeline;
+	VkShaderModule VkShaderVertex;
+	VkShaderModule VkShaderFragment;
+#else
+	void* VkPipeline;
+	void* VkShaderVertex;
+	void* VkShaderFragment;
+#endif
+}ChemistryEffectFundamental;
+
 
 
 #ifdef TEX_EXPOSE_CHEMISTRY
+#define ChemistrySimpleModelBuffersCount 1
+
 #define ChemistryFullModelBuffersCount 1
 #define ChemistryFullModelImagesCount 2
 
-#define ChemistrySimpleModelBuffersCount 1
+#define ChemistryFundamentalBuffersCount 1
 
 typedef struct ChemistryUtils{
 	GraphicsEffectSignature SimpleModelSignature;
 	GraphicsEffectSignature FullModelSignature;
+	GraphicsEffectSignature FundamentalSignature;
 }ChemistryUtils;
 #endif
 
@@ -404,7 +467,7 @@ struct ChemistryResStruct{
 //Initialise_Resources MUST be called to use the library in your dll
 void Chemistry_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&ChemistryRes, NULL, sizeof(ChemistryRes));
+	memset(&ChemistryRes, 0, sizeof(ChemistryRes));
 }
 
 

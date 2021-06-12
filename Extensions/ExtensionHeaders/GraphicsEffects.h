@@ -185,7 +185,7 @@ struct GraphicsEffectsResStruct
 //Initialise_Resources MUST be called to use the library in your dll
 void GraphicsEffects_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&GraphicsEffectsRes, NULL, sizeof(GraphicsEffectsRes));
+	memset(&GraphicsEffectsRes, 0, sizeof(GraphicsEffectsRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Utils"), &GraphicsEffectsRes.pUtils);
 

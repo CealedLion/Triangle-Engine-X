@@ -286,12 +286,12 @@ typedef struct ElementAudio
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TEXRESULT(Create_AudioEffectTemplate)(ElementAudio* pElement, void* pEffect, const void* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex);
-typedef void(Destroy_AudioEffectTemplate)(ElementAudio* pElement, void* pEffect, bool Full, uint32_t ThreadIndex);
+typedef TEXRESULT(Destroy_AudioEffectTemplate)(ElementAudio* pElement, void* pEffect, bool Full, uint32_t ThreadIndex);
 
-typedef void(ReCreate_AudioEffectTemplate)(ElementAudio* pElement, void* pEffect, uint32_t ThreadIndex);
+typedef TEXRESULT(ReCreate_AudioEffectTemplate)(ElementAudio* pElement, void* pEffect, uint32_t ThreadIndex);
 
-typedef void(Pack_AudioEffectTemplate)(const ElementAudio* pElement, ElementAudio* pCopiedElement, const void* pEffect, void* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
-typedef void(UnPack_AudioEffectTemplate)(const ElementAudio* pElement, ElementAudio* pCopiedElement, const void* pEffect, void* pCopiedEffect, const void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(Pack_AudioEffectTemplate)(const ElementAudio* pElement, ElementAudio* pCopiedElement, const void* pEffect, void* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(UnPack_AudioEffectTemplate)(const ElementAudio* pElement, ElementAudio* pCopiedElement, const void* pEffect, void* pCopiedEffect, const void* pData, uint32_t ThreadIndex);
 
 
 struct AudioEffectSignature;
@@ -447,7 +447,7 @@ struct AudioResStruct
 //Initialise_Resources MUST be called to use the library in your dll
 void Audio_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&AudioRes, NULL, sizeof(AudioRes));
+	memset(&AudioRes, 0, sizeof(AudioRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Audio::Utils"), &AudioRes.pUtils);
 

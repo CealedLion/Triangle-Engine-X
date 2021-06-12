@@ -2614,12 +2614,12 @@ typedef struct ElementGraphics
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TEXRESULT(Create_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, const void* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex);
-typedef void(Destroy_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, bool Full, uint32_t ThreadIndex);
+typedef TEXRESULT(Destroy_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, bool Full, uint32_t ThreadIndex);
 
-typedef void(ReCreate_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, uint32_t ThreadIndex);
+typedef TEXRESULT(ReCreate_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, uint32_t ThreadIndex);
 
-typedef void(Pack_GraphicsEffectTemplate)(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const void* pEffect, void* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
-typedef void(UnPack_GraphicsEffectTemplate)(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const void* pEffect, void* pCopiedEffect, const void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(Pack_GraphicsEffectTemplate)(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const void* pEffect, void* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(UnPack_GraphicsEffectTemplate)(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const void* pEffect, void* pCopiedEffect, const void* pData, uint32_t ThreadIndex);
 
 
 struct GraphicsEffectSignature;
@@ -2884,7 +2884,7 @@ struct GraphicsResStruct
 	void* pCheck_Memory;
 	void* pDestroy_GPU_MemoryBuffer;
 	void* pCreate_GPU_MemoryBuffer;
-	void* pResize_GPU_MemoryBuffer;
+	void* pReCreate_GPU_MemoryBuffer;
 	void* pGPUmalloc;
 	void* pGPUfree;
 
@@ -2917,7 +2917,7 @@ struct GraphicsResStruct
 //Initialise_Resources MUST be called to use the library in your dll
 void Graphics_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&GraphicsRes, NULL, sizeof(GraphicsRes));
+	memset(&GraphicsRes, 0, sizeof(GraphicsRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Graphics::Utils"), &GraphicsRes.pUtils);
 
@@ -2927,7 +2927,7 @@ void Graphics_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* p
 
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Check_Memory"), &GraphicsRes.pCheck_Memory);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_MemoryBuffer"), &GraphicsRes.pDestroy_GPU_MemoryBuffer);
-	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Resize_GPU_MemoryBuffer"), &GraphicsRes.pResize_GPU_MemoryBuffer);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::ReCreate_GPU_MemoryBuffer"), &GraphicsRes.pReCreate_GPU_MemoryBuffer);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_GPU_MemoryBuffer"), &GraphicsRes.pCreate_GPU_MemoryBuffer);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUmalloc"), &GraphicsRes.pGPUmalloc);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUfree"), &GraphicsRes.pGPUfree);
@@ -2999,10 +2999,10 @@ TEXRESULT Graphics_Ref_Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, Logica
 
 	return function(pBuffer, pLogicalDevice, Size, Type);
 }
-TEXRESULT Graphics_Ref_Resize_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize, TargetMemoryType Type)
+TEXRESULT Graphics_Ref_ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize, TargetMemoryType Type)
 {
 	TEXRESULT(*function)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize, TargetMemoryType Type) =
-		(TEXRESULT(*)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize, TargetMemoryType Type))GraphicsRes.pResize_GPU_MemoryBuffer;
+		(TEXRESULT(*)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize, TargetMemoryType Type))GraphicsRes.pReCreate_GPU_MemoryBuffer;
 
 	return function(pBuffer, pLogicalDevice, NewSize, Type);
 }
@@ -3194,7 +3194,7 @@ TEXRESULT Graphics_Ref_ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow
 	Info.pNext = NULL;\
 	if ((res = vkCreateShaderModule(LogicalDevice->VkLogicalDevice, &Info, NULL, &VkShader)) != VK_SUCCESS){\
 		Engine_Ref_FunctionError(FunctionName, "vkCreateShaderModule Failed, VkResult == ", res);\
-		return;\
+		return (Failure);\
 	}\
 }\
 

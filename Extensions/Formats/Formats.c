@@ -61,9 +61,8 @@ const char base64_map[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K
 
 
 char* base64_encode(char* plain) {
-
 	char counts = 0;
-	char buffer[3];
+	char buffer[3] = { sizeof(*buffer) * 3};
 	char* cipher = malloc(strlen(plain) * 4 / 3 + 4);
 	int i = 0, c = 0;
 
@@ -108,7 +107,7 @@ TEXRESULT Decode_URI(FileData* filedata, const UTF8* URI, const UTF8* basefilelo
 		UTF8* base64pointer = (URI + base64startindex);
 
 		char counts = 0;
-		char buffer[4];
+		char buffer[4] = { sizeof(*buffer) * 4 };
 		char* plain = malloc((strlen(base64pointer) * 3 / 4) + 1);
 		if (plain == NULL)
 			return Out_Of_Memory_Result;
@@ -159,13 +158,13 @@ TEXRESULT Decode_URI(FileData* filedata, const UTF8* URI, const UTF8* basefilelo
 
 		Open_Data(filedata, product);
 	}
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 
 TEXRESULT Parse_Buffer(Value* value, ResourceHeaderAllocation* pAllocation, const UTF8* BaseDirectory, const void* BinaryData, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 
 	ResourceHeaderAllocation iBufferSource;
 	{
@@ -177,7 +176,7 @@ TEXRESULT Parse_Buffer(Value* value, ResourceHeaderAllocation* pAllocation, cons
 			Value* byteLengthV = ObjGet(value, "byteLength");
 			CreateInfo.Data.LinearSize = *GetLongLong(byteLengthV);
 		}
-		else return (TEXRESULT)(Failure);
+		else return (Failure);
 
 		if (ObjGet(value, "uri") != NULL)
 		{
@@ -195,7 +194,7 @@ TEXRESULT Parse_Buffer(Value* value, ResourceHeaderAllocation* pAllocation, cons
 				CreateInfo.Data.pData = (unsigned char*)malloc(sizeof(char) * CreateInfo.Data.LinearSize);
 				memcpy(CreateInfo.Data.pData, BinaryData, CreateInfo.Data.LinearSize);
 			}
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
 
 		ResourceHeaderCreateInfo MainCreateInfo;
@@ -203,7 +202,7 @@ TEXRESULT Parse_Buffer(Value* value, ResourceHeaderAllocation* pAllocation, cons
 		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_BufferSource;
 		if (ObjGet(value, "name") != NULL)
 			MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-		if ((res = Object_Ref_Create_ResourceHeader(&iBufferSource, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Object_Ref_Create_ResourceHeader(&iBufferSource, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 			return res;
 
 		free(CreateInfo.Data.pData);
@@ -221,15 +220,15 @@ TEXRESULT Parse_Buffer(Value* value, ResourceHeaderAllocation* pAllocation, cons
 		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Buffer;
 		if (ObjGet(value, "name") != NULL)
 			MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 			return res;
 	}
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Parse_Image(Value* value, ResourceHeaderAllocation* pAllocation, const UTF8* BaseDirectory, Value* Basevalue, const ResourceHeaderAllocation* BufferArray, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	FileData pData;
 
 	RHeaderImageSourceCreateInfo CreateInfo;
@@ -239,7 +238,7 @@ TEXRESULT Parse_Image(Value* value, ResourceHeaderAllocation* pAllocation, const
 
 	if (ObjGet(value, "uri") != NULL)
 	{
-		if ((res = Decode_URI(&pData, GetStr(ObjGet(value, "uri")), BaseDirectory, &mimetype)) != (TEXRESULT)(Success))
+		if ((res = Decode_URI(&pData, GetStr(ObjGet(value, "uri")), BaseDirectory, &mimetype)) != (Success))
 			return res;
 	}
 	if (ObjGet(value, "bufferView") != NULL)
@@ -271,7 +270,7 @@ TEXRESULT Parse_Image(Value* value, ResourceHeaderAllocation* pAllocation, const
 
 		uint32_t identifier = *((uint32_t*)((uint64_t)mimetype + sizeof(char)));
 
-		if ((res = Graphics_Convert_Ref_XtoTEXI(&pData, &CreateInfo.ImageData, identifier)) != (TEXRESULT)(Success))
+		if ((res = Graphics_Convert_Ref_XtoTEXI(&pData, &CreateInfo.ImageData, identifier)) != (Success))
 			return res;
 
 
@@ -279,15 +278,15 @@ TEXRESULT Parse_Image(Value* value, ResourceHeaderAllocation* pAllocation, const
 		memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
 		MainCreateInfo.Name = NULL;
-		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 			return res;
 		free(CreateInfo.ImageData);
 		free(mimetype);
 	}
 	else
-		return (TEXRESULT)(Failure);
+		return (Failure);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT Parse_Sampler(Value* value, RHeaderTextureCreateInfo* pResult)
 {
@@ -351,11 +350,11 @@ TEXRESULT Parse_Sampler(Value* value, RHeaderTextureCreateInfo* pResult)
 	}
 	pResult->AddressModeW = pResult->AddressModeV;
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT Parse_Texture(Value* value, ResourceHeaderAllocation* pAllocation, Value* Basevalue, const UTF8* BaseDirectory, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 
 	RHeaderTextureCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
@@ -365,7 +364,7 @@ TEXRESULT Parse_Texture(Value* value, ResourceHeaderAllocation* pAllocation, Val
 	{
 		Value* samplerV = ObjGet(value, "sampler");
 		Value* samplersV = ObjGet(Basevalue, "samplers");	
-		if ((res = Parse_Sampler(ArrayGet(samplersV, *GetLongLong(samplerV)), &CreateInfo)) != (TEXRESULT)(Success))
+		if ((res = Parse_Sampler(ArrayGet(samplersV, *GetLongLong(samplerV)), &CreateInfo)) != (Success))
 			return res;
 	}
 
@@ -375,7 +374,7 @@ TEXRESULT Parse_Texture(Value* value, ResourceHeaderAllocation* pAllocation, Val
 
 		Value* sourceV = ObjGet(value, "source");
 		Value* imagesV = ObjGet(Basevalue, "images");
-		if ((res = Parse_Image(ArrayGet(imagesV, *GetLongLong(sourceV)), &iImageSource, BaseDirectory, Basevalue, BufferArray, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Parse_Image(ArrayGet(imagesV, *GetLongLong(sourceV)), &iImageSource, BaseDirectory, Basevalue, BufferArray, ThreadIndex)) != (Success))
 			return res;
 
 
@@ -388,19 +387,19 @@ TEXRESULT Parse_Texture(Value* value, ResourceHeaderAllocation* pAllocation, Val
 		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
 		if (ObjGet(value, "name") != NULL)
 			MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 			return res;
 	}
 	else
-		return (TEXRESULT)(Failure);
+		return (Failure);
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, const ResourceHeaderAllocation* TexturesArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	RHeaderMaterialCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 	CreateInfo.pGraphicsWindow = pGraphicsWindow;
@@ -507,18 +506,18 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 	MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
 	if (ObjGet(value, "name") != NULL)
 		MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 		return res;
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	//if (Basevalue["bufferViews"][value["bufferView"].GetInt64()].HasMember("byteLength"))
 	//	pResult->ByteLength = Basevalue["bufferViews"][value["bufferView"].GetInt64()]["byteLength"].GetInt64();
-	//else return (TEXRESULT)(Failure);
+	//else return (Failure);
 	//Basevalue["bufferViews"][value["bufferView"].GetInt64()]
 	Value* bufferviewactualV = ArrayGet(ObjGet(Basevalue, "bufferViews"), *GetLongLong(ObjGet(value, "bufferView")));
 	
@@ -533,7 +532,7 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 
 	if (ObjGet(bufferviewactualV, "buffer"))
 		pResult->iBuffer = BufferArray[*GetLongLong(ObjGet(bufferviewactualV, "buffer"))];
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	if (ObjGet(value, "byteOffset") != NULL)
 		pResult->ByteOffset += *GetLongLong(ObjGet(value, "byteOffset"));
@@ -545,11 +544,11 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 
 	if (ObjGet(value, "componentType") != NULL)
 		pResult->Format = Convert_ComponentType(*GetInt(ObjGet(value, "componentType")));
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	if (ObjGet(value, "count") != NULL)
 		pResult->Count = *GetLongLong(ObjGet(value, "count"));
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	if (ObjGet(value, "type") != NULL)
 	{
@@ -578,7 +577,7 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 			break;
 		}
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	pResult->Inputrate = AttributeInputRate_Vertex;
 
@@ -603,12 +602,12 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 				//RHeaderBufferView* BufferView;
 			}Values;
 		}sparse;
-		memset(&sparse, NULL, sizeof(sparse));
+		memset(&sparse, 0, sizeof(sparse));
 
 
 		if (ObjGet(sparseV, "count") != NULL)
 			sparse.Count = *GetLongLong(ObjGet(sparseV, "count"));
-		else return (TEXRESULT)(Failure);
+		else return (Failure);
 
 		if (ObjGet(sparseV, "indices") != NULL)
 		{
@@ -618,13 +617,13 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 
 			if (ObjGet(indicesV, "bufferView"))
 				sparse.Indices.BufferView = *GetLongLong(ObjGet(indicesV, "bufferView"));
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 
 			if (ObjGet(indicesV, "componentType"))
 				sparse.Indices.componenttype = *GetLongLong(ObjGet(indicesV, "componentType"));
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
-		else return (TEXRESULT)(Failure);
+		else return (Failure);
 
 		if (ObjGet(sparseV, "values") != NULL)
 		{
@@ -634,9 +633,9 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 
 			if (ObjGet(valuesV, "bufferView"))
 				sparse.Values.BufferView = *GetLongLong(ObjGet(valuesV, "bufferView"));
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
-		else return (TEXRESULT)(Failure);
+		else return (Failure);
 
 		//create new buffer and bufferview
 
@@ -657,7 +656,7 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 		if (ObjGet(value, "bufferView") != NULL)
 			memcpy(NewSource.pData, (void*)((uint64_t)pOldBufferSource->Data.pData + (uint64_t)pResult->ByteOffset), NewSource.LinearSize);
 		else
-			memset(NewSource.pData, NULL, NewSource.LinearSize);
+			memset(NewSource.pData, 0, NewSource.LinearSize);
 
 		//apply sparse
 		//Basevalue["bufferViews"][sparse.Indices.BufferView]
@@ -716,7 +715,7 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_BufferSource;
 			MainCreateInfo.Name = NULL;
-			if ((res = Object_Ref_Create_ResourceHeader(&iBufferSource, MainCreateInfo, &BufferSourceCreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+			if ((res = Object_Ref_Create_ResourceHeader(&iBufferSource, MainCreateInfo, &BufferSourceCreateInfo, ThreadIndex)) != (Success))
 				return res;
 			free(BufferSourceCreateInfo.Data.pData);
 		}
@@ -732,7 +731,7 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Buffer;
 			MainCreateInfo.Name = NULL;
-			if ((res = Object_Ref_Create_ResourceHeader(&iBuffer, MainCreateInfo, &BufferCreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+			if ((res = Object_Ref_Create_ResourceHeader(&iBuffer, MainCreateInfo, &BufferCreateInfo, ThreadIndex)) != (Success))
 				return res;
 		}
 
@@ -742,31 +741,31 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 		pResult->iBuffer = iBuffer;
 
 	}
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Parse_AnimationSampler(Value* value, RHeaderAnimationChannelCreateInfo* pResult, Value* Basevalue, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 
 	if (ObjGet(value, "input") != NULL)
 	{
 		Value* inputV = ObjGet(value, "input");
 		Value* accessorsV = ObjGet(Basevalue, "accessors");
-		if ((res = Parse_Accessor(ArrayGet(accessorsV, *GetLongLong(inputV)), &pResult->Sampler.Input, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Parse_Accessor(ArrayGet(accessorsV, *GetLongLong(inputV)), &pResult->Sampler.Input, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (Success))
 			return res;
 	}
 	else
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	if (ObjGet(value, "output") != NULL)
 	{
 		Value* outputV = ObjGet(value, "output");
 		Value* accessorsV = ObjGet(Basevalue, "accessors");
-		if ((res = Parse_Accessor(ArrayGet(accessorsV, *GetLongLong(outputV)), &pResult->Sampler.Output, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Parse_Accessor(ArrayGet(accessorsV, *GetLongLong(outputV)), &pResult->Sampler.Output, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (Success))
 			return res;
 	}
 	else
-		return (TEXRESULT)(Failure);
+		return (Failure);
 
 	if (ObjGet(value, "interpolation") != NULL)
 	{
@@ -781,13 +780,13 @@ TEXRESULT Parse_AnimationSampler(Value* value, RHeaderAnimationChannelCreateInfo
 	else
 		pResult->Sampler.Interpolation = InterpolationType_Linear;
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Parse_AnimationChannel(Value* value, ResourceHeaderAllocation* pAllocation, ResourceHeaderAllocation Parent, ObjectAllocation* Nodes,
 	Value* Basevalue, Value* animationvalue, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 
 	RHeaderAnimationChannelCreateInfo CreateInfoChannel;
 	memset(&CreateInfoChannel, 0, sizeof(CreateInfoChannel));
@@ -811,25 +810,25 @@ TEXRESULT Parse_AnimationChannel(Value* value, ResourceHeaderAllocation* pAlloca
 				CreateInfoChannel.Target = AnimationTargetType_Weights;
 
 		}
-		else return (TEXRESULT)(Failure);
+		else return (Failure);
 
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	if (ObjGet(value, "sampler") != NULL)
 	{
 		Value* samplerV = ObjGet(value, "sampler");
 		Value* samplersV = ObjGet(animationvalue, "samplers");
-		if ((res = Parse_AnimationSampler(ArrayGet(samplersV, *GetLongLong(samplerV)), &CreateInfoChannel, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Parse_AnimationSampler(ArrayGet(samplersV, *GetLongLong(samplerV)), &CreateInfoChannel, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (Success))
 			return res;
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	ResourceHeaderCreateInfo MainCreateInfo;
 	memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 	MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_AnimationChannel;
 	//MainCreateInfo.Name = ;
-	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfoChannel, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfoChannel, ThreadIndex)) != (Success))
 		return res;
 
 	if (ObjGet(value, "target") != NULL)
@@ -843,11 +842,11 @@ TEXRESULT Parse_AnimationChannel(Value* value, ResourceHeaderAllocation* pAlloca
 	}
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT Parse_Animation(Value* value, ResourceHeaderAllocation* pAllocation, ObjectAllocation* Nodes, Value* Basevalue, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	RHeaderAnimationCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 	CreateInfo.Speed = 1.0;
@@ -864,7 +863,7 @@ TEXRESULT Parse_Animation(Value* value, ResourceHeaderAllocation* pAllocation, O
 	MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Animation;
 	if (ObjGet(value, "name") != NULL)
 		MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 		return res;
 
 	RHeaderAnimation* pAnimation = (RHeaderAnimation*)Object_Ref_Get_ResourceHeaderPointer(*pAllocation);
@@ -872,7 +871,7 @@ TEXRESULT Parse_Animation(Value* value, ResourceHeaderAllocation* pAllocation, O
 	for (size_t i = 0; i < pAnimation->iChannelsSize; i++)
 	{
 		ResourceHeaderAllocation iChannel;	
-		if ((res = Parse_AnimationChannel(ArrayGet(ObjGet(value, "channels"), i), &iChannel, *pAllocation, Nodes, Basevalue, value, BufferArray, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Parse_AnimationChannel(ArrayGet(ObjGet(value, "channels"), i), &iChannel, *pAllocation, Nodes, Basevalue, value, BufferArray, pGraphicsWindow, ThreadIndex)) != (Success))
 			return res;
 
 		pAnimation->iChannels[i] = iChannel;
@@ -883,13 +882,13 @@ TEXRESULT Parse_Animation(Value* value, ResourceHeaderAllocation* pAllocation, O
 		free(CreateInfo.pChannels);
 	}
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Parse_Primitive(Value* value, ElementAllocation* pAllocation, Value* Basevalue, const ResourceHeaderAllocation* MaterialArray,
 	const ResourceHeaderAllocation Parent, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	ElementGraphicsCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 
@@ -954,7 +953,6 @@ TEXRESULT Parse_Primitive(Value* value, ElementAllocation* pAllocation, Value* B
 			Parse_Accessor(ArrayGet(ObjGet(Basevalue, "accessors"), *GetLongLong(nextV)), &Info3D.Attributes[it].Accessor, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex);
 
 			Info3D.Attributes[it].TargetGroup = 0;
-			printf("AAAAAAAAAAAAAA %s %i\n", GetKey(nextV), *GetLongLong(nextV));
 			if (strncmp("POSITION", GetKey(nextV), 8) == 0)
 				Info3D.Attributes[it].AttribType = AttributeType_Position;
 			if (strncmp("NORMAL", GetKey(nextV), 6) == 0)
@@ -974,7 +972,7 @@ TEXRESULT Parse_Primitive(Value* value, ElementAllocation* pAllocation, Value* B
 			nextV = Next(nextV);
 		}
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	if (ObjGet(value, "targets") != NULL)
 	{
@@ -1012,25 +1010,25 @@ TEXRESULT Parse_Primitive(Value* value, ElementAllocation* pAllocation, Value* B
 	memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 	MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
 	MainCreateInfo.Name = NULL;
-	if ((res = Object_Ref_Create_Element(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_Element(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 		return res;
 	Object_Ref_Add_ResourceHeader_ElementChild(*pAllocation, Parent);
 	
 	free(Info3D.Attributes);
 	free(CreateInfo.EffectCreateInfos);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT Parse_Mesh(Value* value, ResourceHeaderAllocation* pAllocation, Value* Basevalue, Value* NodeValue,
 	const ResourceHeaderAllocation* MaterialArray, const ObjectAllocation Parent, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	{
 		ResourceHeaderCreateInfo MainCreateInfo;
 		memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 		MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
 		if (ObjGet(value, "name") != NULL)
 			MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, NULL, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, NULL, ThreadIndex)) != (Success))
 			return res;
 		Object_Ref_Add_Object_ResourceHeaderChild(*pAllocation, Parent);
 	}
@@ -1068,7 +1066,7 @@ TEXRESULT Parse_Mesh(Value* value, ResourceHeaderAllocation* pAllocation, Value*
 		MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Weights;
 		if (ObjGet(value, "name") != NULL)
 			MainCreateInfo.Name = GetStr(ObjGet(value, "name"));
-		if ((res = Object_Ref_Create_ResourceHeader(&WeightsAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Object_Ref_Create_ResourceHeader(&WeightsAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 			return res;
 		free(CreateInfo.Weights);
 		Object_Ref_Add_Object_ResourceHeaderChild(WeightsAllocation, Parent);
@@ -1079,18 +1077,18 @@ TEXRESULT Parse_Mesh(Value* value, ResourceHeaderAllocation* pAllocation, Value*
 		for (size_t i = 0; i < SizeOf(ObjGet(value, "primitives")); i++)
 		{
 			ElementAllocation iPrimitive;
-			if ((res = Parse_Primitive(ArrayGet(ObjGet(value, "primitives"), i), &iPrimitive, Basevalue, MaterialArray, *pAllocation, BufferArray, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+			if ((res = Parse_Primitive(ArrayGet(ObjGet(value, "primitives"), i), &iPrimitive, Basevalue, MaterialArray, *pAllocation, BufferArray, pGraphicsWindow, ThreadIndex)) != (Success))
 				return res;
 		}
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT Parse_Camera(Value* value, ResourceHeaderAllocation* pAllocation, const ObjectAllocation Parent, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	RHeaderCameraCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 
@@ -1106,14 +1104,14 @@ TEXRESULT Parse_Camera(Value* value, ResourceHeaderAllocation* pAllocation, cons
 					CreateInfo.CameraU.Perspective.AspectRatio = *GetNum(ObjGet(perspectiveV, "aspectRatio"));
 				if (ObjGet(perspectiveV, "yfov"))
 					CreateInfo.CameraU.Perspective.y_fov = *GetNum(ObjGet(perspectiveV, "yfov"));
-				else return (TEXRESULT)(Failure);
+				else return (Failure);
 				if (ObjGet(perspectiveV, "zfar"))
 					CreateInfo.CameraU.Perspective.z_far = *GetNum(ObjGet(perspectiveV, "zfar"));
 				if (ObjGet(perspectiveV, "znear"))
 					CreateInfo.CameraU.Perspective.z_near = *GetNum(ObjGet(perspectiveV, "znear"));
-				else return (TEXRESULT)(Failure);
+				else return (Failure);
 			}
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
 		else if (strcmp(GetStr(ObjGet(value, "type")), "orthographic") == 0)
 		{
@@ -1123,21 +1121,21 @@ TEXRESULT Parse_Camera(Value* value, ResourceHeaderAllocation* pAllocation, cons
 				Value* orthographicV = ObjGet(value, "orthographic");
 				if (ObjGet(orthographicV, "xmag"))
 					CreateInfo.CameraU.Orthographic.x_mag = *GetNum(ObjGet(orthographicV, "xmag"));
-				else return (TEXRESULT)(Failure);
+				else return (Failure);
 				if (ObjGet(orthographicV, "ymag"))
 					CreateInfo.CameraU.Orthographic.y_mag = *GetNum(ObjGet(orthographicV, "ymag"));
-				else return (TEXRESULT)(Failure);
+				else return (Failure);
 				if (ObjGet(orthographicV, "zfar"))
 					CreateInfo.CameraU.Orthographic.z_far = *GetNum(ObjGet(orthographicV, "zfar"));
-				else return (TEXRESULT)(Failure);
+				else return (Failure);
 				if (ObjGet(orthographicV, "znear"))
 					CreateInfo.CameraU.Orthographic.z_near = *GetNum(ObjGet(orthographicV, "znear"));
-				else return (TEXRESULT)(Failure);
+				else return (Failure);
 			}
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	ResourceHeaderCreateInfo MainCreateInfo;
 	memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
@@ -1147,18 +1145,18 @@ TEXRESULT Parse_Camera(Value* value, ResourceHeaderAllocation* pAllocation, cons
 		Value* nameV = ObjGet(value, "name");
 		MainCreateInfo.Name = GetStr(nameV);
 	}
-	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 		return res;
 
 	Object_Ref_Add_Object_ResourceHeaderChild(*pAllocation, Parent);
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT Parse_Skin(Value* value, ResourceHeaderAllocation* pAllocation, Value* Basevalue,
 	const ObjectAllocation* NodesArray, const ObjectAllocation Parent, const ResourceHeaderAllocation* BufferArray, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	RHeaderSkinCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 
@@ -1167,7 +1165,7 @@ TEXRESULT Parse_Skin(Value* value, ResourceHeaderAllocation* pAllocation, Value*
 	{
 		Value* inverseBindMatricesV = ObjGet(value, "inverseBindMatrices");
 		Value* accessorsV = ObjGet(Basevalue, "accessors");
-		if ((res = Parse_Accessor(ArrayGet(accessorsV, *GetLongLong(inverseBindMatricesV)), &CreateInfo.InverseBindMatrices, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+		if ((res = Parse_Accessor(ArrayGet(accessorsV, *GetLongLong(inverseBindMatricesV)), &CreateInfo.InverseBindMatrices, Basevalue, BufferArray, pGraphicsWindow, ThreadIndex)) != (Success))
 			return res;
 	}
 
@@ -1191,7 +1189,7 @@ TEXRESULT Parse_Skin(Value* value, ResourceHeaderAllocation* pAllocation, Value*
 		Value* nameV = ObjGet(value, "name");
 		MainCreateInfo.Name = GetStr(nameV);
 	}
-	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 		return res;
 
 	free(CreateInfo.pJoints);
@@ -1199,7 +1197,7 @@ TEXRESULT Parse_Skin(Value* value, ResourceHeaderAllocation* pAllocation, Value*
 	Object_Ref_Add_Object_ResourceHeaderChild(*pAllocation, Parent);
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 
@@ -1207,7 +1205,7 @@ TEXRESULT Parse_Skin(Value* value, ResourceHeaderAllocation* pAllocation, Value*
 
 TEXRESULT Parse_Light(Value* value, ResourceHeaderAllocation* pAllocation, const ObjectAllocation Parent, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)(Success);
+	TEXRESULT res = (Success);
 	RHeaderLightCreateInfo CreateInfo;
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 
@@ -1221,7 +1219,7 @@ TEXRESULT Parse_Light(Value* value, ResourceHeaderAllocation* pAllocation, const
 			{
 				Value* directionalV = ObjGet(value, "directional");
 			}
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
 		else if (strcmp(GetStr(ObjGet(value, "type")), "point") == 0)
 		{
@@ -1230,7 +1228,7 @@ TEXRESULT Parse_Light(Value* value, ResourceHeaderAllocation* pAllocation, const
 			{
 				Value* pointV = ObjGet(value, "point");
 			}
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
 		else if (strcmp(GetStr(ObjGet(value, "type")), "spot") == 0)
 		{
@@ -1249,10 +1247,10 @@ TEXRESULT Parse_Light(Value* value, ResourceHeaderAllocation* pAllocation, const
 					CreateInfo.LightU.Spot.OuterConeAngle = 3.14 / 4.0;
 
 			}
-			else return (TEXRESULT)(Failure);
+			else return (Failure);
 		}
 	}
-	else return (TEXRESULT)(Failure);
+	else return (Failure);
 
 	if (ObjGet(value, "color"))
 		for (size_t i1 = 0; i1 < 3; i1++)
@@ -1277,7 +1275,7 @@ TEXRESULT Parse_Light(Value* value, ResourceHeaderAllocation* pAllocation, const
 		Value* nameV = ObjGet(value, "name");
 		MainCreateInfo.Name = GetStr(nameV);
 	}
-	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+	if ((res = Object_Ref_Create_ResourceHeader(pAllocation, MainCreateInfo, &CreateInfo, ThreadIndex)) != (Success))
 		return res;
 
 	Object_Ref_Add_Object_ResourceHeaderChild(*pAllocation, Parent);
@@ -1289,10 +1287,10 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 {	
 	TEXRESULT tres = Success;
 	FileData filedata;
-	if ((tres = Open_Data(&filedata, Path)) != (TEXRESULT)(Success))
+	if ((tres = Open_Data(&filedata, Path)) != (Success))
 	{
 		Engine_Ref_FunctionError("Load_3Dscene()", "Open_Data() Failed, TEXRESULT == ", tres);
-		return (TEXRESULT)(Invalid_Parameter);
+		return (Invalid_Parameter | Failure);
 	}
 
 	const UTF8* ext = Get_FilePathExtension(Path);
@@ -1327,7 +1325,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 				if ((Result = ParseFast(src_v, curpointer->chunkData)) != true)
 				{
 					Engine_Ref_FunctionError("Load_2Dscene()", "ParseFast() Failed, Result == ", Result);
-					return (TEXRESULT)(Failure);
+					return (Failure);
 				}
 				it += curpointer->chunkLength;
 				break;
@@ -1344,7 +1342,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 		if ((Result = ParseFast(src_v, filedata.pData)) != true)
 		{
 			Engine_Ref_FunctionError("Load_2Dscene()", "ParseFast() Failed, Result == ", Result);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 	}
 
@@ -1374,7 +1372,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 			for (size_t i1 = 0; i1 < GLTF_ExtensionsSupportedSize; i1++)
 			{
 				if (strcmp(GetStr(extensionsRequiredNextV), (char*)GLTF_ExtensionsSupported[i1]) != 0)
-					return (TEXRESULT)(Failure);
+					return (Failure);
 			}
 		}
 		extensionsRequiredNextV = Next(extensionsRequiredNextV);
@@ -1563,7 +1561,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 				Value* nodesNextcameraV = ObjGet(nodesNextV, "camera");
 				Value* camerasV = ObjGet(src_v, "cameras");
 				ResourceHeaderAllocation iCamera;
-				if ((tres = Parse_Camera(ArrayGet(camerasV, *GetLongLong(nodesNextcameraV)), &iCamera, object->Header.Allocation, ThreadIndex)) != (TEXRESULT)(Success))
+				if ((tres = Parse_Camera(ArrayGet(camerasV, *GetLongLong(nodesNextcameraV)), &iCamera, object->Header.Allocation, ThreadIndex)) != (Success))
 					return tres;
 			}
 
@@ -1572,7 +1570,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 				Value* nodesNextskinV = ObjGet(nodesNextV, "skin");
 				Value* skinsV = ObjGet(src_v, "skins");
 				ResourceHeaderAllocation iSkin;
-				if ((tres = Parse_Skin(ArrayGet(skinsV, *GetLongLong(nodesNextskinV)), &iSkin, src_v, nodes, object->Header.Allocation, Buffers, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+				if ((tres = Parse_Skin(ArrayGet(skinsV, *GetLongLong(nodesNextskinV)), &iSkin, src_v, nodes, object->Header.Allocation, Buffers, pGraphicsWindow, ThreadIndex)) != (Success))
 					return tres;
 			}
 			if (ObjGet(nodesNextV, "mesh") != NULL)
@@ -1580,7 +1578,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 				Value* nodesNextmeshV = ObjGet(nodesNextV, "mesh");
 				Value* meshesV = ObjGet(src_v, "meshes");
 				ResourceHeaderAllocation iMesh;
-				if ((tres = Parse_Mesh(ArrayGet(meshesV, *GetLongLong(nodesNextmeshV)), &iMesh, src_v, nodesNextV, Materials, object->Header.Allocation, Buffers, pGraphicsWindow, ThreadIndex)) != (TEXRESULT)(Success))
+				if ((tres = Parse_Mesh(ArrayGet(meshesV, *GetLongLong(nodesNextmeshV)), &iMesh, src_v, nodesNextV, Materials, object->Header.Allocation, Buffers, pGraphicsWindow, ThreadIndex)) != (Success))
 					return tres;
 			}
 			if (ObjGet(nodesNextV, "extensions") != NULL)
@@ -1596,7 +1594,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 					Value* lightsV = ObjGet(extensionsKHR_lights_punctualV, "lights");
 
 					ResourceHeaderAllocation iLight;
-					if ((tres = Parse_Light(ArrayGet(lightsV, *GetLongLong(nodesNextlightV)), &iLight, object->Header.Allocation, ThreadIndex)) != (TEXRESULT)(Success))
+					if ((tres = Parse_Light(ArrayGet(lightsV, *GetLongLong(nodesNextlightV)), &iLight, object->Header.Allocation, ThreadIndex)) != (Success))
 						return tres;
 				}
 			}
@@ -1611,7 +1609,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 					Value* nodesNextnameV = ObjGet(nodesNextV, "name");
 					MainCreateInfo.Name = GetStr(nodesNextnameV);
 				}
-				if ((tres = Object_Ref_Create_ResourceHeader(&iPositionHeader, MainCreateInfo, &PositionCreateInfo, ThreadIndex)) != (TEXRESULT)(Success))
+				if ((tres = Object_Ref_Create_ResourceHeader(&iPositionHeader, MainCreateInfo, &PositionCreateInfo, ThreadIndex)) != (Success))
 					return tres;
 			}
 			Object_Ref_Add_Object_ResourceHeaderChild(iPositionHeader, object->Header.Allocation);
@@ -1633,7 +1631,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 	free(ext);
 	free(basedirectory);
 	free(filedata.pData);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 void parse_g2d(Value* src_v, ObjectAllocation** piObjects, size_t* piObjectsSize, Object* parent, const UTF8* fileloc, RHeaderGraphicsWindow* pGraphicsWindow, RHeaderScene* pScene, uint32_t ThreadIndex)
@@ -1726,14 +1724,14 @@ void parse_g2d(Value* src_v, ObjectAllocation** piObjects, size_t* piObjectsSize
 				ResourceHeaderAllocation iButton;
 				{
 					RHeaderButtonCreateInfo CreateInfoAux;
-					memset(&CreateInfoAux, NULL, sizeof(CreateInfoAux));
+					memset(&CreateInfoAux, 0, sizeof(CreateInfoAux));
 					if (ObjGet(ButtonV, "CallbackSymbol") != NULL)
 					{
 						Value* ButtonCallbackSymbolV = ObjGet(ButtonV, "CallbackSymbol");
 						CreateInfoAux.CallbackSymbol = GetStr(ButtonCallbackSymbolV);
 					}
 					ResourceHeaderCreateInfo MainCreateInfoAux;
-					memset(&MainCreateInfoAux, NULL, sizeof(MainCreateInfoAux));
+					memset(&MainCreateInfoAux, 0, sizeof(MainCreateInfoAux));
 					MainCreateInfoAux.Identifier = (uint32_t)GUIHeader_Button;
 					MainCreateInfoAux.Name = Name;
 					Object_Ref_Create_ResourceHeader(&iButton, MainCreateInfoAux, &CreateInfoAux, ThreadIndex);
@@ -2139,7 +2137,7 @@ void parse_g2d(Value* src_v, ObjectAllocation** piObjects, size_t* piObjectsSize
 					CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
 				}
 			}
-			if (Object_Ref_Get_ResourceHeaderAllocationValidity(CreateInfoMaterial.BaseColourTexture.iTexture) == (TEXRESULT)(Success))
+			if (Object_Ref_Get_ResourceHeaderAllocationValidity(CreateInfoMaterial.BaseColourTexture.iTexture) == (Success))
 			{
 				CreateInfoMaterial.BaseColourMode = MaterialMode_Colour;
 			}
@@ -2296,7 +2294,7 @@ void parse_g2d(Value* src_v, ObjectAllocation** piObjects, size_t* piObjectsSize
 				else
 				{
 					GraphicsEffectCreateInfoGeneric2D Info2D;
-					memset(&Info2D, NULL, sizeof(Info2D));
+					memset(&Info2D, 0, sizeof(Info2D));
 
 					CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)GraphicsEffect_Generic2D;
 					CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info2D;
@@ -2371,10 +2369,10 @@ void parse_g2d(Value* src_v, ObjectAllocation** piObjects, size_t* piObjectsSize
 TEXRESULT Load_2Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow, RHeaderScene* pScene, uint32_t ThreadIndex){
 	TEXRESULT tres = Success;
 	FileData filedata;
-	if ((tres = Open_Data(&filedata, Path)) != (TEXRESULT)(Success))
+	if ((tres = Open_Data(&filedata, Path)) != (Success))
 	{
 		Engine_Ref_FunctionError("Load_2Dscene()", "Open_Data() Failed, TEXRESULT == ", tres);
-		return (TEXRESULT)(Invalid_Parameter);
+		return (Invalid_Parameter | Failure);
 	}
 	const UTF8* ext = Get_FilePathExtension(Path);
 	const UTF8* basedirectory = Get_FilePathRoot(Path);
@@ -2384,7 +2382,7 @@ TEXRESULT Load_2Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 	if ((Result = ParseFast(src_v, filedata.pData)) != true)
 	{
 		Engine_Ref_FunctionError("Load_2Dscene()", "ParseFast() Failed, Result == ", Result);
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 	if (ObjGet(src_v, "asset") != NULL)
 	{
@@ -2398,18 +2396,18 @@ TEXRESULT Load_2Dscene(const UTF8* Path, RHeaderGraphicsWindow* pGraphicsWindow,
 	free(ext);
 	free(basedirectory);
 	free(filedata.pData);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 
 #define ConverterErrorCheck(functionname)\
 if (src == NULL) {\
 	Engine_Ref_ArgsError(functionname, "Source == NULL ");\
-	return (TEXRESULT)(Invalid_Parameter);\
+	return (Invalid_Parameter | Failure);\
 }\
 if (dst == NULL) {\
 	Engine_Ref_ArgsError(functionname, "Destination == NULL ");\
-	return (TEXRESULT)(Invalid_Parameter);\
+	return (Invalid_Parameter | Failure);\
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2421,17 +2419,17 @@ TEXRESULT BMP_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	ConverterErrorCheck("BMP_To_TEXI");
 
 	TEXI_HEADER temph;
-	memset(&temph, NULL, sizeof(temph));
+	memset(&temph, 0, sizeof(temph));
 
 	BMP_HEADER* header = (BMP_HEADER*)src->pData;
 	if (strncmp(header->Signature, "BM", 2) != 0) //check if correct file
 	{
-		return (TEXRESULT)(Invalid_Format);
+		return (Invalid_Format | Failure);
 	}
 
 	BMP_BITMAPINFOHEADER* bitmapinfo = ((BMP_BITMAPINFOHEADER*)((uint64_t)src->pData + sizeof(BMP_HEADER)));
 
-	temph.LinearSize = (header->FileSize - header->DataOffset) + 1;
+	temph.LinearSize = (uint64_t)(header->FileSize - header->DataOffset) + 1;
 	temph.ImageSize = temph.LinearSize;
 	temph.Width = bitmapinfo->Width;
 	temph.Height = bitmapinfo->Height;
@@ -2493,7 +2491,7 @@ TEXRESULT BMP_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	memcpy(pdst->Data, pixeldata->data, pdst->LinearSize - 1); //copy pData
 	pdst->Data[temph.LinearSize - 1] = '\0';
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT TEXI_To_BMP(TEXI_HEADER* src, FileData* dst)
 {
@@ -2542,7 +2540,7 @@ TEXRESULT TEXI_To_BMP(TEXI_HEADER* src, FileData* dst)
 
 	((char*)dst->pData)[sizeoffile - 1] = '\0';
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2554,12 +2552,12 @@ TEXRESULT DDS_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	ConverterErrorCheck("DDS_To_TEXI");
 
 	TEXI_HEADER temph;
-	memset(&temph, NULL, sizeof(temph));
+	memset(&temph, 0, sizeof(temph));
 
 	DDS_HEADER* header = (DDS_HEADER*)src->pData;
 	if (strncmp(header->magic, "DDS ", 4) != 0) //check if correct file
 	{
-		return (TEXRESULT)(Invalid_Format);
+		return (Invalid_Format | Failure);
 	}
 
 	temph.Width = header->dwWidth;
@@ -2685,18 +2683,18 @@ TEXRESULT DDS_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	*dst = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + temph.LinearSize);
 	TEXI_HEADER* pdst = *dst;
 	if (pdst == NULL)
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 
 	memcpy(pdst, &temph, sizeof(TEXI_HEADER)); //copy header
 	memcpy(pdst->Data, pixeldata->data, pdst->LinearSize - 1); //copy pData
 	pdst->Data[temph.LinearSize - 1] = '\0';
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT TEXI_To_DDS(TEXI_HEADER* src, FileData* dst)
 {
 	ConverterErrorCheck("TEXI_To_DDS");
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2720,7 +2718,7 @@ TEXRESULT PNG_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	ConverterErrorCheck("PNG_To_TEXI");
 
 	TEXI_HEADER temph;
-	memset(&temph, NULL, sizeof(temph));
+	memset(&temph, 0, sizeof(temph));
 	
 	int x, y, n;
 	unsigned char* data = stbi_load_from_memory(src->pData, src->LinearSize, &x, &y, &n, 4);
@@ -2736,7 +2734,7 @@ TEXRESULT PNG_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	*dst = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + temph.LinearSize);
 	TEXI_HEADER* pdst = *dst;
 	if (pdst == NULL)
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 
 	memcpy(pdst, &temph, sizeof(TEXI_HEADER)); //copy header
 	memcpy(pdst->Data, data, pdst->LinearSize - 1); //copy pData
@@ -2746,7 +2744,7 @@ TEXRESULT PNG_To_TEXI(FileData* src, TEXI_HEADER** dst)
 
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT TEXI_To_PNG(TEXI_HEADER* src, FileData* dst)
 {
@@ -2757,13 +2755,13 @@ TEXRESULT TEXI_To_PNG(TEXI_HEADER* src, FileData* dst)
 	if (formatDetails.BitsPerChannel[0] != 8 || formatDetails.BitsPerChannel[1] != 8 || formatDetails.BitsPerChannel[2] != 8 || formatDetails.BitsPerChannel[3] != 8)
 	{
 		Engine_Ref_FunctionError("TEXI_To_TGA", "stb only supports 8 bit images.", 0);
-		return (TEXRESULT)(Invalid_Parameter);
+		return (Invalid_Parameter | Failure);
 	}
 	//ONLY SUPPORTS 8 BIT FORMATS
 	stbi_write_png_to_func(stbi_write_callback, dst, src->Width, src->Height, formatDetails.ChannelCount, src->Data, src->Width * formatDetails.Stride);
 
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2775,7 +2773,7 @@ TEXRESULT JPEG_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	ConverterErrorCheck("JPEG_To_TEXI");
 
 	TEXI_HEADER temph;
-	memset(&temph, NULL, sizeof(temph));
+	memset(&temph, 0, sizeof(temph));
 
 	int x, y, n;
 	unsigned char* data = stbi_load_from_memory(src->pData, src->LinearSize, &x, &y, &n, 4);
@@ -2791,7 +2789,7 @@ TEXRESULT JPEG_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	*dst = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + temph.LinearSize);
 	TEXI_HEADER* pdst = *dst;
 	if (pdst == NULL)
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 
 	memcpy(pdst, &temph, sizeof(TEXI_HEADER)); //copy header
 	memcpy(pdst->Data, data, pdst->LinearSize - 1); //copy pData
@@ -2799,7 +2797,7 @@ TEXRESULT JPEG_To_TEXI(FileData* src, TEXI_HEADER** dst)
 
 	free(data);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT TEXI_To_JPEG(TEXI_HEADER* src, FileData* dst)
 {
@@ -2810,12 +2808,12 @@ TEXRESULT TEXI_To_JPEG(TEXI_HEADER* src, FileData* dst)
 	if (formatDetails.BitsPerChannel[0] != 8 || formatDetails.BitsPerChannel[1] != 8 || formatDetails.BitsPerChannel[2] != 8 || formatDetails.BitsPerChannel[3] != 8)
 	{
 		Engine_Ref_FunctionError("TEXI_To_TGA", "stb only supports 8 bit images.", 0);
-		return (TEXRESULT)(Invalid_Parameter);
+		return (Invalid_Parameter | Failure);
 	}
 	//ONLY SUPPORTS 8 BIT FORMATS
 	stbi_write_jpg_to_func(stbi_write_callback, dst, src->Width, src->Height, formatDetails.ChannelCount, src->Data, 100);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2827,7 +2825,7 @@ TEXRESULT TGA_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	ConverterErrorCheck("TGA_To_TEXI");
 
 	TEXI_HEADER temph;
-	memset(&temph, NULL, sizeof(temph));
+	memset(&temph, 0, sizeof(temph));
 
 	int x, y, n;
 	unsigned char* data = stbi_load_from_memory(src->pData, src->LinearSize, &x, &y, &n, 4);
@@ -2843,7 +2841,7 @@ TEXRESULT TGA_To_TEXI(FileData* src, TEXI_HEADER** dst)
 	*dst = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + temph.LinearSize);
 	TEXI_HEADER* pdst = *dst;
 	if (pdst == NULL)
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 
 	memcpy(pdst, &temph, sizeof(TEXI_HEADER)); //copy header
 	memcpy(pdst->Data, data, pdst->LinearSize - 1); //copy pData
@@ -2851,7 +2849,7 @@ TEXRESULT TGA_To_TEXI(FileData* src, TEXI_HEADER** dst)
 
 	free(data);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT TEXI_To_TGA(TEXI_HEADER* src, FileData* dst)
 {
@@ -2862,12 +2860,12 @@ TEXRESULT TEXI_To_TGA(TEXI_HEADER* src, FileData* dst)
 	if (formatDetails.BitsPerChannel[0] != 8 || formatDetails.BitsPerChannel[1] != 8 || formatDetails.BitsPerChannel[2] != 8 || formatDetails.BitsPerChannel[3] != 8)
 	{
 		Engine_Ref_FunctionError("TEXI_To_TGA", "stb only supports 8 bit images.", 0);
-		return (TEXRESULT)(Invalid_Parameter);
+		return (Invalid_Parameter | Failure);
 	}
 	//ONLY SUPPORTS 8 BIT FORMATS
 	stbi_write_tga_to_func(stbi_write_callback, dst, src->Width, src->Height, formatDetails.ChannelCount, src->Data);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2877,26 +2875,26 @@ TEXRESULT TEXI_To_TGA(TEXI_HEADER* src, FileData* dst)
 TEXRESULT WAV_To_TEXA(FileData* src, TEXA_HEADER** dst)
 {
 	if (src == NULL)
-		return (TEXRESULT)(Failure);
+		return (Failure);
 
 	WAV_HEADER* header = (WAV_HEADER*)src->pData;
 	TEXA_HEADER temph;
-	memset(&temph, NULL, sizeof(temph));
+	memset(&temph, 0, sizeof(temph));
 	unsigned char* tempdata = NULL;
 
 	if (strncmp(header->ChunkID, "RIFF", 4) != 0) //check if correct file
 	{
-		return (TEXRESULT)(Invalid_Format);
+		return (Invalid_Format | Failure);
 	}
 	if (strncmp(header->ChunkID, "RIFX", 4) == 0) //big endian version 
 	{
-		return (TEXRESULT)(Invalid_Format);
+		return (Invalid_Format | Failure);
 	}
 
 	if (strncmp(header->Format, "WAVE", 4) != 0)
 	{
 
-		return (TEXRESULT)(Invalid_Format);
+		return (Invalid_Format | Failure);
 	}
 
 
@@ -2942,7 +2940,7 @@ TEXRESULT WAV_To_TEXA(FileData* src, TEXA_HEADER** dst)
 				break;
 			case 2: //if other then 1 read params;
 				//((WAV::fmt*)subchunk)->ExtraParamSize;
-				return (TEXRESULT)(Invalid_Format); //return failure for now because unsupported
+				return (Invalid_Format); //return failure for now because unsupported
 				break;
 			}
 
@@ -2953,24 +2951,24 @@ TEXRESULT WAV_To_TEXA(FileData* src, TEXA_HEADER** dst)
 
 	FormatDetails formatDetails = Audio_Ref_Get_FormatDetails(temph.Format);
 
-	temph.FrameCount = (uint32_t)temph.LinearSize / ((formatDetails.BitsPerChannel[0] / 8) * temph.ChannelCount);
+	temph.FrameCount = (uint64_t)temph.LinearSize / (((uint64_t)formatDetails.BitsPerChannel[0] / (uint64_t)8) * (uint64_t)temph.ChannelCount);
 
 	temph.LinearSize++;
 	TEXA_HEADER* pdst = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + temph.LinearSize);
 	if (pdst == NULL)
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 	*dst = pdst;
 	memcpy(pdst, &temph, sizeof(TEXA_HEADER)); //copy header
 	memcpy(pdst->Data, tempdata, pdst->LinearSize - 1); //copy pData
 	pdst->Data[temph.LinearSize - 1] = '\0';
 
 	free(tempdata);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 TEXRESULT TEXA_To_WAV(TEXA_HEADER* src, FileData* dst)
 {
 	if (src == NULL)
-		return (TEXRESULT)(Failure);
+		return (Failure);
 
 	FormatDetails formatDetails = Audio_Ref_Get_FormatDetails(src->Format);
 
@@ -3009,7 +3007,7 @@ TEXRESULT TEXA_To_WAV(TEXA_HEADER* src, FileData* dst)
 	((char*)dst->pData)[sizeoffile - 1] = '\0';
 	dst->LinearSize = sizeoffile;
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3036,7 +3034,7 @@ TEXRESULT Initialise_Formats()
 	Audio_Convert_Ref_Add_XtoTEXAconverter(&WAV_To_TEXA, wav);
 	Audio_Convert_Ref_Add_TEXAtoXconverter(&TEXA_To_WAV, wav);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Destroy_Formats()

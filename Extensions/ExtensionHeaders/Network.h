@@ -128,7 +128,7 @@ struct NetworkResStruct{
 
 void Network_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-    memset(&NetworkRes, NULL, sizeof(NetworkRes));
+    memset(&NetworkRes, 0, sizeof(NetworkRes));
 
     ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Network::Utils"), &NetworkRes.pUtils);
 

@@ -313,7 +313,7 @@ struct GUIResStruct
 //Initialise_Resources MUST be called to use the library in your dll
 void GUI_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&GUIRes, NULL, sizeof(GUIRes));
+	memset(&GUIRes, 0, sizeof(GUIRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"GUI::Utils"), &GUIRes.pUtils);
 }

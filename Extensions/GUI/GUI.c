@@ -34,7 +34,7 @@ volatile GUIUtils Utils;
 */
 FormatDetails Get_FT_pixelmodeDetails(FT_Pixel_Mode mode)
 {
-	FormatDetails details;
+	FormatDetails details = { sizeof(details) };
 	details.ChannelCount = FreetypeFormatChannelCounts[(uint32_t)mode];
 	details.ChannelTypes = (DataType*)FreetypeFormatDataType[(uint32_t)mode];
 	details.ChannelNames = (char*)FreetypeFormatChannelIndentifiers[(uint32_t)mode];
@@ -47,7 +47,7 @@ FormatDetails Get_FT_pixelmodeDetails(FT_Pixel_Mode mode)
 //Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Destroy_ButtonHeader(RHeaderButton* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_ButtonHeader(RHeaderButton* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {	
 	pResourceHeader->Callback_Function = NULL;
 	if (Full == true)
@@ -56,9 +56,10 @@ void Destroy_ButtonHeader(RHeaderButton* pResourceHeader, bool Full, uint32_t Th
 			free(pResourceHeader->CallbackSymbol);
 		pResourceHeader->CallbackSymbol = NULL;
 	}
+	return (Success);
 }
 
-void Destroy_FontHeader(RHeaderFont* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_FontHeader(RHeaderFont* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	if (pResourceHeader->FtFace != NULL)
 	{
@@ -66,7 +67,7 @@ void Destroy_FontHeader(RHeaderFont* pResourceHeader, bool Full, uint32_t Thread
 		if ((err = FT_Done_Face(pResourceHeader->FtFace)) != 0)
 		{
 			Engine_Ref_FunctionError("Destroy_FontHeader()", FT_Error_String(err), err);
-			return;
+			return (Failure);
 		}
 	}
 	pResourceHeader->FtFace = NULL;
@@ -76,19 +77,20 @@ void Destroy_FontHeader(RHeaderFont* pResourceHeader, bool Full, uint32_t Thread
 			free(pResourceHeader->Data.pData);
 		pResourceHeader->Data.pData = NULL;
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //ReCreate
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ReCreate_ButtonHeader(RHeaderButton* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_ButtonHeader(RHeaderButton* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (pResourceHeader->CallbackSymbol == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_ButtonHeader()", "pResourceHeader->CallbackSymbol == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	FunctionInfo Info;
@@ -96,34 +98,35 @@ void ReCreate_ButtonHeader(RHeaderButton* pResourceHeader, uint32_t ThreadIndex)
 	Info.Name = pResourceHeader->CallbackSymbol;
 	Info.ppFunction = (void**)&pResourceHeader->Callback_Function;
 	Engine_Ref_Resolve_FunctionSymbol(&Info);
+	return (Success);
 }
 
-void ReCreate_FontHeader(RHeaderFont* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_FontHeader(RHeaderFont* pResourceHeader, uint32_t ThreadIndex)
 {
 	FT_Error err = 0;
-
 	//recreate
 	if ((err = FT_New_Memory_Face(Utils.FtLibrary, (const FT_Byte*)pResourceHeader->Data.pData, pResourceHeader->Data.LinearSize, 0, &pResourceHeader->FtFace)) != 0)
 	{
 		Engine_Ref_FunctionError("ReCreate_FontHeader()", FT_Error_String(err), err);
-		return;
+		return (Failure);
 	}
 	if ((err = FT_Select_Charmap(pResourceHeader->FtFace, ft_encoding_unicode)) != 0)
 	{
 		Engine_Ref_FunctionError("ReCreate_FontHeader()", FT_Error_String(err), err);
-		return;
+		return (Failure);
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Pack_ButtonHeader(const RHeaderButton* pResourceHeader, RHeaderButton* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_ButtonHeader(const RHeaderButton* pResourceHeader, RHeaderButton* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedResourceHeader->Callback_Function, NULL, sizeof(pCopiedResourceHeader->Callback_Function));
+		memset(&pCopiedResourceHeader->Callback_Function, 0, sizeof(pCopiedResourceHeader->Callback_Function));
 
 		if (pResourceHeader->CallbackSymbol != NULL)
 		{
@@ -136,9 +139,10 @@ void Pack_ButtonHeader(const RHeaderButton* pResourceHeader, RHeaderButton* pCop
 	{
 		*pBufferPointer += sizeof(UTF8) * (strlen((char*)pResourceHeader->CallbackSymbol) + 1);
 	}
+	return (Success);
 }
 
-void Pack_FontHeader(const RHeaderFont* pResourceHeader, RHeaderFont* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_FontHeader(const RHeaderFont* pResourceHeader, RHeaderFont* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -155,13 +159,14 @@ void Pack_FontHeader(const RHeaderFont* pResourceHeader, RHeaderFont* pCopiedRes
 		if (pResourceHeader->Data.pData != NULL && pResourceHeader->Data.LinearSize != NULL)
 			*pBufferPointer += pResourceHeader->Data.LinearSize;
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Unpackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UnPack_ButtonHeader(const RHeaderButton* pResourceHeader, RHeaderButton* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_ButtonHeader(const RHeaderButton* pResourceHeader, RHeaderButton* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
 	if (pResourceHeader->CallbackSymbol != NULL)
 	{
@@ -170,17 +175,17 @@ void UnPack_ButtonHeader(const RHeaderButton* pResourceHeader, RHeaderButton* pC
 		pCopiedResourceHeader->CallbackSymbol = (UTF8*)malloc(sizeof(UTF8) * (strlen((char*)pText) + 1));
 		memcpy(pCopiedResourceHeader->CallbackSymbol, pText, sizeof(UTF8) * (strlen((char*)pText) + 1));	
 	}
-	ReCreate_ButtonHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_FontHeader(const RHeaderFont* pResourceHeader, RHeaderFont* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_FontHeader(const RHeaderFont* pResourceHeader, RHeaderFont* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
 	if (pResourceHeader->Data.pData != NULL && pResourceHeader->Data.LinearSize != NULL)
 	{
 		pCopiedResourceHeader->Data.pData = (unsigned char*)malloc(pResourceHeader->Data.LinearSize);
 		memcpy(pCopiedResourceHeader->Data.pData, (void*)((uint64_t)pData + (uint64_t)pResourceHeader->Data.pData), pResourceHeader->Data.LinearSize);
 	}
-	ReCreate_FontHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,14 +204,14 @@ TEXRESULT Create_ButtonHeader(RHeaderButton* pResourceHeader, RHeaderButtonCreat
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ButtonHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->CallbackSymbol = (UTF8*)CopyData((void*)pCreateInfo->CallbackSymbol);
 		ReCreate_ButtonHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderButton);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Create_FontHeader(RHeaderFont* pResourceHeader, RHeaderFontCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -221,17 +226,17 @@ TEXRESULT Create_FontHeader(RHeaderFont* pResourceHeader, RHeaderFontCreateInfo*
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_FontHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->Data.pData == NULL)
 		{
 			Engine_Ref_ArgsError("Create_FontHeader()", "Data.pData == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->Data.LinearSize == NULL)
 		{
 			Engine_Ref_ArgsError("Create_FontHeader()", "pCreateInfo->Data.LinearSize == NULL");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->Data.LinearSize = pCreateInfo->Data.LinearSize;
@@ -240,7 +245,7 @@ TEXRESULT Create_FontHeader(RHeaderFont* pResourceHeader, RHeaderFontCreateInfo*
 		ReCreate_FontHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderFont);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,7 +268,7 @@ void Draw_Text(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObje
 		vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
 
 		PushConstantsGeneric2D PushConstants2D;
-		memset(&PushConstants2D, NULL, sizeof(PushConstants2D));
+		memset(&PushConstants2D, 0, sizeof(PushConstants2D));
 		glm_mat4_copy(CameraVP, PushConstants2D.VP);
 		PushConstants2D.pad = pEffect->GPU_GraphicsEffectInfos[i].mode;
 		PushConstants2D.pad1 = pEffect->GPU_GraphicsEffectInfos[i].selected;
@@ -318,7 +323,7 @@ void UpdateSignature_Text(GraphicsEffectSignature* pSignature, RHeaderGraphicsWi
 //Effect Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Destroy_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 	if (pEffect->GPU_GraphicsEffectInfos != NULL)
@@ -346,26 +351,28 @@ void Destroy_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, bool F
 			vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
 		pEffect->VkShaderFragment = NULL;
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect Recreation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint32_t ThreadIndex)
+TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_Text()", "pElement == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pEffect == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_Text()", "pEffect == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	VkResult res = VK_SUCCESS;
 	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 
@@ -476,7 +483,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 				}
 				if (GlyphIndex == NULL) {
 					Engine_Ref_FunctionError("ReCreate_TextHeader()", "No Suitable Glyph Found. UTF32 == ", CurrentCodePoint);
-					return;
+					return (Failure);
 				}
 
 				bool alreadyrendered = false;
@@ -608,9 +615,8 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 			if (pImageSource1->ImageData != NULL)
 				free(pImageSource1->ImageData);
 
-			TEXRESULT res = Success;
-			if ((res = Graphics_Ref_Create_ImageAtlas(pTextImages1, pTextImages1Size, &pImageSource1->ImageData)) != Success)
-				return;
+			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages1, pTextImages1Size, &pImageSource1->ImageData)) != Success)
+				return tres;
 
 			for (size_t i = 0; i < pTextImages1Size; i++)
 				free(pTextImages1[i]);
@@ -622,9 +628,9 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 		{
 			if (pImageSource1->ImageData != NULL)
 				free(pImageSource1->ImageData);
-			TEXRESULT res = Success;
-			if ((res = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource1->ImageData)) != Success)
-				return;
+
+			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource1->ImageData)) != Success)
+				return tres;
 			//Object_Ref_ReCreate_ResourceHeader(pImageSource1->Header.Allocation);
 			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, &Texture1Instance, ThreadIndex);
 		}
@@ -633,9 +639,8 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 			if (pImageSource0->ImageData != NULL)
 				free(pImageSource0->ImageData);
 
-			TEXRESULT res = Success;
-			if ((res = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource0->ImageData)) != Success)
-				return;
+			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource0->ImageData)) != Success)
+				return tres;
 
 			for (size_t i = 0; i < pTextImages0Size; i++)
 				free(pTextImages0[i]);
@@ -692,7 +697,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 
 	uint32_t ShaderCount = 2;
 	VkPipelineShaderStageCreateInfo ShaderStages[2];
-	memset(ShaderStages, NULL, sizeof(*ShaderStages) * ShaderCount);
+	memset(ShaderStages, 0, sizeof(*ShaderStages) * ShaderCount);
 	ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	ShaderStages[0].module = pEffect->VkShaderVertex;
@@ -749,7 +754,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	//pipeline
 
 	VkPipelineVertexInputStateCreateInfo VertexInputInfo;
-	memset(&VertexInputInfo, NULL, sizeof(VertexInputInfo));
+	memset(&VertexInputInfo, 0, sizeof(VertexInputInfo));
 	VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
 	VertexInputInfo.vertexBindingDescriptionCount = (uint32_t)InputBindingDescsSize;
@@ -760,7 +765,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 
 
 	VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
-	memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
+	memset(&InputAssemblyState, 0, sizeof(InputAssemblyState));
 	InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	InputAssemblyState.primitiveRestartEnable = VK_FALSE;
@@ -780,7 +785,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	Scissor.extent.height = pGraphicsWindow->CurrentExtentHeight;
 
 	VkPipelineViewportStateCreateInfo ViewportState;
-	memset(&ViewportState, NULL, sizeof(ViewportState));
+	memset(&ViewportState, 0, sizeof(ViewportState));
 	ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	ViewportState.viewportCount = 1; //multi screeen~?!?!??!!?
 	ViewportState.pViewports = &Viewport;
@@ -788,7 +793,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	ViewportState.pScissors = &Scissor;
 
 	VkPipelineRasterizationStateCreateInfo RasterizationState;
-	memset(&RasterizationState, NULL, sizeof(RasterizationState));
+	memset(&RasterizationState, 0, sizeof(RasterizationState));
 	RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	RasterizationState.depthClampEnable = VK_FALSE;
 	RasterizationState.rasterizerDiscardEnable = VK_FALSE;
@@ -802,7 +807,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	RasterizationState.depthBiasSlopeFactor = 0.0f; // Optional
 
 	VkPipelineMultisampleStateCreateInfo MultisampleState;
-	memset(&MultisampleState, NULL, sizeof(MultisampleState));
+	memset(&MultisampleState, 0, sizeof(MultisampleState));
 	MultisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	MultisampleState.sampleShadingEnable = VK_FALSE;
 	MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -812,7 +817,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	MultisampleState.alphaToOneEnable = VK_FALSE; // Optional
 
 	VkPipelineColorBlendAttachmentState ColourBlendAttachment;
-	memset(&ColourBlendAttachment, NULL, sizeof(ColourBlendAttachment));
+	memset(&ColourBlendAttachment, 0, sizeof(ColourBlendAttachment));
 	ColourBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	ColourBlendAttachment.blendEnable = VK_TRUE;
 	ColourBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -823,18 +828,18 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	ColourBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendAttachmentState ColourBlendAttachmentDeffered;
-	memset(&ColourBlendAttachmentDeffered, NULL, sizeof(ColourBlendAttachmentDeffered));
+	memset(&ColourBlendAttachmentDeffered, 0, sizeof(ColourBlendAttachmentDeffered));
 	ColourBlendAttachmentDeffered.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	VkPipelineColorBlendAttachmentState attachments[4] = { ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment };
 	VkPipelineColorBlendStateCreateInfo ColourBlending;
-	memset(&ColourBlending, NULL, sizeof(ColourBlending));
+	memset(&ColourBlending, 0, sizeof(ColourBlending));
 	ColourBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	ColourBlending.attachmentCount = 2;
 	ColourBlending.pAttachments = attachments;
 
 	VkPipelineDepthStencilStateCreateInfo DepthStencil;
-	memset(&DepthStencil, NULL, sizeof(DepthStencil));
+	memset(&DepthStencil, 0, sizeof(DepthStencil));
 	DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	DepthStencil.depthTestEnable = VK_TRUE;
 	DepthStencil.depthWriteEnable = VK_TRUE;
@@ -848,7 +853,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 	uint32_t statesSize = 2;
 	VkDynamicState states[2] = { VK_DYNAMIC_STATE_VIEWPORT , VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo DynamicStates;
-	memset(&DynamicStates, NULL, sizeof(DynamicStates));
+	memset(&DynamicStates, 0, sizeof(DynamicStates));
 	DynamicStates.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	DynamicStates.dynamicStateCount = statesSize;
 	DynamicStates.pDynamicStates = states;
@@ -856,7 +861,7 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 
 	{
 		VkGraphicsPipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		switch (pMaterial->AlphaMode)
 		{
 		case AlphaMode_Opaque:
@@ -893,27 +898,28 @@ void ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint3
 		if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipeline)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_Generic2D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Pack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectText* pEffect, GraphicsEffectText* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectText* pEffect, GraphicsEffectText* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedEffect->VkPipeline, NULL, sizeof(pCopiedEffect->VkPipeline));
+		memset(&pCopiedEffect->VkPipeline, 0, sizeof(pCopiedEffect->VkPipeline));
 
-		memset(&pCopiedEffect->GPU_GraphicsEffectInfos, NULL, sizeof(pCopiedEffect->GPU_GraphicsEffectInfos));
-		memset(&pCopiedEffect->GPU_GraphicsEffectInfosSize, NULL, sizeof(pCopiedEffect->GPU_GraphicsEffectInfosSize));
+		memset(&pCopiedEffect->GPU_GraphicsEffectInfos, 0, sizeof(pCopiedEffect->GPU_GraphicsEffectInfos));
+		memset(&pCopiedEffect->GPU_GraphicsEffectInfosSize, 0, sizeof(pCopiedEffect->GPU_GraphicsEffectInfosSize));
 
-		memset(&pCopiedEffect->VkShaderVertex, NULL, sizeof(pCopiedEffect->VkShaderVertex));
-		memset(&pCopiedEffect->VkShaderFragment, NULL, sizeof(pCopiedEffect->VkShaderFragment));
+		memset(&pCopiedEffect->VkShaderVertex, 0, sizeof(pCopiedEffect->VkShaderVertex));
+		memset(&pCopiedEffect->VkShaderFragment, 0, sizeof(pCopiedEffect->VkShaderFragment));
 
 
 		if (pEffect->UTF8_Text != NULL)
@@ -927,13 +933,14 @@ void Pack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElement,
 	{
 		*pBufferPointer += strlen((char*)pEffect->UTF8_Text) + 1;
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect UnPackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UnPack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectText* pEffect, GraphicsEffectText* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectText* pEffect, GraphicsEffectText* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
 {
 	if (pEffect->UTF8_Text != NULL)
 	{
@@ -941,7 +948,7 @@ void UnPack_Text(const ElementGraphics* pElement, ElementGraphics* pCopiedElemen
 		pCopiedEffect->UTF8_Text = (UTF8*)malloc(strlen((char*)pText) + 1);
 		memcpy(pCopiedEffect->UTF8_Text, pText, strlen((char*)pText) + 1);
 	}
-	ReCreate_Text(pCopiedElement, pCopiedEffect, ThreadIndex);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -960,7 +967,7 @@ TEXRESULT Create_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, Gr
 		if (pEffectCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_Text()", "pEffectCreateInfo == NULLPTR");
-			return (TEXRESULT)Invalid_Parameter;
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		glm_vec2_copy(pEffectCreateInfo->Size, pEffect->Size);
@@ -979,7 +986,7 @@ TEXRESULT Create_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, Gr
 		ReCreate_Text(pElement, pEffect, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(GraphicsEffectText) + (sizeof(ResourceHeaderAllocation) * pEffectCreateInfo->pFontsSize);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1101,7 +1108,7 @@ TEXRESULT Update_GUI()
 
 TEXRESULT Initialise_GUI()
 {
-	memset(&Utils, NULL, sizeof(Utils));
+	memset(&Utils, 0, sizeof(Utils));
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Config
@@ -1162,9 +1169,9 @@ TEXRESULT Initialise_GUI()
 	if ((err = FT_Init_FreeType(&Utils.FtLibrary)) != 0)
 	{
 		Engine_Ref_FunctionError("Initialise_GUI()", FT_Error_String(err), err);
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Destroy_GUI()
@@ -1197,8 +1204,8 @@ TEXRESULT Destroy_GUI()
 	}
 	Utils.FtLibrary = NULL;
 
-	//memset(&Utils, NULL, sizeof(Utils));
-	//memset(&Config, NULL, sizeof(Config));
+	//memset(&Utils, 0, sizeof(Utils));
+	//memset(&Config, 0, sizeof(Config));
 	return Success;
 }
 

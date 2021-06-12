@@ -39,6 +39,9 @@ volatile struct
 
 	uint32_t MaxAnisotropy;
 	bool AnisotropicFiltering;
+
+
+	bool Active_GPU_MemoryResizing; //set to true for gpu buffers to be automatically managed.
 }Config;
 
 volatile GraphicsUtils Utils;
@@ -113,7 +116,7 @@ bool Get_AttributeTypeCompatibility(Attribute attribute)
 */
 FormatDetails Get_FormatDetails(GraphicsFormat format)
 {
-	FormatDetails details;
+	FormatDetails details = { sizeof(details) };
 	details.ChannelCount = GraphicsFormatChannelCounts[format];	
 	details.ChannelTypes = (DataType*)GraphicsFormatDataType[format];
 	details.ChannelNames = (char*)GraphicsFormatChannelIndentifiers[format];
@@ -184,7 +187,7 @@ void Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent)
 						uint64_t size = pAnimationChannelHeader->Sampler.Output.Type;
 						if (pAnimationChannelHeader->Sampler.Interpolation == InterpolationType_Cubicspline)
 						{
-							size = (pAnimationChannelHeader->Sampler.Output.Type * 3);
+							size = (uint64_t)(pAnimationChannelHeader->Sampler.Output.Type * 3);
 						}
 
 						//convert pData from datatypes
@@ -425,12 +428,12 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("Create_GPU_ArenaAllocater()", "pLogicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pAllocater == NULL)
 	{
 		Engine_Ref_ArgsError("Create_GPU_ArenaAllocater()", "pAllocater == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	Engine_Ref_Create_Mutex(pAllocater->mutex, MutexType_Plain);
@@ -438,7 +441,7 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 	Resize_Array((void**)&pAllocater->Allocations, pAllocater->AllocationsSize, pAllocater->AllocationsSize + 2, sizeof(*pAllocater->Allocations));
 	pAllocater->AllocationsSize += 2;
 	pAllocater->Size = Size;
-	GPU_Allocation alloc; //first cap
+	GPU_Allocation alloc = { sizeof(alloc) }; //first cap
 	alloc.Pointer = 0;
 	alloc.SizeBytes = 0;
 	//alloc.AllocationType = AllocationType_Linear;
@@ -464,7 +467,7 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 		VkResult res = VK_SUCCESS;
 		{
 			VkBufferCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 			Info.size = pAllocater->Size;
 			Info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
@@ -478,7 +481,7 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 			if (vkCreateBuffer(pLogicalDevice->VkLogicalDevice, &Info, NULL, &NewVkBuffer) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Create_GPU_MemoryBuffer()", "vkCreateBuffer Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 		VkMemoryRequirements memRequirements;
@@ -496,7 +499,7 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 			break;
 		}
 		{
-			VkMemoryAllocateInfo AllocationInfo;
+			VkMemoryAllocateInfo AllocationInfo = { sizeof(AllocationInfo) };
 			AllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 			AllocationInfo.allocationSize = memRequirements.size;
 			AllocationInfo.memoryTypeIndex = Check_Memory(pLogicalDevice->pPhysicalDevice, memRequirements.memoryTypeBits, properties);
@@ -504,13 +507,13 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 			if (AllocationInfo.memoryTypeIndex == UINT32_MAX)
 			{
 				Engine_Ref_FunctionError("Create_GPU_MemoryBuffer()", "Failed To Find Suitable Memory, MemoryTypeIndex == ", AllocationInfo.memoryTypeIndex);
-				return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+				return (Out_Of_Memory_Result | Failure);
 			}
 
 			if ((res = vkAllocateMemory(pLogicalDevice->VkLogicalDevice, &AllocationInfo, NULL, &NewVkMemory)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Create_GPU_MemoryBuffer()", "vkAllocateMemory Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 
@@ -521,7 +524,7 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 		if (Type == TargetMemory_Src)
 			vkMapMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory, 0, pAllocater->Size, 0, &pAllocater->MappedMemory);
 	}
-	return Success;
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -536,7 +539,7 @@ void Destroy_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllocate
 	if (pAllocater == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_GPU_ArenaAllocater()", "pAllocater == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 
@@ -575,12 +578,12 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_GPU_ArenaAllocater()", "pLogicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pAllocater == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_GPU_ArenaAllocater()", "pAllocater == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 
@@ -603,7 +606,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 		VkResult res = VK_SUCCESS;
 		{
 			VkBufferCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 			Info.size = NewSize;
 			Info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
@@ -617,7 +620,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			if (vkCreateBuffer(pLogicalDevice->VkLogicalDevice, &Info, NULL, &NewVkBuffer) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "vkCreateBuffer Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 		VkMemoryRequirements memRequirements;
@@ -635,7 +638,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			break;
 		}
 		{
-			VkMemoryAllocateInfo AllocationInfo;
+			VkMemoryAllocateInfo AllocationInfo = { sizeof(AllocationInfo) };
 			AllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 			AllocationInfo.allocationSize = memRequirements.size;
 			AllocationInfo.memoryTypeIndex = Check_Memory(pLogicalDevice->pPhysicalDevice, memRequirements.memoryTypeBits, properties);
@@ -643,13 +646,13 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			if (AllocationInfo.memoryTypeIndex == UINT32_MAX)
 			{
 				Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "Failed To Find Suitable Memory, MemoryTypeIndex == ", AllocationInfo.memoryTypeIndex);
-				return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+				return (Out_Of_Memory_Result | Failure);
 			}
 
 			if ((res = vkAllocateMemory(pLogicalDevice->VkLogicalDevice, &AllocationInfo, NULL, &NewVkMemory)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "vkAllocateMemory Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 
@@ -665,19 +668,19 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			VkCommandBuffer VkCmdBuffer = NULL;
 			{
 				VkCommandPoolCreateInfo Info;
-				memset(&Info, NULL, sizeof(Info));
+				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 				Info.queueFamilyIndex = pLogicalDevice->MemoryQueueFamilyIndex;
 				Info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 				if ((res = vkCreateCommandPool(pLogicalDevice->VkLogicalDevice, &Info, NULL, &VkCmdPool)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "vkCreateCommandPool Failed, VkResult == ", res);
-					return;
+					return (Failure);
 				}
 			}
 			{
 				VkCommandBufferAllocateInfo Info;
-				memset(&Info, NULL, sizeof(Info));
+				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 				Info.commandPool = VkCmdPool;
 				Info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -686,12 +689,12 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 				if ((res = vkAllocateCommandBuffers(pLogicalDevice->VkLogicalDevice, &Info, &VkCmdBuffer)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "vkAllocateCommandBuffers Failed, VkResult == ", res);
-					return;
+					return (Failure);
 				}
 			}
 			{
 				VkCommandBufferBeginInfo BeginInfo;
-				memset(&BeginInfo, NULL, sizeof(BeginInfo));
+				memset(&BeginInfo, 0, sizeof(BeginInfo));
 				BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 				BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 				BeginInfo.pInheritanceInfo = NULL;
@@ -699,11 +702,11 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 				if ((res = vkBeginCommandBuffer(VkCmdBuffer, &BeginInfo)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "vkBeginCommandBuffer Failed, VkResult == ", res);
-					return;
+					return (Failure);
 				}
 			}
 
-			VkBufferCopy region;
+			VkBufferCopy region = { sizeof(region) };
 			region.srcOffset = 0;
 			region.dstOffset = 0;
 			region.size = min(pAllocater->Size, NewSize);
@@ -737,7 +740,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			vkGetDeviceQueue(pLogicalDevice->VkLogicalDevice, pLogicalDevice->MemoryQueueFamilyIndex, QueueIndex, &Queue);
 
 			VkSubmitInfo SubmitInfo;
-			memset(&SubmitInfo, NULL, sizeof(SubmitInfo));
+			memset(&SubmitInfo, 0, sizeof(SubmitInfo));
 			SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 			SubmitInfo.commandBufferCount = (uint32_t)1;
 			SubmitInfo.pCommandBuffers = &VkCmdBuffer;
@@ -745,7 +748,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, VK_NULL_HANDLE)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_GPU_ArenaAllocater()", "vkQueueSubmit Failed, VkResult == ", res);
-				return;
+				return (Failure);
 			}
 
 			vkQueueWaitIdle(Queue);
@@ -764,8 +767,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			vkMapMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory, 0, pAllocater->Size, 0, &pAllocater->MappedMemory);
 	}
 	pAllocater->Size = NewSize;
-
-	return Success;
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -825,17 +827,17 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Create_GPU_MemoryBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("Create_GPU_MemoryBuffer()", "pLogicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Size == NULL)
 	{
 		Engine_Ref_ArgsError("Create_GPU_MemoryBuffer()", "Size == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	pBuffer->ArenaAllocaters = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));
@@ -843,7 +845,7 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 	if (pBuffer->ArenaAllocaters == NULL || pBuffer->Indexes == NULL)
 	{
 		Engine_Ref_FunctionError("Create_GPU_MemoryBuffer()", "Out Of Memory.", pBuffer->ArenaAllocaters);
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result);
 	}
 	
 	Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
@@ -852,7 +854,7 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 
 	pBuffer->Size = Size;
 	pBuffer->Alignment = pBuffer->ArenaAllocaters[0].Alignment;
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -864,27 +866,27 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Resize_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize, TargetMemoryType Type)
+TEXRESULT ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize, TargetMemoryType Type)
 {
 #ifndef NDEBUG
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_GPU_MemoryBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_GPU_MemoryBuffer()", "pLogicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (NewSize == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_GPU_MemoryBuffer()", "NewSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-
-	return (TEXRESULT)(Success);
+	Engine_Ref_FunctionError("Resize_GPU_MemoryBuffer()", "doesnt work.", 0);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -899,7 +901,7 @@ TEXRESULT Resize_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements MemoryRequirements, TargetMemoryType TargetMemory, AllocationType Type, uint32_t ThreadIndex)
 {
 	GPU_Allocation newalloc;
-	memset(&newalloc, NULL, sizeof(newalloc));
+	memset(&newalloc, 0, sizeof(newalloc));
 #ifndef NDEBUG
 	if (pLogicalDevice == NULL)
 	{
@@ -928,7 +930,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		if (TargetBuffer == NULL)
 		{
 			Engine_Ref_FunctionError("GPUmalloc()", "TargetBuffer == ", NULL);
-			memset(&newalloc, NULL, sizeof(GPU_Allocation));
+			memset(&newalloc, 0, sizeof(GPU_Allocation));
 			return newalloc;
 		}
 		GPU_ArenaAllocater* pArenaAllocater = NULL;		
@@ -951,13 +953,14 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		if (pArenaAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("GPUmalloc()", "Arena Allocater could not be found. ", pArenaAllocater);
-			memset(&newalloc, NULL, sizeof(GPU_Allocation));
+			memset(&newalloc, 0, sizeof(GPU_Allocation));
 			return newalloc;
 		}
 		uint64_t Pointer = 0;
 		uint64_t sizeofblock = 0;
 		uint64_t it = 0;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+		uint64_t i11 = 0;
+		while (true)
 		{
 			for (it = 0; it < pArenaAllocater->AllocationsSize - 1; it++)
 			{
@@ -970,15 +973,18 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 			{
 				Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
 				TargetBuffer->Indexes[ThreadIndex] = (TargetBuffer->Indexes[ThreadIndex] + 1) % ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads;
-				if (i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads)
+				if (i11 < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads)
 				{
 					pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
 					Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
+					if (pArenaAllocater->Size == 0)
+						ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+					i11++;
 				}
 				else
 				{
 					Engine_Ref_FunctionError("GPUmalloc()", "Not Enough Space In GPU Memory!, Resize buffer!, Blocksize == ", sizeofblock);
-					memset(&newalloc, NULL, sizeof(GPU_Allocation));
+					memset(&newalloc, 0, sizeof(GPU_Allocation));
 					return newalloc;
 				}
 			}
@@ -1000,7 +1006,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 	}
 	else if (Type == AllocationType_Discrite)
 	{
-		VkMemoryAllocateInfo AllocateInfo;
+		VkMemoryAllocateInfo AllocateInfo = { sizeof(AllocateInfo) };
 		AllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		AllocateInfo.allocationSize = AlignedSize;
 		AllocateInfo.pNext = NULL;
@@ -1016,7 +1022,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		if (AllocateInfo.memoryTypeIndex == UINT32_MAX)
 		{
 			Engine_Ref_FunctionError("GPUmalloc()", "Failed To Find Suitable Memory, MemoryTypeIndex == ", AllocateInfo.memoryTypeIndex);
-			memset(&newalloc, NULL, sizeof(GPU_Allocation));
+			memset(&newalloc, 0, sizeof(GPU_Allocation));
 			return newalloc;
 		}
 		vkAllocateMemory(pLogicalDevice->VkLogicalDevice, &AllocateInfo, NULL, &newalloc.Allocater.VkMemory);
@@ -1077,20 +1083,20 @@ void GPUfree(LogicalDevice* pLogicalDevice, GPU_Allocation* pAllocation)
 			{
 				RemoveMember_Array((void**)&pArenaAllocater->Allocations, pArenaAllocater->AllocationsSize, i, sizeof(*pArenaAllocater->Allocations), 1);
 				pArenaAllocater->AllocationsSize -= 1;
-				memset(pAllocation, NULL, sizeof(*pAllocation));
+				memset(pAllocation, 0, sizeof(*pAllocation));
 				Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
 				return;
 			}
 		}
 		Engine_Ref_FunctionError("GPUfree()", "Allocation Is Invalid.", NULL);
-		memset(pAllocation, NULL, sizeof(*pAllocation));
+		memset(pAllocation, 0, sizeof(*pAllocation));
 		Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
 		return;
 	}
 	else if (pAllocation->AllocationType == AllocationType_Discrite)
 	{
 		vkFreeMemory(pLogicalDevice->VkLogicalDevice, pAllocation->Allocater.VkMemory, NULL);
-		memset(pAllocation, NULL, sizeof(*pAllocation));
+		memset(pAllocation, 0, sizeof(*pAllocation));
 		return;
 	}
 }
@@ -1105,12 +1111,12 @@ TEXRESULT Add_XtoTEXIconverter(ConvertXtoTEXI* Converter, uint32_t Identifier)
 	if (Converter == NULL)
 	{
 		Engine_Ref_ArgsError("Add_XtoTEXIconverter()", "Converter == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Add_XtoTEXIconverter()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	Engine_Ref_Lock_Mutex(Utils.ConvertersToTEXIMutex);
@@ -1119,7 +1125,7 @@ TEXRESULT Add_XtoTEXIconverter(ConvertXtoTEXI* Converter, uint32_t Identifier)
 	Utils.ConvertersToTEXI[Utils.ConvertersToTEXISize].Identifier = Identifier;
 	Utils.ConvertersToTEXISize++;
 	Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXIMutex);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Add_TEXItoXconverter(ConvertTEXItoX* Converter, uint32_t Identifier)
@@ -1128,12 +1134,12 @@ TEXRESULT Add_TEXItoXconverter(ConvertTEXItoX* Converter, uint32_t Identifier)
 	if (Converter == NULL)
 	{
 		Engine_Ref_ArgsError("Add_TEXItoXconverter()", "Converter == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Add_TEXItoXconverter()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	Engine_Ref_Lock_Mutex(Utils.ConvertersFromTEXIMutex);
@@ -1142,7 +1148,7 @@ TEXRESULT Add_TEXItoXconverter(ConvertTEXItoX* Converter, uint32_t Identifier)
 	Utils.ConvertersFromTEXI[Utils.ConvertersFromTEXISize].Identifier = Identifier;
 	Utils.ConvertersFromTEXISize++;
 	Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXIMutex);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Remove_XtoTEXIconverter(uint32_t Identifier)
@@ -1151,7 +1157,7 @@ TEXRESULT Remove_XtoTEXIconverter(uint32_t Identifier)
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Remove_XtoTEXIconverter()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	Engine_Ref_Lock_Mutex(Utils.ConvertersToTEXIMutex);
@@ -1162,12 +1168,12 @@ TEXRESULT Remove_XtoTEXIconverter(uint32_t Identifier)
 			RemoveMember_Array((void**)&Utils.ConvertersToTEXI, Utils.ConvertersToTEXISize, i, sizeof(*Utils.ConvertersToTEXI), 1);
 			Utils.ConvertersToTEXISize--;
 			Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXIMutex);
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Remove_XtoTEXIconverter()", "Identifier Invalid.");
 	Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXIMutex);
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 TEXRESULT Remove_TEXItoXconverter(uint32_t Identifier)
@@ -1176,7 +1182,7 @@ TEXRESULT Remove_TEXItoXconverter(uint32_t Identifier)
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Remove_TEXItoXconverter()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	Engine_Ref_Lock_Mutex(Utils.ConvertersFromTEXIMutex);
@@ -1187,12 +1193,12 @@ TEXRESULT Remove_TEXItoXconverter(uint32_t Identifier)
 			RemoveMember_Array((void**)&Utils.ConvertersFromTEXI, Utils.ConvertersFromTEXISize, i, sizeof(*Utils.ConvertersFromTEXI), 1);
 			Utils.ConvertersFromTEXISize--;
 			Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXIMutex);
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Remove_TEXItoXconverter()", "Identifier Invalid.");
 	Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXIMutex);
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 TEXRESULT XtoTEXI(FileData* Src, TEXI_HEADER** Dst, uint32_t Identifier) //converts all supported formats to TEXI 
@@ -1201,17 +1207,17 @@ TEXRESULT XtoTEXI(FileData* Src, TEXI_HEADER** Dst, uint32_t Identifier) //conve
 	if (Src == NULL)
 	{
 		Engine_Ref_ArgsError("XtoTEXI()", "Src == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Dst == NULL)
 	{
 		Engine_Ref_ArgsError("XtoTEXI()", "Dst == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("XtoTEXI()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	for (size_t i = 0; i < Utils.ConvertersToTEXISize; i++)
@@ -1223,7 +1229,7 @@ TEXRESULT XtoTEXI(FileData* Src, TEXI_HEADER** Dst, uint32_t Identifier) //conve
 		}
 	}
 	Engine_Ref_ArgsError("XtoTEXI()", "Identifier Invalid.");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 TEXRESULT TEXItoX(TEXI_HEADER* Src, FileData* Dst, uint32_t Identifier) //converts all supported formats from texi 
@@ -1232,17 +1238,17 @@ TEXRESULT TEXItoX(TEXI_HEADER* Src, FileData* Dst, uint32_t Identifier) //conver
 	if (Src == NULL)
 	{
 		Engine_Ref_ArgsError("TEXItoX()", "Src == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Dst == NULL)
 	{
 		Engine_Ref_ArgsError("TEXItoX()", "Dst == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("TEXItoX()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	for (size_t i = 0; i < Utils.ConvertersFromTEXISize; i++)
@@ -1254,7 +1260,7 @@ TEXRESULT TEXItoX(TEXI_HEADER* Src, FileData* Dst, uint32_t Identifier) //conver
 		}
 	}
 	Engine_Ref_ArgsError("TEXItoX()", "Identifier Invalid.");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1267,7 +1273,7 @@ TEXRESULT Register_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("Register_GraphicsEffectSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif 
 	Engine_Ref_Lock_Mutex(Utils.GraphicsEffectSignaturesMutex);
@@ -1277,7 +1283,7 @@ TEXRESULT Register_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
 		{
 			Engine_Ref_ArgsError("Register_GraphicsEffectSignature()", "Signature->Identifier Already Used.");
 			Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 	}
 
@@ -1285,7 +1291,7 @@ TEXRESULT Register_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
 	Utils.GraphicsEffectSignatures[Utils.GraphicsEffectSignaturesSize] = pSignature;
 	Utils.GraphicsEffectSignaturesSize += 1;
 	Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT DeRegister_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
@@ -1294,7 +1300,7 @@ TEXRESULT DeRegister_GraphicsEffectSignature(GraphicsEffectSignature* pSignature
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("DeRegister_GraphicsEffectSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	Engine_Ref_Lock_Mutex(Utils.GraphicsEffectSignaturesMutex);
@@ -1305,12 +1311,12 @@ TEXRESULT DeRegister_GraphicsEffectSignature(GraphicsEffectSignature* pSignature
 			RemoveMember_Array((void**)&Utils.GraphicsEffectSignatures, Utils.GraphicsEffectSignaturesSize, i, sizeof(*Utils.GraphicsEffectSignatures), 1);
 			Utils.GraphicsEffectSignaturesSize -= 1;
 			Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("DeRegister_GraphicsEffectSignature()", "pSignature Not Found.");
 	Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 TEXRESULT Find_GraphicsEffectSignature(GraphicsEffectIdentifier Identifier, GraphicsEffectSignature** ppSignature, GraphicsEffectBufferIndex* pBufferIndex)
@@ -1319,12 +1325,12 @@ TEXRESULT Find_GraphicsEffectSignature(GraphicsEffectIdentifier Identifier, Grap
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Find_GraphicsEffectSignature()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (ppSignature == NULL)
 	{
 		Engine_Ref_ArgsError("Find_GraphicsEffectSignature()", "ppSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
@@ -1335,11 +1341,11 @@ TEXRESULT Find_GraphicsEffectSignature(GraphicsEffectIdentifier Identifier, Grap
 				*ppSignature = Utils.GraphicsEffectSignatures[i];
 			if (pBufferIndex != NULL)
 				*pBufferIndex = i;
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Find_GraphicsEffectSignature()", "Identifier Invalid");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 TEXRESULT Get_GraphicsEffect(ElementGraphics* pElement, GraphicsEffectIdentifier Identifier, void** pReturnEffect)
@@ -1348,12 +1354,12 @@ TEXRESULT Get_GraphicsEffect(ElementGraphics* pElement, GraphicsEffectIdentifier
 	if (pElement == NULL)
 	{
 		Engine_Ref_ArgsError("Get_GraphicsEffect()", "pElement == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pReturnEffect == NULL)
 	{
 		Engine_Ref_ArgsError("Get_GraphicsEffect()", "pReturnEffect == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	uint64_t pointer = 0;
@@ -1363,12 +1369,12 @@ TEXRESULT Get_GraphicsEffect(ElementGraphics* pElement, GraphicsEffectIdentifier
 		if (pEffect->Header.Identifier == Identifier)
 		{
 			*pReturnEffect = pEffect;
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
 	Engine_Ref_ArgsError("Get_GraphicsEffect()", "Effect Not Found.");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1382,8 +1388,7 @@ TEXRESULT Get_GraphicsEffect(ElementGraphics* pElement, GraphicsEffectIdentifier
 TEXRESULT Create_DummyTEXI(TEXI_HEADER** pDst, GraphicsFormat Format, uint64_t Width, uint64_t Height, uint64_t Depth, uint64_t MipmapCount, uint64_t InitialSize, uint64_t ImageSize)
 {
 	TEXI_HEADER* tempdstheader = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + InitialSize);
-	memset(tempdstheader, NULL, sizeof(TEXI_HEADER) + InitialSize);
-
+	memset(tempdstheader, 0, sizeof(TEXI_HEADER) + InitialSize);
 	tempdstheader->Format = Format;
 	tempdstheader->Width = Width;
 	tempdstheader->Height = Height;
@@ -1392,7 +1397,7 @@ TEXRESULT Create_DummyTEXI(TEXI_HEADER** pDst, GraphicsFormat Format, uint64_t W
 	tempdstheader->ImageSize = ImageSize;
 	tempdstheader->LinearSize = InitialSize;
 	*pDst = tempdstheader;
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1407,17 +1412,17 @@ TEXRESULT Create_ImageAtlas(TEXI_HEADER** pSrcImages, uint64_t pSrcImagesSize, T
 	if (pSrcImages == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ImageAtlas()", "pSrcImages == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pSrcImagesSize == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ImageAtlas()", "pSrcImagesSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (ppDstImage == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ImageAtlas()", "ppDstImage == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	FormatDetails formatdetails = Get_FormatDetails(pSrcImages[0]->Format);
@@ -1448,7 +1453,7 @@ TEXRESULT Create_ImageAtlas(TEXI_HEADER** pSrcImages, uint64_t pSrcImagesSize, T
 	//image.Data.height = largtexheightR;
 	//image.Data.width = fwidth;
 
-	TEXRESULT res = Success;
+	TEXRESULT res = (Success);
 	if ((res = Graphics_Ref_Create_DummyTEXI(ppDstImage, pSrcImages[0]->Format, TotalWidth, LargestImageHeight, 1, 1,
 		(TotalWidth * LargestImageHeight) * (formatdetails.Stride / 8), (TotalWidth * LargestImageHeight) * (formatdetails.Stride / 8))) != Success)
 		return res;
@@ -1466,14 +1471,14 @@ TEXRESULT Create_ImageAtlas(TEXI_HEADER** pSrcImages, uint64_t pSrcImagesSize, T
 			}
 			else
 			{
-				memset(pDstImage->Data + Pointer, NULL, pSrcImages[i1]->Width * (formatdetails.Stride / 8));
+				memset(pDstImage->Data + Pointer, 0, pSrcImages[i1]->Width * (formatdetails.Stride / 8));
 			}
 			Pointer += pSrcImages[i1]->Width * (formatdetails.Stride / 8);
 		}
 	}
 	free(Pointers);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1489,14 +1494,12 @@ TEXRESULT Convert_ImageData(TEXI_HEADER** src, GraphicsFormat dstformat)
 	FormatDetails srcdetails = Get_FormatDetails(psrc->Format);
 	FormatDetails dstdetails = Get_FormatDetails(dstformat);
 
-	FileData filedata;
+	FileData filedata = { sizeof(filedata) };
 	filedata.pData = (unsigned char*)malloc(psrc->LinearSize);
 	memcpy(filedata.pData, psrc->Data, psrc->LinearSize);
 	filedata.LinearSize = psrc->LinearSize;
 
-
 	Convert_Data(&filedata, &srcdetails, &dstdetails);
-
 
 	TEXI_HEADER* tempdstheader = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + filedata.LinearSize);
 	memcpy(tempdstheader, *src, sizeof(TEXI_HEADER)); //copy header
@@ -1510,7 +1513,7 @@ TEXRESULT Convert_ImageData(TEXI_HEADER** src, GraphicsFormat dstformat)
 	tempdstheader->Height;
 	*src = tempdstheader;
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1522,16 +1525,16 @@ TEXRESULT Update_Descriptor(LogicalDevice* pLogicalDevice, VkDescriptorSet Set, 
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("Update_Descriptor()", "pLogicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (Set == NULL)
 	{
 		Engine_Ref_ArgsError("Update_Descriptor()", "Set == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	VkWriteDescriptorSet DescWrite;
-	memset(&DescWrite, NULL, sizeof(DescWrite));
+	memset(&DescWrite, 0, sizeof(DescWrite));
 	DescWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	DescWrite.descriptorType = Type;
 	DescWrite.dstSet = Set;
@@ -1543,7 +1546,7 @@ TEXRESULT Update_Descriptor(LogicalDevice* pLogicalDevice, VkDescriptorSet Set, 
 		if (pBufferInfo->buffer == NULL)
 		{
 			//Engine_Ref_ArgsError("Update_Descriptor()", "pBufferInfo->buffer == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		DescWrite.pBufferInfo = pBufferInfo;
 	}
@@ -1552,13 +1555,13 @@ TEXRESULT Update_Descriptor(LogicalDevice* pLogicalDevice, VkDescriptorSet Set, 
 		if (pImageInfo->imageView == NULL)
 		{
 			//Engine_Ref_ArgsError("Update_Descriptor()", "pImageInfo->imageView == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		DescWrite.pImageInfo = pImageInfo;
 	}
 	vkUpdateDescriptorSets(pLogicalDevice->VkLogicalDevice, 1, &DescWrite, 0, NULL);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1698,7 +1701,7 @@ void Clear_PhysicalDevice(PhysicalDevice* pPhysicalDevice)
 	if (pPhysicalDevice->QueueFamilyProperties != NULL && pPhysicalDevice->QueueFamilyPropertiesSize != NULL)
 		free(pPhysicalDevice->QueueFamilyProperties);
 
-	memset(pPhysicalDevice, NULL, sizeof(*pPhysicalDevice));
+	memset(pPhysicalDevice, 0, sizeof(*pPhysicalDevice));
 }
 /*
 * Added in 1.0.0
@@ -1730,7 +1733,7 @@ void Destroy_LogicalDevice(LogicalDevice* pLogicalDevice)
 
 	vkDestroyDevice(pLogicalDevice->VkLogicalDevice, NULL);
 
-	memset(pLogicalDevice, NULL, sizeof(*pLogicalDevice));
+	memset(pLogicalDevice, 0, sizeof(*pLogicalDevice));
 }
 /*
 * Added in 1.0.0
@@ -1742,12 +1745,12 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	if (pPhysicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("Create_LogicalDevice()", "pPhysicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("Create_LogicalDevice()", "pLogicalDevice == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 
@@ -1757,7 +1760,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 
 	uint32_t DeviceQueueCreateInfosSize = 3;
 	VkDeviceQueueCreateInfo DeviceQueueCreateInfos[3];
-	memset(DeviceQueueCreateInfos, NULL, sizeof(*DeviceQueueCreateInfos) * DeviceQueueCreateInfosSize);
+	memset(DeviceQueueCreateInfos, 0, sizeof(*DeviceQueueCreateInfos) * DeviceQueueCreateInfosSize);
 	bool GraphicsQueueFamily_Found = false;
 	bool MemoryQueueFamily_Found = false;
 	bool ComputeQueueFamily_Found = false;
@@ -1841,7 +1844,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	if (DeviceQueueCreateInfos[0].pQueuePriorities == NULL || DeviceQueueCreateInfos[1].pQueuePriorities == NULL || DeviceQueueCreateInfos[2].pQueuePriorities == NULL)
 	{
 		Engine_Ref_FunctionError("Create_LogicalDevice()", "Out Of Memory. ", NULL);
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result);
 	}
 
 	pLogicalDevice->GraphicsQueueMutexes = calloc(DeviceQueueCreateInfos[0].queueCount, sizeof(*pLogicalDevice->GraphicsQueueMutexes));
@@ -1850,7 +1853,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	if (pLogicalDevice->GraphicsQueueMutexes == NULL || pLogicalDevice->MemoryQueueMutexes == NULL || pLogicalDevice->ComputeQueueMutexes == NULL)
 	{
 		Engine_Ref_FunctionError("Create_LogicalDevice()", "Out Of Memory. ", NULL);
-		return (TEXRESULT)(Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result);
 	}
 
 	for (size_t i = 0; i < pLogicalDevice->GraphicsQueueFamilySize; i++)
@@ -1863,7 +1866,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	vkGetPhysicalDeviceMemoryProperties(pLogicalDevice->pPhysicalDevice->VkPhysicalDevice, (VkPhysicalDeviceMemoryProperties*)&pLogicalDevice->pPhysicalDevice->MemoryProperties);
 	{
 		VkDeviceCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
 		Info.enabledLayerCount = (uint32_t)ValidationLayersSize;
@@ -1882,7 +1885,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 		if ((res = vkCreateDevice(pLogicalDevice->pPhysicalDevice->VkPhysicalDevice, &Info, NULL, &pLogicalDevice->VkLogicalDevice)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDevice Failed With Error == ", res);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 	}
 
@@ -1890,13 +1893,13 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	free((void*)DeviceQueueCreateInfos[1].pQueuePriorities);
 	free((void*)DeviceQueueCreateInfos[2].pQueuePriorities);
 
-	memset(&pLogicalDevice->SrcBuffer, NULL, sizeof(pLogicalDevice->SrcBuffer));
-	memset(&pLogicalDevice->DstBuffer, NULL, sizeof(pLogicalDevice->DstBuffer));
+	memset(&pLogicalDevice->SrcBuffer, 0, sizeof(pLogicalDevice->SrcBuffer));
+	memset(&pLogicalDevice->DstBuffer, 0, sizeof(pLogicalDevice->DstBuffer));
 	
 	Create_GPU_MemoryBuffer(&pLogicalDevice->SrcBuffer, pLogicalDevice, InitialStagingGPUBufferSize, TargetMemory_Src);
 	Create_GPU_MemoryBuffer(&pLogicalDevice->DstBuffer, pLogicalDevice, InitialNativeGPUBufferSize, TargetMemory_Dst);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1977,17 +1980,17 @@ void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct
 		free(pGraphicsWindow->SwapChain.FrameBuffers);
 		pGraphicsWindow->SwapChain.FrameBuffers = NULL;
 		pGraphicsWindow->CurrentFrameBuffersSize = NULL;
-		//memset(&pGraphicsWindow->CurrentSurfaceColourSpace, NULL, sizeof(pGraphicsWindow->CurrentSurfaceColourSpace));
-		//memset(&pGraphicsWindow->CurrentSurfaceFormat, NULL, sizeof(pGraphicsWindow->CurrentSurfaceFormat));
-		//memset(&pGraphicsWindow->CurrentSurfacePresentMode, NULL, sizeof(pGraphicsWindow->CurrentSurfacePresentMode));
-		//memset(&pGraphicsWindow->CurrentExtentHeight, NULL, sizeof(pGraphicsWindow->CurrentExtentHeight));
-		//memset(&pGraphicsWindow->CurrentExtentWidth, NULL, sizeof(pGraphicsWindow->CurrentExtentWidth));
+		//memset(&pGraphicsWindow->CurrentSurfaceColourSpace, 0, sizeof(pGraphicsWindow->CurrentSurfaceColourSpace));
+		//memset(&pGraphicsWindow->CurrentSurfaceFormat, 0, sizeof(pGraphicsWindow->CurrentSurfaceFormat));
+		//memset(&pGraphicsWindow->CurrentSurfacePresentMode, 0, sizeof(pGraphicsWindow->CurrentSurfacePresentMode));
+		//memset(&pGraphicsWindow->CurrentExtentHeight, 0, sizeof(pGraphicsWindow->CurrentExtentHeight));
+		//memset(&pGraphicsWindow->CurrentExtentWidth, 0, sizeof(pGraphicsWindow->CurrentExtentWidth));
 
 
 		if (pGraphicsWindow->SwapChain.VkSwapChain != NULL)
 			vkDestroySwapchainKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain, NULL);
 		pGraphicsWindow->SwapChain.VkSwapChain = NULL;
-		memset(&pGraphicsWindow->SwapChain, NULL, sizeof(pGraphicsWindow->SwapChain));
+		memset(&pGraphicsWindow->SwapChain, 0, sizeof(pGraphicsWindow->SwapChain));
 	}
 }
 /*
@@ -2001,7 +2004,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 	if (pGraphicsWindow == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_SwapChain()", "pGraphicsWindow == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	VkResult res = VK_SUCCESS;
@@ -2030,12 +2033,12 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 
 		if ((Capabilities.currentExtent.width = NULL) || (Capabilities.currentExtent.height == NULL))
 		{
-			return (TEXRESULT)(Invalid_Parameter);
+			return (Invalid_Parameter);
 		}
 
 
 		VkSwapchainCreateInfoKHR Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		Info.surface = pGraphicsWindow->VkSurface;
 		Info.minImageCount = pGraphicsWindow->CurrentFrameBuffersSize;
@@ -2062,7 +2065,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 		if ((res = vkCreateSwapchainKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.VkSwapChain)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateSwapchainKHR Failed, VkResult == ", res);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 
 		vkDestroySwapchainKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, Info.oldSwapchain, NULL);
@@ -2086,7 +2089,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 	{
 		{//semaphores
 			VkSemaphoreCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 			Info.flags = NULL;
 			Info.pNext = NULL;
@@ -2094,20 +2097,20 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 				vkCreateSemaphore(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderFinishedSemaphore) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateSemaphore Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 
 		{//fences
 			VkFenceCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 			Info.flags = NULL;
 			Info.pNext = NULL;
 			if ((res = vkCreateFence(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].VkFrameFence)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateFence Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 
@@ -2118,7 +2121,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 		{
 			{ //image
 				VkImageCreateInfo Info;
-				memset(&Info, NULL, sizeof(Info));
+				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 				Info.imageType = VK_IMAGE_TYPE_2D; //cubemap?
 				Info.extent.width = pGraphicsWindow->CurrentExtentWidth;
@@ -2136,14 +2139,14 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 				if ((res = vkCreateImage(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateImage Failed, VkResult == ", res);
-					return (TEXRESULT)(Failure);
+					return (Failure);
 				}
 			}
 			{//allocating memory
 				VkMemoryRequirements memRequirements;
 				vkGetImageMemoryRequirements(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image, &memRequirements);
 
-				VkMemoryAllocateInfo AllocationInfo;
+				VkMemoryAllocateInfo AllocationInfo = { sizeof(AllocationInfo) };
 				AllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 				AllocationInfo.allocationSize = memRequirements.size;
 				AllocationInfo.memoryTypeIndex = Check_Memory(pGraphicsWindow->pLogicalDevice->pPhysicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -2151,13 +2154,13 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 				if (AllocationInfo.memoryTypeIndex == UINT32_MAX)
 				{
 					Engine_Ref_FunctionError("ReCreate_SwapChain()", "Suitable Memory Not Found. ", NULL);
-					return (TEXRESULT)(Failure);
+					return (Failure);
 				}
 
 				if ((res = vkAllocateMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &AllocationInfo, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Memory)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkAllocateMemory Failed, VkResult == ", res);
-					return (TEXRESULT)(Failure);
+					return (Failure);
 				}
 
 
@@ -2166,7 +2169,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 			}
 			{//image view
 				VkImageViewCreateInfo Info;
-				memset(&Info, NULL, sizeof(Info));
+				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 				Info.image = pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image;
 				Info.viewType = VK_IMAGE_VIEW_TYPE_2D; //cubemap?
@@ -2186,14 +2189,14 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 				if ((res = vkCreateImageView(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateImageView Failed, VkResult == ", res);
-					return (TEXRESULT)(Failure);
+					return (Failure);
 				}
 			}
 		}
 
 		{//swapchain image view
 			VkImageViewCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			Info.image = pGraphicsWindow->SwapChain.FrameBuffers[i].VkSwapChainImage;
 
@@ -2215,14 +2218,14 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 			if ((res = vkCreateImageView(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].VkSwapChainImageView)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateImageView Failed. VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 
 
 		{//cmd pool
 			VkCommandPoolCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 			Info.queueFamilyIndex = pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilyIndex;
 			Info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // Optional
@@ -2230,13 +2233,13 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 			if ((res = vkCreateCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderCommandPool)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateCommandPool Failed. VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 
 		{//render cmd buffer
 			VkCommandBufferAllocateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 			Info.commandPool = pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderCommandPool;
 			Info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -2245,42 +2248,48 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 			if ((res = vkAllocateCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, &pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderCommandBuffer)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkAllocateCommandBuffers Failed. VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 	}
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Object Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Destroy_WeightsHeader(RHeaderWeights* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_WeightsHeader(RHeaderWeights* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
 
+	}
+	return (Success);
 }
 
-void Destroy_ImageSourceHeader(RHeaderImageSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_ImageSourceHeader(RHeaderImageSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	if (Full == true)
 	{
 		if (pResourceHeader->ImageData != NULL)
 			free(pResourceHeader->ImageData);
 	}
+	return (Success);
 }
 
-void Destroy_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	if (Full == true)
 	{
 		if (pResourceHeader->Data.pData != NULL)
 			free(pResourceHeader->Data.pData);
 	}
+	return (Success);
 }
 
-void Destroy_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	if (pResourceHeader->VkPipelineDeferred != NULL)
 		vkDestroyPipeline(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineDeferred, NULL);
@@ -2321,38 +2330,73 @@ void Destroy_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, bool F
 	{
 
 	}
+	return (Success);
 }
 
-void Destroy_SceneHeader(RHeaderScene* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_SceneHeader(RHeaderScene* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
-void Destroy_CameraHeader(RHeaderCamera* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_CameraHeader(RHeaderCamera* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
-void Destroy_LightHeader(RHeaderLight* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_LightHeader(RHeaderLight* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
-void Destroy_SkinHeader(RHeaderSkin* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_SkinHeader(RHeaderSkin* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
-void Destroy_PositionHeader(RHeaderPosition* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_PositionHeader(RHeaderPosition* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
-void Destroy_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
-void Destroy_AnimationHeader(RHeaderAnimation* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_AnimationHeader(RHeaderAnimation* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	if (Full == true)
+	{
 
+	}
+	return (Success);
 }
 
-void Destroy_MaterialHeader(RHeaderMaterial* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_MaterialHeader(RHeaderMaterial* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 	if (pResourceHeader->VkMaterialDescriptorSets != NULL)
@@ -2360,17 +2404,16 @@ void Destroy_MaterialHeader(RHeaderMaterial* pResourceHeader, bool Full, uint32_
 		//vkFreeDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkMaterialDescriptorPool, pGraphicsWindow->CurrentFrameBuffersSize, pResourceHeader->VkMaterialDescriptorSets);
 		free(pResourceHeader->VkMaterialDescriptorSets);
 	}
-
 	if (pResourceHeader->VkMaterialDescriptorPool != NULL)
 		vkDestroyDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkMaterialDescriptorPool, NULL);
-
 	if (Full == true)
 	{
 
 	}
+	return (Success);
 }
 
-void Destroy_TextureHeader(RHeaderTexture* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_TextureHeader(RHeaderTexture* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 	Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Texture);
@@ -2378,9 +2421,10 @@ void Destroy_TextureHeader(RHeaderTexture* pResourceHeader, bool Full, uint32_t 
 	{
 
 	}
+	return (Success);
 }
 
-void Destroy_BufferHeader(RHeaderBuffer* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_BufferHeader(RHeaderBuffer* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 	Destroy_GPU_Buffer(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Buffer);
@@ -2388,9 +2432,10 @@ void Destroy_BufferHeader(RHeaderBuffer* pResourceHeader, bool Full, uint32_t Th
 	{
 
 	}
+	return (Success);
 }
 
-void Destroy_RenderHeader(RHeaderRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_RenderHeader(RHeaderRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 	if (pResourceHeader->pFrameBuffers != NULL)
@@ -2401,15 +2446,16 @@ void Destroy_RenderHeader(RHeaderRender* pResourceHeader, bool Full, uint32_t Th
 		}
 		free(pResourceHeader->pFrameBuffers);
 	}
-
 	if (Full == true)
 	{
 
 	}
+	return (Success);
 }
 
-void Destroy_ElementGraphics(ElementGraphics* pElement, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_ElementGraphics(ElementGraphics* pElement, bool Full, uint32_t ThreadIndex)
 {
+	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
@@ -2419,17 +2465,30 @@ void Destroy_ElementGraphics(ElementGraphics* pElement, bool Full, uint32_t Thre
 		Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
 		if (pSignature->Destructor != NULL)
 		{
-			pSignature->Destructor(pElement, pEffect, Full, ThreadIndex);
+			if ((tres = pSignature->Destructor(pElement, pEffect, Full, ThreadIndex)) != Success)
+			{
+#ifndef NDEBUG
+				char buffer[51 + 64 + 64];
+				snprintf(buffer, 51 + 64 + 64, "Destruction Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				Engine_Ref_FunctionError("Destroy_ElementGraphics()", buffer, tres);
+#endif
+				return tres;
+			}
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
+	if (Full == true)
+	{
+
+	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Object ReCreation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint32_t ThreadIndex)
 {
 	VkResult res = VK_SUCCESS;
 	Engine_Ref_Create_Mutex(pResourceHeader->SwapChainAccessMutex, MutexType_Plain);
@@ -2448,7 +2507,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		if ((res = vkCreateWin32SurfaceKHR(Utils.Instance, &SurfaceCreateInfo, NULL, &pResourceHeader->VkSurface)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "Surface Creation Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 #endif
@@ -2633,18 +2692,14 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 	free(AvailableSurfaceFormats);
 	free(AvailableSurfacePresentModes);
 
-
-
-
-
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Renderpass
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	{
 		uint32_t AttachmentDescsSize = 9;
-		VkAttachmentDescription AttachmentDescs[9];
+		VkAttachmentDescription AttachmentDescs[9] = { sizeof(*AttachmentDescs) * AttachmentDescsSize };
 
-		VkAttachmentReference Albedo_Attachment;
+		VkAttachmentReference Albedo_Attachment = { sizeof(Albedo_Attachment) };
 		Albedo_Attachment.attachment = 0;
 		Albedo_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[0].format = DeferredFormats[0]; //needs decent precision
@@ -2657,7 +2712,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[0].flags = NULL;
 
-		VkAttachmentReference Position_Attachment;
+		VkAttachmentReference Position_Attachment = { sizeof(Position_Attachment) };
 		Position_Attachment.attachment = 1;
 		Position_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[1].format = DeferredFormats[1];  //needs ALOT of precision
@@ -2671,7 +2726,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[1].flags = NULL;
 
 
-		VkAttachmentReference Normal_Attachment;
+		VkAttachmentReference Normal_Attachment = { sizeof(Normal_Attachment) };
 		Normal_Attachment.attachment = 2;
 		Normal_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[2].format = DeferredFormats[2]; //doesnt need much precision
@@ -2684,7 +2739,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[2].flags = NULL;
 
-		VkAttachmentReference PBR_Attachment;
+		VkAttachmentReference PBR_Attachment = { sizeof(PBR_Attachment) };
 		PBR_Attachment.attachment = 3;
 		PBR_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[3].format = DeferredFormats[3]; //doesnt need much precision
@@ -2698,7 +2753,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[3].flags = NULL;
 
 
-		VkAttachmentReference Transperancy_Attachment;
+		VkAttachmentReference Transperancy_Attachment = { sizeof(Transperancy_Attachment) };
 		Transperancy_Attachment.attachment = 4;
 		Transperancy_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[4].format = DeferredFormats[4];
@@ -2711,7 +2766,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[4].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[4].flags = NULL;
 
-		VkAttachmentReference Revealage_Attachment;
+		VkAttachmentReference Revealage_Attachment = { sizeof(Revealage_Attachment) };
 		Revealage_Attachment.attachment = 5;
 		Revealage_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[5].format = DeferredFormats[5];
@@ -2725,7 +2780,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[5].flags = NULL;
 
 
-		VkAttachmentReference Depth_Attachment;
+		VkAttachmentReference Depth_Attachment = { sizeof(Depth_Attachment) };
 		Depth_Attachment.attachment = 6;
 		Depth_Attachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[6].format = DeferredFormats[6];
@@ -2738,7 +2793,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[6].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[6].flags = NULL;
 
-		VkAttachmentReference Lighting_Attachment;
+		VkAttachmentReference Lighting_Attachment = { sizeof(Lighting_Attachment) };
 		Lighting_Attachment.attachment = 7;
 		Lighting_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[7].format = pResourceHeader->CurrentSurfaceFormat;
@@ -2751,7 +2806,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		AttachmentDescs[7].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		AttachmentDescs[7].flags = NULL;
 
-		VkAttachmentReference FinalProduct_Attachment;
+		VkAttachmentReference FinalProduct_Attachment = { sizeof(FinalProduct_Attachment) };
 		FinalProduct_Attachment.attachment = 8;
 		FinalProduct_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		AttachmentDescs[8].format = pResourceHeader->CurrentSurfaceFormat;
@@ -2766,11 +2821,11 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 
 		uint32_t SubpassesSize = 3;
 		VkSubpassDescription Subpasses[3];
-		memset(Subpasses, NULL, sizeof(*Subpasses) * SubpassesSize);
+		memset(Subpasses, 0, sizeof(*Subpasses) * SubpassesSize);
 
 		uint32_t SubpassDependanciesSize = 3;
 		VkSubpassDependency SubpassDependancies[3];
-		memset(SubpassDependancies, NULL, sizeof(*SubpassDependancies) * SubpassDependanciesSize);
+		memset(SubpassDependancies, 0, sizeof(*SubpassDependancies) * SubpassDependanciesSize);
 
 		//opaque subpass
 
@@ -2823,7 +2878,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		//deferred subpass
 
 		VkAttachmentReference SubpassLightingOutputs[2] = { FinalProduct_Attachment, Lighting_Attachment };
-		VkAttachmentReference SubpassLightingInputs[7];
+		VkAttachmentReference SubpassLightingInputs[7] = { sizeof(*SubpassLightingInputs) * 7 };
 
 		SubpassLightingInputs[0].attachment = 0;
 		SubpassLightingInputs[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2855,7 +2910,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 
 
 		VkRenderPassCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		Info.attachmentCount = AttachmentDescsSize;
 		Info.pAttachments = AttachmentDescs;
@@ -2868,7 +2923,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		if ((res = vkCreateRenderPass(pResourceHeader->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkRenderPassDeferred)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkCreateRenderPass Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 
 	}
@@ -2880,7 +2935,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 	if (ReCreate_SwapChain(pResourceHeader, true) != Success)
 	{
 		//Engine_Ref_FunctionError("ReCreate_GraphicsWindow()", "ReCreate_SwapChain Failed. VkResult == ", res);
-		return;
+		return (Failure);
 	}
 
 
@@ -2889,7 +2944,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	{//bindings input attachments
-		VkDescriptorSetLayoutBinding BindingsAttachments[DeferredImageCount];
+		VkDescriptorSetLayoutBinding BindingsAttachments[DeferredImageCount] = { sizeof(*BindingsAttachments) * DeferredImageCount };
 		for (size_t i = 0; i < DeferredImageCount; i++)
 		{
 			BindingsAttachments[i].binding = i;
@@ -2899,7 +2954,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 			BindingsAttachments[i].pImmutableSamplers = NULL;
 		}
 		VkDescriptorSetLayoutCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		Info.bindingCount = (uint32_t)DeferredImageCount;
 		Info.pBindings = BindingsAttachments;
@@ -2908,7 +2963,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		if ((res = vkCreateDescriptorSetLayout(pResourceHeader->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorSetLayoutInputAttachment)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 	}
 
@@ -2921,13 +2976,13 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		VkDescriptorSetLayout layouts[1] = { pResourceHeader->VkDescriptorSetLayoutInputAttachment };
 		uint32_t layoutsSize = 1;
 
-		VkPushConstantRange push_constant;
+		VkPushConstantRange push_constant = { sizeof(push_constant) };
 		push_constant.offset = 0;
 		push_constant.size = pResourceHeader->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize;
 		push_constant.stageFlags = VK_SHADER_STAGE_ALL;
 
 		VkPipelineLayoutCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		Info.setLayoutCount = layoutsSize;
 		Info.pSetLayouts = layouts;
@@ -2938,7 +2993,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		if ((res = vkCreatePipelineLayout(pResourceHeader->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkPipelineLayoutDeferred)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 	}
 
@@ -2950,13 +3005,13 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		pResourceHeader->VkDescriptorSetsInputAttachment = (VkDescriptorSet*)calloc(pResourceHeader->CurrentFrameBuffersSize, sizeof(VkDescriptorSet));
 		{
 			uint32_t PoolSizesSize = 1;
-			VkDescriptorPoolSize PoolSizes[1];
+			VkDescriptorPoolSize PoolSizes[1] = { sizeof(*PoolSizes) * PoolSizesSize };
 
 			PoolSizes[0].descriptorCount = DeferredImageCount * pResourceHeader->CurrentFrameBuffersSize;
 			PoolSizes[0].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 
 			VkDescriptorPoolCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 			Info.maxSets = 1 * pResourceHeader->CurrentFrameBuffersSize;
 			Info.poolSizeCount = PoolSizesSize;
@@ -2966,7 +3021,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 			if ((res = vkCreateDescriptorPool(pResourceHeader->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorPoolDeferred)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkCreateDescriptorPool, VkResult == ", res);
-				return;
+				return (Failure);
 			}
 		}
 		for (size_t i = 0; i < pResourceHeader->CurrentFrameBuffersSize; i++)
@@ -2976,7 +3031,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 			VkDescriptorSet sets[1];
 
 			VkDescriptorSetAllocateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			Info.descriptorPool = pResourceHeader->VkDescriptorPoolDeferred;
 			Info.descriptorSetCount = layoutsSize;
@@ -2985,7 +3040,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 			if ((res = vkAllocateDescriptorSets(pResourceHeader->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkAllocateDescriptorSets, VkResult == ", res);
-				return;
+				return (Failure);
 			}
 			pResourceHeader->VkDescriptorSetsInputAttachment[i] = sets[0];
 		}
@@ -3003,7 +3058,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 
 		uint32_t ShaderStagesCount = 2;
 		VkPipelineShaderStageCreateInfo ShaderStages[2];
-		memset(&ShaderStages, NULL, sizeof(*ShaderStages) * ShaderStagesCount);
+		memset(&ShaderStages, 0, sizeof(*ShaderStages) * ShaderStagesCount);
 
 		ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -3018,16 +3073,15 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 
 
 		VkPipelineColorBlendAttachmentState ColourBlendAttachment;
-		memset(&ColourBlendAttachment, NULL, sizeof(ColourBlendAttachment));
+		memset(&ColourBlendAttachment, 0, sizeof(ColourBlendAttachment));
 		ColourBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		ColourBlendAttachment.blendEnable = VK_FALSE;
 
 
 		VkPipelineColorBlendAttachmentState attachments[2] = { ColourBlendAttachment, ColourBlendAttachment};
 
-
 		VkPipelineColorBlendStateCreateInfo ColourBlendingDeffered;
-		memset(&ColourBlendingDeffered, NULL, sizeof(ColourBlendingDeffered));
+		memset(&ColourBlendingDeffered, 0, sizeof(ColourBlendingDeffered));
 		ColourBlendingDeffered.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 		ColourBlendingDeffered.logicOpEnable = VK_FALSE;
 		ColourBlendingDeffered.logicOp = VK_LOGIC_OP_COPY; // Optional
@@ -3043,24 +3097,24 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		uint32_t statesSize = 2;
 		VkDynamicState states[2] = { VK_DYNAMIC_STATE_VIEWPORT , VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo DynamicStates;
-		memset(&DynamicStates, NULL, sizeof(DynamicStates));
+		memset(&DynamicStates, 0, sizeof(DynamicStates));
 		DynamicStates.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		DynamicStates.dynamicStateCount = statesSize;
 		DynamicStates.pDynamicStates = states;
 
 		VkPipelineVertexInputStateCreateInfo VertexInputState;
-		memset(&VertexInputState, NULL, sizeof(VertexInputState));
+		memset(&VertexInputState, 0, sizeof(VertexInputState));
 		VertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
 		VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
-		memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
+		memset(&InputAssemblyState, 0, sizeof(InputAssemblyState));
 		InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		InputAssemblyState.primitiveRestartEnable = VK_FALSE;
 
 
 		VkViewport Viewport;
-		memset(&Viewport, NULL, sizeof(Viewport));
+		memset(&Viewport, 0, sizeof(Viewport));
 		Viewport.x = 0.0f;
 		Viewport.y = 0.0f;
 		Viewport.width = (float)pResourceHeader->CurrentExtentWidth;
@@ -3069,14 +3123,14 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		Viewport.maxDepth = 1.0f;
 
 		VkRect2D Scissor;
-		memset(&Scissor, NULL, sizeof(Scissor));
+		memset(&Scissor, 0, sizeof(Scissor));
 		Scissor.offset.x = 0;
 		Scissor.offset.y = 0;
 		Scissor.extent.width = pResourceHeader->CurrentExtentWidth;
 		Scissor.extent.height = pResourceHeader->CurrentExtentHeight;
 
 		VkPipelineViewportStateCreateInfo ViewportState;
-		memset(&ViewportState, NULL, sizeof(ViewportState));
+		memset(&ViewportState, 0, sizeof(ViewportState));
 		ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 		ViewportState.viewportCount = 1; //multi screeen~?!?!??!!?
 		ViewportState.pViewports = &Viewport;
@@ -3084,7 +3138,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		ViewportState.pScissors = &Scissor;
 
 		VkPipelineRasterizationStateCreateInfo RasterizationState;
-		memset(&RasterizationState, NULL, sizeof(RasterizationState));
+		memset(&RasterizationState, 0, sizeof(RasterizationState));
 		RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		RasterizationState.depthClampEnable = VK_FALSE;
 		RasterizationState.rasterizerDiscardEnable = VK_FALSE;
@@ -3098,7 +3152,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 		RasterizationState.depthBiasSlopeFactor = 0.0f; // Optional
 
 		VkPipelineMultisampleStateCreateInfo MultisampleState;
-		memset(&MultisampleState, NULL, sizeof(MultisampleState));
+		memset(&MultisampleState, 0, sizeof(MultisampleState));
 		MultisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		MultisampleState.sampleShadingEnable = VK_FALSE;
 		MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -3109,7 +3163,7 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 
 		{
 			VkGraphicsPipelineCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 			Info.stageCount = ShaderStagesCount;
 			Info.pStages = ShaderStages;
@@ -3130,31 +3184,31 @@ void ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint3
 			if ((res = vkCreateGraphicsPipelines(pResourceHeader->pLogicalDevice->VkLogicalDevice, NULL, 1, &Info, NULL, &pResourceHeader->VkPipelineDeferred)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkCreateGraphicsPipelines Failed, VkResult == ", res);
-				return;
+				return (Failure);
 			}
 		}
 	}
-
 	for (size_t i = 0; i < pResourceHeader->CurrentFrameBuffersSize; i++)
 	{
 		for (size_t i1 = 0; i1 < DeferredImageCount; i1++)
 		{
-			VkDescriptorImageInfo ImageInfo;
+			VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			ImageInfo.imageView = pResourceHeader->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView;
 			ImageInfo.sampler = NULL;
 			Update_Descriptor(pResourceHeader->pLogicalDevice, pResourceHeader->VkDescriptorSetsInputAttachment[i], i1, 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, NULL, &ImageInfo);
 		}
 	}
+	return (Success);
 }
 
-void ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_MaterialHeader()", "pResourceHeader->iGraphicsWindow Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 
@@ -3162,7 +3216,7 @@ void ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIn
 	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 	{
 		uint32_t PoolSizesSize = 2;
-		VkDescriptorPoolSize PoolSizes[2];
+		VkDescriptorPoolSize PoolSizes[2] = { PoolSizesSize * sizeof(*PoolSizes) };
 
 		PoolSizes[0].descriptorCount = 1;
 		PoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -3171,7 +3225,7 @@ void ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIn
 		PoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
 		VkDescriptorPoolCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		Info.maxSets = 1 * pGraphicsWindow->CurrentFrameBuffersSize;
 		Info.poolSizeCount = PoolSizesSize;
@@ -3180,7 +3234,7 @@ void ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIn
 		if ((res = vkCreateDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkMaterialDescriptorPool)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "vkCreateDescriptorPool Failed, VkResult == ", res);
-			return;
+			return Failure;
 		}
 	}
 
@@ -3192,7 +3246,7 @@ void ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIn
 		VkDescriptorSet sets[1];
 
 		VkDescriptorSetAllocateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		Info.descriptorPool = pResourceHeader->VkMaterialDescriptorPool;
 		Info.descriptorSetCount = layoutsSize;
@@ -3200,24 +3254,25 @@ void ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIn
 		if ((res = vkAllocateDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "vkAllocateDescriptorSets Failed, VkResult == ", res);
-			return;
+			return Failure;
 		}
 		pResourceHeader->VkMaterialDescriptorSets[i1] = sets[0];
 	}
+	return (Success);
 }
 
-void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iImageSource) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pResourceHeader->iImageSource Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pResourceHeader->iGraphicsWindow Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
@@ -3226,45 +3281,44 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	if (pImageSource->ImageData->Width == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pImageSource->ImageData->Width == NULL, Width Must Be > 0.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	
 	if (pImageSource->ImageData->Height == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pImageSource->ImageData->Height == NULL, Height Must Be > 0.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pImageSource->ImageData->Depth == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pImageSource->ImageData->Depth == NULL, Depth Must Be > 0.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	/*
 	if (pImageSource->ImageData->LinearSize == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pImageSource->ImageData->LinearSize == NULL, LinearSize Must Be > 0.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pImageSource->ImageData->ImageSize == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pImageSource->ImageData->ImageSize == NULL, ImageSize Must Be > 0.");
-		return;
-	}*/
-	
+		return (Invalid_Parameter | Failure);
+	}*/	
 	if (pImageSource->ImageData->MipmapCount == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pImageSource->ImageData->MipmapCount == NULL, MipmapCount Must Be > 0.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pImageSource->ImageData->Format == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "Format == NULL, Format Must Not Be Undefined.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pGraphicsWindow->pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pGraphicsWindow->pLogicalDevice == NULLPTR, Unitialized GraphicsWindow.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 //#endif
 	VkImageType ImageType = VK_IMAGE_TYPE_1D;
@@ -3329,7 +3383,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if ((i > TextureBackupFormatPrioritySize))
 		{
 			Engine_Ref_ArgsError("ReCreate_TextureHeader()", "No Compatible Formats Found.");
-			return;
+			return (Failure);
 		}
 		i++;
 	}
@@ -3345,7 +3399,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	VkResult res = VK_SUCCESS;
 	{
 		VkImageCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		Info.pNext = NULL;
 		Info.flags = NULL;
@@ -3366,7 +3420,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if ((res = vkCreateImage(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->GPU_Texture.VkImage)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkCreateImage Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -3376,17 +3430,17 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	if (pResourceHeader->GPU_Texture.Allocation.SizeBytes == NULL)
 	{
 		Engine_Ref_FunctionError("ReCreate_TextureHeader()", "Not Enough Space In GPU Memory!", NULL);
-		return;
+		return (Out_Of_Memory_Result | Failure);
 	}
 
 	if ((res = vkBindImageMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->GPU_Texture.VkImage, pResourceHeader->GPU_Texture.Allocation.Allocater.VkMemory, pResourceHeader->GPU_Texture.Allocation.Pointer)) != VK_SUCCESS)
 	{
 		Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkBindImageMemory Failed, VkResult == ", res);
-		return;
+		return (Failure);
 	}
 	{
 		VkImageViewCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		Info.image = pResourceHeader->GPU_Texture.VkImage;
 		Info.viewType = (VkImageViewType)ImageType; //only supports 1d, 2d, 3d.
@@ -3406,12 +3460,12 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if ((res = vkCreateImageView(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->GPU_Texture.VkImageView)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkCreateImageView Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkSamplerCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		switch (pResourceHeader->MagFilter)
 		{
@@ -3500,7 +3554,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if (vkCreateSampler(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->GPU_Texture.VkSampler) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkCreateSampler Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -3509,19 +3563,19 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 
 	{
 		VkCommandPoolCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		Info.queueFamilyIndex = pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilyIndex;
 		Info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 		if ((res = vkCreateCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &VkCmdPool)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkCreateCommandPool Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkCommandBufferAllocateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		Info.commandPool = VkCmdPool;
 		Info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -3530,12 +3584,12 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if ((res = vkAllocateCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, &VkCmdBuffer)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkAllocateCommandBuffers Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkCommandBufferBeginInfo BeginInfo;
-		memset(&BeginInfo, NULL, sizeof(BeginInfo));
+		memset(&BeginInfo, 0, sizeof(BeginInfo));
 		BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		BeginInfo.pInheritanceInfo = NULL;
@@ -3543,7 +3597,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if ((res = vkBeginCommandBuffer(VkCmdBuffer, &BeginInfo)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkBeginCommandBuffer Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -3551,7 +3605,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	memset(&SrcAllocation, 0, sizeof(SrcAllocation));
 	if (pImageSource->ImageData->LinearSize == NULL && pImageSource->ImageData->ImageSize == NULL)
 	{
-		VkImageMemoryBarrier Barrier;
+		VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
 		Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -3585,10 +3639,10 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 		if (SrcAllocation.SizeBytes == NULL)
 		{
 			Engine_Ref_FunctionError("ReCreate_TextureHeader()", "Not Enough Space In GPU Memory!", NULL);
-			return;
+			return (Out_Of_Memory_Result | Failure);
 		}
 
-		VkImageMemoryBarrier Barrier0;
+		VkImageMemoryBarrier Barrier0 = { sizeof(Barrier0) };
 		Barrier0.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		Barrier0.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		Barrier0.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -3677,7 +3731,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 
 			for (size_t i = 1; i < mipmapc; i++)
 			{
-				VkImageMemoryBarrier Barrier1;
+				VkImageMemoryBarrier Barrier1 = { sizeof(Barrier1) };
 				Barrier1.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 				Barrier1.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 				Barrier1.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -3701,7 +3755,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 					1, &Barrier1
 				);
 
-				VkImageBlit blit;
+				VkImageBlit blit = { sizeof(blit) };
 				blit.srcOffsets[0].x = 0;
 				blit.srcOffsets[0].y = 0;
 				blit.srcOffsets[0].z = 0;
@@ -3735,7 +3789,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 				);
 
 
-				VkImageMemoryBarrier Barrier2;
+				VkImageMemoryBarrier Barrier2 = { sizeof(Barrier2) };
 				Barrier2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 				Barrier2.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 				Barrier2.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -3769,7 +3823,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 			}
 		}
 
-		VkImageMemoryBarrier Barrier3;
+		VkImageMemoryBarrier Barrier3 = { sizeof(Barrier3) };
 		Barrier3.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		Barrier3.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		Barrier3.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -3816,7 +3870,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	vkGetDeviceQueue(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilyIndex, QueueIndex, &Queue);
 
 	VkSubmitInfo SubmitInfo;
-	memset(&SubmitInfo, NULL, sizeof(SubmitInfo));
+	memset(&SubmitInfo, 0, sizeof(SubmitInfo));
 	SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	SubmitInfo.commandBufferCount = (uint32_t)1;
 	SubmitInfo.pCommandBuffers = &VkCmdBuffer;
@@ -3824,7 +3878,7 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, VK_NULL_HANDLE)) != VK_SUCCESS)
 	{
 		Engine_Ref_FunctionError("ReCreate_TextureHeader()", "vkQueueSubmit Failed, VkResult == ", res);
-		return;
+		return (Failure);
 	}
 
 	vkQueueWaitIdle(Queue);
@@ -3839,23 +3893,23 @@ void ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadInde
 	}
 	else
 	{
-
 		GPUfree(pGraphicsWindow->pLogicalDevice, &SrcAllocation);
 	}
+	return (Success);
 }
 
-void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iBufferSource) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pResourceHeader->iBufferSource Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pResourceHeader->iGraphicsWindow Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	RHeaderBufferSource* pBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iBufferSource);
@@ -3864,23 +3918,23 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 	if (pBufferSource->Data.LinearSize == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pBufferSource->Data.LinearSize == NULL");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pBufferSource->Data.pData == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pBufferSource->Data.pData == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pGraphicsWindow->pLogicalDevice == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pGraphicsWindow->pLogicalDevice == NULLPTR, Unitialized GraphicsWindow.");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	VkResult res = VK_SUCCESS;
 	{
 		VkBufferCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		Info.size = pBufferSource->Data.LinearSize;
 		Info.usage = (VkBufferUsageFlags)((pResourceHeader->BufferUsage != NULL) ? pResourceHeader->BufferUsage : (VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT));
@@ -3892,7 +3946,7 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 		if (vkCreateBuffer(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->GPU_Buffer.VkBuffer) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_BufferHeader()", "vkCreateBuffer Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -3903,7 +3957,7 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 	if (pResourceHeader->GPU_Buffer.Allocation.SizeBytes == NULL)
 	{
 		Engine_Ref_FunctionError("ReCreate_BufferHeader()", "Not Enough Space In GPU Memory!", NULL);
-		return;
+		return (Out_Of_Memory_Result | Failure);
 	}
 
 	vkBindBufferMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->GPU_Buffer.VkBuffer, pResourceHeader->GPU_Buffer.Allocation.Allocater.VkMemory, pResourceHeader->GPU_Buffer.Allocation.Pointer);
@@ -3912,19 +3966,19 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 	VkCommandBuffer VkCmdBuffer = NULL;
 	{
 		VkCommandPoolCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		Info.queueFamilyIndex = pGraphicsWindow->pLogicalDevice->MemoryQueueFamilyIndex;
 		Info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 		if ((res = vkCreateCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &VkCmdPool)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_BufferHeader()", "vkCreateCommandPool Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkCommandBufferAllocateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		Info.commandPool = VkCmdPool;
 		Info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -3933,12 +3987,12 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 		if ((res = vkAllocateCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, &VkCmdBuffer)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_BufferHeader()", "vkAllocateCommandBuffers Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkCommandBufferBeginInfo BeginInfo;
-		memset(&BeginInfo, NULL, sizeof(BeginInfo));
+		memset(&BeginInfo, 0, sizeof(BeginInfo));
 		BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		BeginInfo.pInheritanceInfo = NULL;
@@ -3946,7 +4000,7 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 		if ((res = vkBeginCommandBuffer(VkCmdBuffer, &BeginInfo)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_BufferHeader()", "vkBeginCommandBuffer Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -3965,12 +4019,12 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 		if (SrcAllocation.SizeBytes == NULL)
 		{
 			Engine_Ref_FunctionError("ReCreate_BufferHeader()", "Not Enough Space In GPU Memory!", NULL);
-			return;
+			return (Out_Of_Memory_Result | Failure);
 		}
 
 		memcpy((void*)((uint64_t)SrcAllocation.Allocater.pArenaAllocater->MappedMemory + SrcAllocation.Pointer), pBufferSource->Data.pData, pBufferSource->Data.LinearSize);
 
-		VkBufferCopy region;
+		VkBufferCopy region = { sizeof(region) };
 		region.srcOffset = SrcAllocation.Pointer;
 		region.dstOffset = 0;
 		region.size = pBufferSource->Data.LinearSize;
@@ -4006,7 +4060,7 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 	vkGetDeviceQueue(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->pLogicalDevice->MemoryQueueFamilyIndex, QueueIndex, &Queue);
 
 	VkSubmitInfo SubmitInfo;
-	memset(&SubmitInfo, NULL, sizeof(SubmitInfo));
+	memset(&SubmitInfo, 0, sizeof(SubmitInfo));
 	SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	SubmitInfo.commandBufferCount = (uint32_t)1;
 	SubmitInfo.pCommandBuffers = &VkCmdBuffer;
@@ -4014,7 +4068,7 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 	if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, VK_NULL_HANDLE)) != VK_SUCCESS)
 	{
 		Engine_Ref_FunctionError("ReCreate_BufferHeader()", "vkQueueSubmit Failed, VkResult == ", res);
-		return;
+		return (Failure);
 	}
 
 	vkQueueWaitIdle(Queue);
@@ -4030,20 +4084,21 @@ void ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 	}
 	else
 		GPUfree(pGraphicsWindow->pLogicalDevice, &SrcAllocation);
+	return (Success);
 }
 
-void ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pResourceHeader->iGraphicsWindow Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iTextureTarget) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pResourceHeader->iTextureTarget Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	VkResult res = VK_SUCCESS;
@@ -4055,12 +4110,12 @@ void ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadIndex)
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pTexture->iImageSource) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pTexture->iImageSource Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pImageSource->ImageData == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pImageSource->ImageData == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	pImageSource->ImageData->Width = pGraphicsWindow->CurrentExtentWidth;
@@ -4087,7 +4142,7 @@ void ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadIndex)
 		};
 
 		VkFramebufferCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		Info.renderPass = pGraphicsWindow->VkRenderPassDeferred;
 		Info.attachmentCount = Framebuffersize;
@@ -4098,14 +4153,15 @@ void ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadIndex)
 		if ((res = vkCreateFramebuffer(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->pFrameBuffers[i1])) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_RenderHeader()", "vkCreateFramebuffer Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
-
+	return (Success);
 }
 
-void ReCreate_ElementGraphics(ElementGraphics* pElement, uint32_t ThreadIndex)
+TEXRESULT ReCreate_ElementGraphics(ElementGraphics* pElement, uint32_t ThreadIndex)
 {
+	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
@@ -4114,18 +4170,27 @@ void ReCreate_ElementGraphics(ElementGraphics* pElement, uint32_t ThreadIndex)
 		uint64_t BufferIndex = NULL;
 		Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
 		if (pSignature->ReConstructor != NULL)
-		{
-			pSignature->ReConstructor(pElement, pEffect, ThreadIndex);
+		{ 
+			if ((tres = pSignature->ReConstructor(pElement, pEffect, ThreadIndex)) != Success)
+			{
+#ifndef NDEBUG
+				char buffer[51 + 64 + 64];
+				snprintf(buffer, 51 + 64 + 64, "Recreation Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				Engine_Ref_FunctionError("ReCreate_ElementGraphics()", buffer, tres);
+#endif
+				return tres;
+			}
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Object Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Pack_WeightsHeader(const RHeaderWeights* pResourceHeader, RHeaderWeights* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_WeightsHeader(const RHeaderWeights* pResourceHeader, RHeaderWeights* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4135,9 +4200,10 @@ void Pack_WeightsHeader(const RHeaderWeights* pResourceHeader, RHeaderWeights* p
 	{
 
 	}
+	return (Success);
 }
 
-void Pack_ImageSourceHeader(const RHeaderImageSource* pResourceHeader, RHeaderImageSource* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_ImageSourceHeader(const RHeaderImageSource* pResourceHeader, RHeaderImageSource* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4153,9 +4219,10 @@ void Pack_ImageSourceHeader(const RHeaderImageSource* pResourceHeader, RHeaderIm
 		if (pResourceHeader->ImageData != NULL)
 			*pBufferPointer += sizeof(TEXI_HEADER) + pResourceHeader->ImageData->LinearSize;
 	}
+	return (Success);
 }
 
-void Pack_BufferSourceHeader(const RHeaderBufferSource* pResourceHeader, RHeaderBufferSource* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_BufferSourceHeader(const RHeaderBufferSource* pResourceHeader, RHeaderBufferSource* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4171,9 +4238,10 @@ void Pack_BufferSourceHeader(const RHeaderBufferSource* pResourceHeader, RHeader
 		if (pResourceHeader->Data.pData != NULL && pResourceHeader->Data.LinearSize != NULL)
 			*pBufferPointer += pResourceHeader->Data.LinearSize;
 	}
+	return (Success);
 }
 
-void Pack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindow* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindow* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4221,9 +4289,10 @@ void Pack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader, RHe
 	{
 
 	}
+	return (Success);
 }
 
-void Pack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4231,60 +4300,77 @@ void Pack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopied
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_CameraHeader(const RHeaderCamera* pResourceHeader, RHeaderCamera* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_CameraHeader(const RHeaderCamera* pResourceHeader, RHeaderCamera* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
+
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_LightHeader(const RHeaderLight* pResourceHeader, RHeaderLight* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_LightHeader(const RHeaderLight* pResourceHeader, RHeaderLight* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
+
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_SkinHeader(const RHeaderSkin* pResourceHeader, RHeaderSkin* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_SkinHeader(const RHeaderSkin* pResourceHeader, RHeaderSkin* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
+
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_PositionHeader(const RHeaderPosition* pResourceHeader, RHeaderPosition* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_PositionHeader(const RHeaderPosition* pResourceHeader, RHeaderPosition* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
+
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_AnimationChannelHeader(const RHeaderAnimationChannel* pResourceHeader, RHeaderAnimationChannel* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_AnimationChannelHeader(const RHeaderAnimationChannel* pResourceHeader, RHeaderAnimationChannel* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
+
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_AnimationHeader(const RHeaderAnimation* pResourceHeader, RHeaderAnimation* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_AnimationHeader(const RHeaderAnimation* pResourceHeader, RHeaderAnimation* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4293,10 +4379,12 @@ void Pack_AnimationHeader(const RHeaderAnimation* pResourceHeader, RHeaderAnimat
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_MaterialHeader(const RHeaderMaterial* pResourceHeader, RHeaderMaterial* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_MaterialHeader(const RHeaderMaterial* pResourceHeader, RHeaderMaterial* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4305,10 +4393,12 @@ void Pack_MaterialHeader(const RHeaderMaterial* pResourceHeader, RHeaderMaterial
 	}
 	else
 	{
+
 	}
+	return (Success);
 }
 
-void Pack_TextureHeader(const RHeaderTexture* pResourceHeader, RHeaderTexture* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_TextureHeader(const RHeaderTexture* pResourceHeader, RHeaderTexture* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4318,9 +4408,10 @@ void Pack_TextureHeader(const RHeaderTexture* pResourceHeader, RHeaderTexture* p
 	{
 
 	}
+	return (Success);
 }
 
-void Pack_BufferHeader(const RHeaderBuffer* pResourceHeader, RHeaderBuffer* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_BufferHeader(const RHeaderBuffer* pResourceHeader, RHeaderBuffer* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4330,9 +4421,10 @@ void Pack_BufferHeader(const RHeaderBuffer* pResourceHeader, RHeaderBuffer* pCop
 	{
 
 	}
+	return (Success);
 }
 
-void Pack_RenderHeader(const RHeaderRender* pResourceHeader, RHeaderRender* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_RenderHeader(const RHeaderRender* pResourceHeader, RHeaderRender* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
@@ -4343,10 +4435,12 @@ void Pack_RenderHeader(const RHeaderRender* pResourceHeader, RHeaderRender* pCop
 	{
 
 	}
+	return (Success);
 }
 
-void Pack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
+	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
@@ -4357,7 +4451,15 @@ void Pack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pCop
 		Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
 		if (pSignature->Packer != NULL)
 		{
-			pSignature->Packer(pElement, pCopiedElement, pEffect, pCopiedEffect, pBufferPointer, pData, ThreadIndex);
+			if ((tres = pSignature->Packer(pElement, pCopiedElement, pEffect, pCopiedEffect, pBufferPointer, pData, ThreadIndex)) != Success)
+			{
+#ifndef NDEBUG
+				char buffer[51 + 64 + 64];
+				snprintf(buffer, 51 + 64 + 64, "Packing Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				Engine_Ref_FunctionError("Pack_ElementGraphics()", buffer, tres);
+#endif
+				return tres;
+			}
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
@@ -4370,18 +4472,19 @@ void Pack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pCop
 	{
 
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Object UnPackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UnPack_WeightsHeader(const RHeaderWeights* pResourceHeader, RHeaderWeights* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_WeightsHeader(const RHeaderWeights* pResourceHeader, RHeaderWeights* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_ImageSourceHeader(const RHeaderImageSource* pResourceHeader, RHeaderImageSource* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_ImageSourceHeader(const RHeaderImageSource* pResourceHeader, RHeaderImageSource* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
 	if (pResourceHeader->ImageData != NULL)
 	{
@@ -4390,79 +4493,82 @@ void UnPack_ImageSourceHeader(const RHeaderImageSource* pResourceHeader, RHeader
 		pCopiedResourceHeader->ImageData = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + pheader->LinearSize);
 		memcpy(pCopiedResourceHeader->ImageData, (void*)((uint64_t)pData + (uint64_t)pResourceHeader->ImageData), sizeof(TEXI_HEADER) + pheader->LinearSize);
 	}
+	return (Success);
 }
 
-void UnPack_BufferSourceHeader(const RHeaderBufferSource* pResourceHeader, RHeaderBufferSource* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_BufferSourceHeader(const RHeaderBufferSource* pResourceHeader, RHeaderBufferSource* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
 	if (pResourceHeader->Data.pData != NULL && pResourceHeader->Data.LinearSize != NULL)
 	{
 		pCopiedResourceHeader->Data.pData = (unsigned char*)malloc(pResourceHeader->Data.LinearSize);
 		memcpy(pCopiedResourceHeader->Data.pData, (void*)((uint64_t)pData + (uint64_t)pResourceHeader->Data.pData), pResourceHeader->Data.LinearSize);
 	}
+	return (Success);
 }
 
-void UnPack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindow* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindow* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_GraphicsWindowHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_CameraHeader(const RHeaderCamera* pResourceHeader, RHeaderCamera* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_CameraHeader(const RHeaderCamera* pResourceHeader, RHeaderCamera* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_LightHeader(const RHeaderLight* pResourceHeader, RHeaderLight* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_LightHeader(const RHeaderLight* pResourceHeader, RHeaderLight* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_SkinHeader(const RHeaderSkin* pResourceHeader, RHeaderSkin* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_SkinHeader(const RHeaderSkin* pResourceHeader, RHeaderSkin* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_PositionHeader(const RHeaderPosition* pResourceHeader, RHeaderPosition* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_PositionHeader(const RHeaderPosition* pResourceHeader, RHeaderPosition* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_AnimationChannelHeader(const RHeaderAnimationChannel* pResourceHeader, RHeaderAnimationChannel* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_AnimationChannelHeader(const RHeaderAnimationChannel* pResourceHeader, RHeaderAnimationChannel* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_AnimationHeader(const RHeaderAnimation* pResourceHeader, RHeaderAnimation* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_AnimationHeader(const RHeaderAnimation* pResourceHeader, RHeaderAnimation* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-
+	return (Success);
 }
 
-void UnPack_MaterialHeader(const RHeaderMaterial* pResourceHeader, RHeaderMaterial* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_MaterialHeader(const RHeaderMaterial* pResourceHeader, RHeaderMaterial* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_MaterialHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_TextureHeader(const RHeaderTexture* pResourceHeader, RHeaderTexture* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_TextureHeader(const RHeaderTexture* pResourceHeader, RHeaderTexture* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_TextureHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_BufferHeader(const RHeaderBuffer* pResourceHeader, RHeaderBuffer* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_BufferHeader(const RHeaderBuffer* pResourceHeader, RHeaderBuffer* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_BufferHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_RenderHeader(const RHeaderRender* pResourceHeader, RHeaderRender* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_RenderHeader(const RHeaderRender* pResourceHeader, RHeaderRender* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_RenderHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, void* pData, uint32_t ThreadIndex)
 {
+	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
@@ -4473,10 +4579,19 @@ void UnPack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics* pC
 		Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
 		if (pSignature->UnPacker != NULL)
 		{
-			pSignature->UnPacker(pElement, pCopiedElement, pEffect, pCopiedEffect, pData, ThreadIndex);
+			if ((tres = pSignature->UnPacker(pElement, pCopiedElement, pEffect, pCopiedEffect, pData, ThreadIndex)) != Success)
+			{
+#ifndef NDEBUG
+				char buffer[51 + 64 + 64];
+				snprintf(buffer, 51 + 64 + 64, "UnPacking Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				Engine_Ref_FunctionError("UnPack_ElementGraphics()", buffer, tres);
+#endif
+				return tres;
+			}
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4495,12 +4610,12 @@ TEXRESULT Create_WeightsHeader(RHeaderWeights* pResourceHeader, RHeaderWeightsCr
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_WeightsHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->Weights == NULL && pCreateInfo->WeightsSize != NULL)
 		{
 			Engine_Ref_ArgsError("Create_WeightsHeader()", "pCreateInfo->Weights == NULLPTR, while pCreateInfo->WeightsSize != NULL");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->WeightsSize = pCreateInfo->WeightsSize;
@@ -4508,7 +4623,7 @@ TEXRESULT Create_WeightsHeader(RHeaderWeights* pResourceHeader, RHeaderWeightsCr
 			pResourceHeader->Weights[i] = pCreateInfo->Weights[i];
 	}
 	*pAllocationSize = sizeof(RHeaderWeights) + (sizeof(float) * pCreateInfo->WeightsSize);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Create_SceneHeader(RHeaderScene* pResourceHeader, RHeaderSceneCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4523,13 +4638,13 @@ TEXRESULT Create_SceneHeader(RHeaderScene* pResourceHeader, RHeaderSceneCreateIn
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_SceneHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->Active = pCreateInfo->InitialActive;
 	}
 	*pAllocationSize = sizeof(RHeaderScene);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Create_ImageSourceHeader(RHeaderImageSource* pResourceHeader, RHeaderImageSourceCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4544,19 +4659,19 @@ TEXRESULT Create_ImageSourceHeader(RHeaderImageSource* pResourceHeader, RHeaderI
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ImageSourceHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->ImageData == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ImageSourceHeader()", "pCreateInfo->ImageData == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->ImageData = (TEXI_HEADER*)malloc(sizeof(*pResourceHeader->ImageData) + pCreateInfo->ImageData->LinearSize);
 		memcpy(pResourceHeader->ImageData, pCreateInfo->ImageData, sizeof(*pResourceHeader->ImageData) + pCreateInfo->ImageData->LinearSize);
 	}
 	*pAllocationSize = sizeof(RHeaderImageSource);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Create_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, RHeaderBufferSourceCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4571,12 +4686,12 @@ TEXRESULT Create_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, RHeade
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_BufferSourceHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->Data.pData == NULL && pCreateInfo->Data.LinearSize != NULL)
 		{
 			Engine_Ref_ArgsError("Create_BufferSourceHeader()", "pCreateInfo->Data.pData == NULLPTR, while pCreateInfo->Data.LinearSize != NULL");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->Data.LinearSize = pCreateInfo->Data.LinearSize;
@@ -4584,7 +4699,7 @@ TEXRESULT Create_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, RHeade
 		memcpy(pResourceHeader->Data.pData, pCreateInfo->Data.pData, pResourceHeader->Data.LinearSize);
 	}
 	*pAllocationSize = sizeof(RHeaderBufferSource);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindowCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4599,7 +4714,7 @@ TEXRESULT Create_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, RH
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_GraphicsWindowHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 
@@ -4612,7 +4727,7 @@ TEXRESULT Create_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, RH
 		ReCreate_GraphicsWindowHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderGraphicsWindow);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_CameraHeader(RHeaderCamera* pResourceHeader, RHeaderCameraCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4627,7 +4742,7 @@ TEXRESULT Create_CameraHeader(RHeaderCamera* pResourceHeader, RHeaderCameraCreat
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_CameraHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 
@@ -4635,7 +4750,7 @@ TEXRESULT Create_CameraHeader(RHeaderCamera* pResourceHeader, RHeaderCameraCreat
 		pResourceHeader->Type = pCreateInfo->Type;
 	}
 	*pAllocationSize = sizeof(RHeaderCamera);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_LightHeader(RHeaderLight* pResourceHeader, RHeaderLightCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4650,7 +4765,7 @@ TEXRESULT Create_LightHeader(RHeaderLight* pResourceHeader, RHeaderLightCreateIn
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_LightHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->Intensity = pCreateInfo->Intensity;
@@ -4665,7 +4780,7 @@ TEXRESULT Create_LightHeader(RHeaderLight* pResourceHeader, RHeaderLightCreateIn
 
 	}
 	*pAllocationSize = sizeof(RHeaderLight);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_SkinHeader(RHeaderSkin* pResourceHeader, RHeaderSkinCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4680,12 +4795,12 @@ TEXRESULT Create_SkinHeader(RHeaderSkin* pResourceHeader, RHeaderSkinCreateInfo*
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_SkinHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pJoints == NULL)
 		{
 			Engine_Ref_ArgsError("Create_SkinHeader()", "pCreateInfo->pJoints == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 
@@ -4697,7 +4812,7 @@ TEXRESULT Create_SkinHeader(RHeaderSkin* pResourceHeader, RHeaderSkinCreateInfo*
 			pResourceHeader->iJoints[i] = pCreateInfo->pJoints[i]->Header.Allocation;
 	}
 	*pAllocationSize = sizeof(RHeaderSkin) + (sizeof(ObjectAllocation) * pCreateInfo->JointsSize);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_PositionHeader(RHeaderPosition* pResourceHeader, RHeaderPositionCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4712,13 +4827,13 @@ TEXRESULT Create_PositionHeader(RHeaderPosition* pResourceHeader, RHeaderPositio
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_PositionHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		glm_mat4_copy(pCreateInfo->Matrix, pResourceHeader->Matrix);
 	}
 	*pAllocationSize = sizeof(RHeaderPosition);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader, RHeaderAnimationChannelCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4733,12 +4848,12 @@ TEXRESULT Create_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_AnimationChannelHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pAnimation == NULL)
 		{
 			Engine_Ref_ArgsError("Create_AnimationChannelHeader()", "pCreateInfo->pAnimation == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->Sampler = pCreateInfo->Sampler;
@@ -4746,7 +4861,7 @@ TEXRESULT Create_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader
 		pResourceHeader->iAnimation = pCreateInfo->pAnimation->Header.Allocation;
 	}
 	*pAllocationSize = sizeof(RHeaderAnimationChannel);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_AnimationHeader(RHeaderAnimation* pResourceHeader, RHeaderAnimationCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4761,7 +4876,7 @@ TEXRESULT Create_AnimationHeader(RHeaderAnimation* pResourceHeader, RHeaderAnima
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_AnimationHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->PlaybackMode = pCreateInfo->PlaybackMode;
@@ -4772,7 +4887,7 @@ TEXRESULT Create_AnimationHeader(RHeaderAnimation* pResourceHeader, RHeaderAnima
 				pResourceHeader->iChannels[i] = pCreateInfo->pChannels[i];
 	}
 	*pAllocationSize = sizeof(RHeaderAnimation) + (sizeof(*pResourceHeader->iChannels) * pCreateInfo->pChannelsSize);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_MaterialHeader(RHeaderMaterial* pResourceHeader, RHeaderMaterialCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4787,12 +4902,12 @@ TEXRESULT Create_MaterialHeader(RHeaderMaterial* pResourceHeader, RHeaderMateria
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_MaterialHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pGraphicsWindow == NULL)
 		{
 			Engine_Ref_ArgsError("Create_MaterialHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
@@ -4830,7 +4945,7 @@ TEXRESULT Create_MaterialHeader(RHeaderMaterial* pResourceHeader, RHeaderMateria
 		ReCreate_MaterialHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderMaterial);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_TextureHeader(RHeaderTexture* pResourceHeader, RHeaderTextureCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4845,12 +4960,12 @@ TEXRESULT Create_TextureHeader(RHeaderTexture* pResourceHeader, RHeaderTextureCr
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_TextureHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pGraphicsWindow == NULL)
 		{
 			Engine_Ref_ArgsError("Create_TextureHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
@@ -4866,7 +4981,7 @@ TEXRESULT Create_TextureHeader(RHeaderTexture* pResourceHeader, RHeaderTextureCr
 		ReCreate_TextureHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderTexture);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_BufferHeader(RHeaderBuffer* pResourceHeader, RHeaderBufferCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4881,12 +4996,12 @@ TEXRESULT Create_BufferHeader(RHeaderBuffer* pResourceHeader, RHeaderBufferCreat
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_BufferHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pGraphicsWindow == NULL)
 		{
 			Engine_Ref_ArgsError("Create_BufferHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
@@ -4897,7 +5012,7 @@ TEXRESULT Create_BufferHeader(RHeaderBuffer* pResourceHeader, RHeaderBufferCreat
 		ReCreate_BufferHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderBuffer);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_RenderHeader(RHeaderRender* pResourceHeader, RHeaderRenderCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -4912,12 +5027,12 @@ TEXRESULT Create_RenderHeader(RHeaderRender* pResourceHeader, RHeaderRenderCreat
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_RenderHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pGraphicsWindow == NULL)
 		{
 			Engine_Ref_ArgsError("Create_RenderHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->Clear[0] = pCreateInfo->Clear[0];
@@ -4936,13 +5051,12 @@ TEXRESULT Create_RenderHeader(RHeaderRender* pResourceHeader, RHeaderRenderCreat
 		ReCreate_RenderHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderRender) + (sizeof(*pResourceHeader->iScenes) * pCreateInfo->pScenesSize);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
 {
-	TEXRESULT res = (TEXRESULT)Success;
-
+	TEXRESULT tres = (Success);
 	uint64_t bytes = 0;
 	for (size_t i = 0; i < pCreateInfo->EffectCreateInfosSize; i++)
 	{
@@ -4953,9 +5067,14 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 		uint64_t AllocationSize = 0;
 		if (pSignature->Constructor != NULL)
 		{
-			if ((res = pSignature->Constructor(pElement, NULL, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)Success)
+			if ((tres = pSignature->Constructor(pElement, NULL, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)Success)
 			{
-				return res;
+#ifndef NDEBUG
+				char buffer[51 + 64 + 64];
+				snprintf(buffer, 51 + 64 + 64, "Creating Of Effect %p %p Returned TEXRESULT == ", pSignature, NULL);
+				Engine_Ref_FunctionError("Create_ElementGraphics()", buffer, tres);
+#endif
+				return tres;
 			}
 		}
 		bytes += AllocationSize;
@@ -4972,17 +5091,17 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pMaterial == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo->pMaterial == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 		if (pCreateInfo->pGraphicsWindow == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo->pGraphicsWindow == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pElement->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
@@ -5003,9 +5122,14 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 			uint64_t AllocationSize = 0;
 			if (pSignature->Constructor != NULL)
 			{
-				if ((res = pSignature->Constructor(pElement, pEffect, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)Success)
+				if ((tres = pSignature->Constructor(pElement, pEffect, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)Success)
 				{
-					return res;
+#ifndef NDEBUG
+					char buffer[51 + 64 + 64];
+					snprintf(buffer, 51 + 64 + 64, "Creating Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+					Engine_Ref_FunctionError("Create_ElementGraphics()", buffer, tres);
+#endif
+					return tres;
 				}
 			}
 
@@ -5014,7 +5138,7 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 		}
 	}
 	*pAllocationSize = sizeof(ElementGraphics) + bytes;
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5039,7 +5163,7 @@ void Draw_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 
 
 	PushConstantsGeneric3D PushConstants3D;
-	memset(&PushConstants3D, NULL, sizeof(PushConstants3D));
+	memset(&PushConstants3D, 0, sizeof(PushConstants3D));
 	glm_mat4_copy(CameraVP, PushConstants3D.VP);
 
 
@@ -5126,7 +5250,7 @@ void Draw_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 	vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
 
 	PushConstantsGeneric2D PushConstants2D;
-	memset(&PushConstants2D, NULL, sizeof(PushConstants2D));
+	memset(&PushConstants2D, 0, sizeof(PushConstants2D));
 	glm_mat4_copy(CameraVP, PushConstants2D.VP);
 	vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, Utils.GenericResources[Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout2D, VK_SHADER_STAGE_ALL, 0,
 		pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants2D);
@@ -5284,7 +5408,7 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 		if (pLightHeader != NULL)
 		{
 			GPU_RHeaderLight templight;
-			memset(&templight, NULL, sizeof(templight));
+			memset(&templight, 0, sizeof(templight));
 			templight.Intensity = pLightHeader->Intensity;
 			templight.Range = pLightHeader->Range;
 			templight.InnerConeAngle = pLightHeader->LightU.Spot.InnerConeAngle;
@@ -5374,7 +5498,7 @@ void UpdateSignature_Generic3D(GraphicsEffectSignature* pSignature, RHeaderGraph
 	{
 		if (GPU_Buffers[i].SizeBytes != NULL)
 		{
-			VkDescriptorBufferInfo BufferInfo;
+			VkDescriptorBufferInfo BufferInfo = { sizeof(BufferInfo) };
 			BufferInfo.buffer = GPU_Buffers[i].Allocater.pArenaAllocater->VkBuffer;
 			BufferInfo.offset = GPU_Buffers[i].Pointer;
 			BufferInfo.range = (GPU_Buffers[i].SizeBytes != NULL) ? GPU_Buffers[i].SizeBytes : VK_WHOLE_SIZE;
@@ -5392,7 +5516,7 @@ void UpdateSignature_Generic2D(GraphicsEffectSignature* pSignature, RHeaderGraph
 //Effect Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Destroy_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 
@@ -5404,9 +5528,10 @@ void Destroy_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffe
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
 	if (pEffect->VkShaderFragment != NULL)
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
+	return (Success);
 }
 
-void Destroy_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, bool Full, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
 
@@ -5416,6 +5541,7 @@ void Destroy_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffe
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
 	if (pEffect->VkShaderFragment != NULL)
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5428,8 +5554,7 @@ int cmpfunction(const void* a, const void* b)
 	if (Get_AttributeTypePriority(*((Attribute*)(a))) == Get_AttributeTypePriority(*((Attribute*)(b))))  return 0;
 	if (Get_AttributeTypePriority(*((Attribute*)(a))) > Get_AttributeTypePriority(*((Attribute*)(b))))  return 1;
 }
-
-void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, uint32_t ThreadIndex)
+TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, uint32_t ThreadIndex)
 {
 	VkResult res = VK_SUCCESS;
 	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
@@ -5507,7 +5632,6 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Main0_Size, 1);
 	memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_Main0, FragmentShader3D_Main0_Size); //copy first part
 	FragmentShader3DCompiledPointer += FragmentShader3D_Main0_Size;
-
 
 	for (size_t i = 0, PassthroughAttribsPointer = 0; i < maxattribs; i++)
 	{
@@ -5852,7 +5976,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 
 	uint32_t ShaderCount = 2;
 	VkPipelineShaderStageCreateInfo ShaderStages[2];
-	memset(ShaderStages, NULL, sizeof(*ShaderStages) * ShaderCount);
+	memset(ShaderStages, 0, sizeof(*ShaderStages) * ShaderCount);
 
 	ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -5875,7 +5999,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 		if (Get_AttributeTypeCompatibility(pEffect->UsedAttributes[i]) != true)
 		{
 			Engine_Ref_FunctionError("ReCreate_Generic3D()", "Attribute type not compatible with accessor type == ", pEffect->UsedAttributes[i].Accessor.Type);
-			return;
+			return (Invalid_Parameter | Failure);
 		}
 
 		InputBindingDescs[i].binding = i;
@@ -5902,7 +6026,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	}
 
 	VkPipelineVertexInputStateCreateInfo VertexInputInfo;
-	memset(&VertexInputInfo, NULL, sizeof(VertexInputInfo));
+	memset(&VertexInputInfo, 0, sizeof(VertexInputInfo));
 	VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	VertexInputInfo.vertexBindingDescriptionCount = (uint32_t)InputBindingDescsSize;
 	VertexInputInfo.pVertexBindingDescriptions = InputBindingDescs; // Optional
@@ -5911,7 +6035,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 
 
 	VkPipelineColorBlendAttachmentState ColourBlendAttachment;
-	memset(&ColourBlendAttachment, NULL, sizeof(ColourBlendAttachment));
+	memset(&ColourBlendAttachment, 0, sizeof(ColourBlendAttachment));
 	ColourBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	ColourBlendAttachment.blendEnable = VK_TRUE;
 	ColourBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -5922,17 +6046,17 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	ColourBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendAttachmentState ColourBlendAttachmentDeffered;
-	memset(&ColourBlendAttachmentDeffered, NULL, sizeof(ColourBlendAttachmentDeffered));
+	memset(&ColourBlendAttachmentDeffered, 0, sizeof(ColourBlendAttachmentDeffered));
 	ColourBlendAttachmentDeffered.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	VkPipelineColorBlendAttachmentState attachments[4] = { ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment };
 	VkPipelineColorBlendStateCreateInfo ColourBlending;
-	memset(&ColourBlending, NULL, sizeof(ColourBlending));
+	memset(&ColourBlending, 0, sizeof(ColourBlending));
 	ColourBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	ColourBlending.pAttachments = attachments;
 
 	VkPipelineDepthStencilStateCreateInfo DepthStencil;
-	memset(&DepthStencil, NULL, sizeof(DepthStencil));
+	memset(&DepthStencil, 0, sizeof(DepthStencil));
 	DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	DepthStencil.depthTestEnable = VK_TRUE;
 	DepthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -5945,19 +6069,19 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	uint32_t statesSize = 2;
 	VkDynamicState states[2] = { VK_DYNAMIC_STATE_VIEWPORT , VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo DynamicStates;
-	memset(&DynamicStates, NULL, sizeof(DynamicStates));
+	memset(&DynamicStates, 0, sizeof(DynamicStates));
 	DynamicStates.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	DynamicStates.dynamicStateCount = statesSize;
 	DynamicStates.pDynamicStates = states;
 
 
 	VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
-	memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
+	memset(&InputAssemblyState, 0, sizeof(InputAssemblyState));
 	InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	InputAssemblyState.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport Viewport;
+	VkViewport Viewport = { sizeof(Viewport) };
 	Viewport.x = 0.0f;
 	Viewport.y = 0.0f;
 	Viewport.width = (float)pGraphicsWindow->CurrentExtentWidth;
@@ -5965,14 +6089,14 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	Viewport.minDepth = 0.0f;
 	Viewport.maxDepth = 1.0f;
 
-	VkRect2D Scissor;
+	VkRect2D Scissor = { sizeof(Scissor) };
 	Scissor.offset.x = 0;
 	Scissor.offset.y = 0;
 	Scissor.extent.width = pGraphicsWindow->CurrentExtentWidth;
 	Scissor.extent.height = pGraphicsWindow->CurrentExtentHeight;
 
 	VkPipelineViewportStateCreateInfo ViewportState;
-	memset(&ViewportState, NULL, sizeof(ViewportState));
+	memset(&ViewportState, 0, sizeof(ViewportState));
 	ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	ViewportState.viewportCount = 1; //multi screeen~?!?!??!!?
 	ViewportState.pViewports = &Viewport;
@@ -5980,7 +6104,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	ViewportState.pScissors = &Scissor;
 
 	VkPipelineMultisampleStateCreateInfo MultisampleState;
-	memset(&MultisampleState, NULL, sizeof(MultisampleState));
+	memset(&MultisampleState, 0, sizeof(MultisampleState));
 	MultisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	MultisampleState.sampleShadingEnable = VK_FALSE;
 	MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -5990,7 +6114,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 	MultisampleState.alphaToOneEnable = VK_FALSE; // Optional
 
 	VkPipelineRasterizationStateCreateInfo RasterizationState;
-	memset(&RasterizationState, NULL, sizeof(RasterizationState));
+	memset(&RasterizationState, 0, sizeof(RasterizationState));
 	RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	RasterizationState.depthClampEnable = VK_FALSE;
 	RasterizationState.rasterizerDiscardEnable = VK_FALSE;
@@ -6013,7 +6137,7 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 
 	{
 		VkGraphicsPipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		switch (pMaterial->AlphaMode)
 		{
 		case AlphaMode_Opaque:
@@ -6051,15 +6175,16 @@ void ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEff
 		if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipeline)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_Generic3D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 
 	}
 	free(InputAttribDescs);
 	free(InputBindingDescs);
+	return (Success);
 }
 
-void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, uint32_t ThreadIndex)
+TEXRESULT ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, uint32_t ThreadIndex)
 {
 	VkResult res = VK_SUCCESS;
 	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
@@ -6128,7 +6253,7 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	
 	uint32_t ShaderCount = 2;
 	VkPipelineShaderStageCreateInfo ShaderStages[2];
-	memset(ShaderStages, NULL, sizeof(*ShaderStages) * ShaderCount);
+	memset(ShaderStages, 0, sizeof(*ShaderStages) * ShaderCount);
 	ShaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	ShaderStages[0].module = pEffect->VkShaderVertex;
@@ -6140,9 +6265,9 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	ShaderStages[1].pName = "main";
 
 	uint64_t InputBindingDescsSize = 1;
-	VkVertexInputBindingDescription InputBindingDescs[1];
+	VkVertexInputBindingDescription InputBindingDescs[1] = { sizeof(*InputBindingDescs) * 1 };
 	uint64_t InputAttribDescsSize = 6;
-	VkVertexInputAttributeDescription InputAttribDescs[6];
+	VkVertexInputAttributeDescription InputAttribDescs[6] = { sizeof(*InputAttribDescs) * 6 };
 
 	//Buffer Binding Main
 	InputBindingDescs[0].binding = 0;
@@ -6184,7 +6309,7 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	//pipeline
 
 	VkPipelineVertexInputStateCreateInfo VertexInputInfo;
-	memset(&VertexInputInfo, NULL, sizeof(VertexInputInfo));
+	memset(&VertexInputInfo, 0, sizeof(VertexInputInfo));
 	VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
 	VertexInputInfo.vertexBindingDescriptionCount = (uint32_t)InputBindingDescsSize;
@@ -6195,12 +6320,12 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 
 
 	VkPipelineInputAssemblyStateCreateInfo InputAssemblyState;
-	memset(&InputAssemblyState, NULL, sizeof(InputAssemblyState));
+	memset(&InputAssemblyState, 0, sizeof(InputAssemblyState));
 	InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	InputAssemblyState.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport Viewport;
+	VkViewport Viewport = { sizeof(Viewport) };
 	Viewport.x = 0.0f;
 	Viewport.y = 0.0f;
 	Viewport.width = (float)pGraphicsWindow->CurrentExtentWidth;
@@ -6208,14 +6333,14 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	Viewport.minDepth = 0.0f;
 	Viewport.maxDepth = 1.0f;
 
-	VkRect2D Scissor;
+	VkRect2D Scissor = { sizeof(Scissor) };
 	Scissor.offset.x = 0;
 	Scissor.offset.y = 0;
 	Scissor.extent.width = pGraphicsWindow->CurrentExtentWidth;
 	Scissor.extent.height = pGraphicsWindow->CurrentExtentHeight;
 
 	VkPipelineViewportStateCreateInfo ViewportState;
-	memset(&ViewportState, NULL, sizeof(ViewportState));
+	memset(&ViewportState, 0, sizeof(ViewportState));
 	ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	ViewportState.viewportCount = 1; //multi screeen~?!?!??!!?
 	ViewportState.pViewports = &Viewport;
@@ -6223,7 +6348,7 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	ViewportState.pScissors = &Scissor;
 
 	VkPipelineRasterizationStateCreateInfo RasterizationState;
-	memset(&RasterizationState, NULL, sizeof(RasterizationState));
+	memset(&RasterizationState, 0, sizeof(RasterizationState));
 	RasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	RasterizationState.depthClampEnable = VK_FALSE;
 	RasterizationState.rasterizerDiscardEnable = VK_FALSE;
@@ -6237,7 +6362,7 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	RasterizationState.depthBiasSlopeFactor = 0.0f; // Optional
 
 	VkPipelineMultisampleStateCreateInfo MultisampleState;
-	memset(&MultisampleState, NULL, sizeof(MultisampleState));
+	memset(&MultisampleState, 0, sizeof(MultisampleState));
 	MultisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	MultisampleState.sampleShadingEnable = VK_FALSE;
 	MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -6247,7 +6372,7 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	MultisampleState.alphaToOneEnable = VK_FALSE; // Optional
 
 	VkPipelineColorBlendAttachmentState ColourBlendAttachment;
-	memset(&ColourBlendAttachment, NULL, sizeof(ColourBlendAttachment));
+	memset(&ColourBlendAttachment, 0, sizeof(ColourBlendAttachment));
 	ColourBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	ColourBlendAttachment.blendEnable = VK_TRUE;
 	ColourBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -6258,18 +6383,18 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	ColourBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendAttachmentState ColourBlendAttachmentDeffered;
-	memset(&ColourBlendAttachmentDeffered, NULL, sizeof(ColourBlendAttachmentDeffered));
+	memset(&ColourBlendAttachmentDeffered, 0, sizeof(ColourBlendAttachmentDeffered));
 	ColourBlendAttachmentDeffered.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	VkPipelineColorBlendAttachmentState attachments[4] = { ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment, ColourBlendAttachment };
 	VkPipelineColorBlendStateCreateInfo ColourBlending;
-	memset(&ColourBlending, NULL, sizeof(ColourBlending));
+	memset(&ColourBlending, 0, sizeof(ColourBlending));
 	ColourBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	ColourBlending.attachmentCount = 2;
 	ColourBlending.pAttachments = attachments;
 
 	VkPipelineDepthStencilStateCreateInfo DepthStencil;
-	memset(&DepthStencil, NULL, sizeof(DepthStencil));
+	memset(&DepthStencil, 0, sizeof(DepthStencil));
 	DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	DepthStencil.depthTestEnable = VK_TRUE;
 	DepthStencil.depthWriteEnable = VK_TRUE;
@@ -6283,15 +6408,14 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 	uint32_t statesSize = 2;
 	VkDynamicState states[2] = { VK_DYNAMIC_STATE_VIEWPORT , VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo DynamicStates;
-	memset(&DynamicStates, NULL, sizeof(DynamicStates));
+	memset(&DynamicStates, 0, sizeof(DynamicStates));
 	DynamicStates.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	DynamicStates.dynamicStateCount = statesSize;
 	DynamicStates.pDynamicStates = states;
 
-
 	{
 		VkGraphicsPipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		switch (pMaterial->AlphaMode)
 		{
 		case AlphaMode_Opaque:
@@ -6327,56 +6451,59 @@ void ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEff
 		if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipeline)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_Generic2D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Pack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedEffect->VkPipeline, NULL, sizeof(pCopiedEffect->VkPipeline));
-		memset(&pCopiedEffect->UsedAttributes, NULL, sizeof(pCopiedEffect->UsedAttributes));
-		memset(&pCopiedEffect->VkShaderVertex, NULL, sizeof(pCopiedEffect->VkShaderVertex));
-		memset(&pCopiedEffect->VkShaderFragment, NULL, sizeof(pCopiedEffect->VkShaderFragment));
+		memset(&pCopiedEffect->VkPipeline, 0, sizeof(pCopiedEffect->VkPipeline));
+		memset(&pCopiedEffect->UsedAttributes, 0, sizeof(pCopiedEffect->UsedAttributes));
+		memset(&pCopiedEffect->VkShaderVertex, 0, sizeof(pCopiedEffect->VkShaderVertex));
+		memset(&pCopiedEffect->VkShaderFragment, 0, sizeof(pCopiedEffect->VkShaderFragment));
 	}
 	else
 	{
 
 	}
+	return (Success);
 }
 
-void Pack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedEffect->VkPipeline, NULL, sizeof(pCopiedEffect->VkPipeline));
-		memset(&pCopiedEffect->VkShaderVertex, NULL, sizeof(pCopiedEffect->VkShaderVertex));
-		memset(&pCopiedEffect->VkShaderFragment, NULL, sizeof(pCopiedEffect->VkShaderFragment));
+		memset(&pCopiedEffect->VkPipeline, 0, sizeof(pCopiedEffect->VkPipeline));
+		memset(&pCopiedEffect->VkShaderVertex, 0, sizeof(pCopiedEffect->VkShaderVertex));
+		memset(&pCopiedEffect->VkShaderFragment, 0, sizeof(pCopiedEffect->VkShaderFragment));
 	}
 	else
 	{
 
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect UnPackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UnPack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_Generic3D(pCopiedElement, pCopiedEffect, ThreadIndex);
+	return (Success);
 }
 
-void UnPack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_Generic2D(pCopiedElement, pCopiedEffect, ThreadIndex);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -6395,19 +6522,19 @@ TEXRESULT Create_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* p
 		if (pEffectCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_Generic3D()", "pEffectCreateInfo == NULLPTR");
-			return (TEXRESULT)Invalid_Parameter;
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pEffect->Indices = pEffectCreateInfo->Indices;
-
 		pEffect->AttributesSize = pEffectCreateInfo->AttributesSize;
-		memcpy(pEffect->Attributes, pEffectCreateInfo->Attributes, sizeof(*pEffect->Attributes) * pEffect->AttributesSize);
-
+		if (pEffect->AttributesSize != NULL)
+		{
+			memcpy(pEffect->Attributes, pEffectCreateInfo->Attributes, sizeof(*pEffect->Attributes) * pEffect->AttributesSize);
+		}
 		ReCreate_Generic3D(pElement, pEffect, ThreadIndex);
-
 	}
 	*pAllocationSize = sizeof(GraphicsEffectGeneric3D) + (pEffectCreateInfo->AttributesSize * sizeof(*pEffectCreateInfo->Attributes));
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, GraphicsEffectCreateInfoGeneric2D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
@@ -6422,7 +6549,7 @@ TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* p
 		if (pEffectCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_Generic2D()", "pEffectCreateInfo == NULLPTR");
-			return (TEXRESULT)Invalid_Parameter;
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		glm_vec2_copy(pEffectCreateInfo->Size, pEffect->Size);
@@ -6440,7 +6567,7 @@ TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* p
 		ReCreate_Generic2D(pElement, pEffect, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(GraphicsEffectGeneric2D);
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -6670,7 +6797,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
 			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++)
 			{
-				VkMemoryRequirements requirements;
+				VkMemoryRequirements requirements = { sizeof(requirements) };
 				requirements.size = ppPointers[i][i1];
 				requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 				requirements.memoryTypeBits = NULL;
@@ -6781,7 +6908,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 		//material
 		GPU_Allocation MaterialsAllocation;
-		memset(&MaterialsAllocation, NULL, sizeof(MaterialsAllocation));
+		memset(&MaterialsAllocation, 0, sizeof(MaterialsAllocation));
 		{
 			uint64_t MaterialsSize = 0;
 			for (size_t i = 0; i < Utils.RHeaderMaterialBuffer.Size;)
@@ -6797,7 +6924,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 					i++;
 				}
 			}
-			VkMemoryRequirements Materialsrequirements;
+			VkMemoryRequirements Materialsrequirements = { sizeof(Materialsrequirements) };
 			Materialsrequirements.size = MaterialsSize;
 			Materialsrequirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 			Materialsrequirements.memoryTypeBits = NULL;
@@ -6815,7 +6942,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 					if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pGraphicsWindow->Header.Allocation) == (TEXRESULT)Success)
 					{
-						GPU_RHeaderMaterial GPU_Material;
+						GPU_RHeaderMaterial GPU_Material = { sizeof(GPU_Material) };
 						glm_vec4_copy(pMaterialInstace->BaseColourFactor, GPU_Material.BaseColourFactor);
 						glm_vec4_copy(pMaterialInstace->EmissiveFactor, GPU_Material.EmissiveFactor);
 
@@ -6842,7 +6969,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 						memcpy((void*)(((uint64_t)MaterialsAllocation.Allocater.pArenaAllocater->MappedMemory + MaterialsAllocation.Pointer + MaterialsPointer)), &GPU_Material, sizeof(GPU_RHeaderMaterial));
 
-						VkDescriptorBufferInfo BufferInfo;
+						VkDescriptorBufferInfo BufferInfo = { sizeof(BufferInfo) };
 						BufferInfo.buffer = MaterialsAllocation.Allocater.pArenaAllocater->VkBuffer;
 						BufferInfo.offset = MaterialsAllocation.Pointer + MaterialsPointer;
 						BufferInfo.range = AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
@@ -6858,7 +6985,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 0);
 							}
 #endif
-							VkDescriptorImageInfo ImageInfo;
+							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
 							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
@@ -6874,7 +7001,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 1);
 							}
 #endif
-							VkDescriptorImageInfo ImageInfo;
+							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
 							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
@@ -6890,7 +7017,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 2);
 							}
 #endif
-							VkDescriptorImageInfo ImageInfo;
+							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
 							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
@@ -6906,7 +7033,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 3);
 							}
 #endif
-							VkDescriptorImageInfo ImageInfo;
+							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
 							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
@@ -6922,7 +7049,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 4);
 							}
 #endif
-							VkDescriptorImageInfo ImageInfo;
+							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
 							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
@@ -6943,7 +7070,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		//CommandBuffer Creation
 		//////////////////////////////////////////////////////////////////////////
 
-		VkCommandBufferBeginInfo BeginInfo;
+		VkCommandBufferBeginInfo BeginInfo = { sizeof(BeginInfo) };
 		BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		BeginInfo.flags = NULL;
 		BeginInfo.pInheritanceInfo = NULL;
@@ -6953,7 +7080,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			Engine_Ref_FunctionError("Display_Graphics()", "vkBeginCommandBuffer Failed, VkResult == ", res);
 		}
 
-		VkViewport Viewport;
+		VkViewport Viewport = { sizeof(Viewport) };
 		Viewport.x = 0.0f;
 		Viewport.y = 0.0f;
 		Viewport.width = (float)pGraphicsWindow->CurrentExtentWidth;
@@ -6961,7 +7088,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		Viewport.minDepth = 0.0f;
 		Viewport.maxDepth = 1.0f;
 
-		VkRect2D Scissor;
+		VkRect2D Scissor = { sizeof(Scissor) };
 		Scissor.offset.x = 0;
 		Scissor.offset.y = 0;
 		Scissor.extent.width = pGraphicsWindow->CurrentExtentWidth;
@@ -6999,7 +7126,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 						Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iParents[i2]);
 
 						VkRenderPassBeginInfo BeginRenderPassInfo;
-						memset(&BeginRenderPassInfo, NULL, sizeof(BeginRenderPassInfo));
+						memset(&BeginRenderPassInfo, 0, sizeof(BeginRenderPassInfo));
 						BeginRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 						BeginRenderPassInfo.renderPass = pGraphicsWindow->VkRenderPassDeferred;
 						BeginRenderPassInfo.framebuffer = pRenderHeader->pFrameBuffers[pFrameBuffer->SwapChainIndex];
@@ -7009,7 +7136,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 						BeginRenderPassInfo.renderArea.extent.height = pGraphicsWindow->CurrentExtentHeight;
 						BeginRenderPassInfo.clearValueCount = TotalDeferredFramebufferCount;
 
-						VkClearValue clears[TotalDeferredFramebufferCount];
+						VkClearValue clears[TotalDeferredFramebufferCount] = { sizeof(*clears) * TotalDeferredFramebufferCount };
 
 						clears[0].color.float32[0] = pRenderHeader->Clear[0];
 						clears[0].color.float32[1] = pRenderHeader->Clear[1];
@@ -7038,15 +7165,15 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 						clears[6].depthStencil.depth = 1.0f;
 						clears[6].depthStencil.stencil = 1;
-						memset(&clears[7], NULL, sizeof(VkClearValue));
-						memset(&clears[8], NULL, sizeof(VkClearValue));
+						memset(&clears[7], 0, sizeof(VkClearValue));
+						memset(&clears[8], 0, sizeof(VkClearValue));
 
 
 						BeginRenderPassInfo.pClearValues = clears;
 						vkCmdBeginRenderPass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, &BeginRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 						PushConstantsDeferred DeferredPushConstants;
-						memset(&DeferredPushConstants, NULL, sizeof(DeferredPushConstants));
+						memset(&DeferredPushConstants, 0, sizeof(DeferredPushConstants));
 
 						RHeaderCamera* pCameraHeader = (RHeaderCamera*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Camera);
 						
@@ -7199,7 +7326,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			VkSemaphore SignalSemaphores[] = { pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderFinishedSemaphore };
 
 			VkSubmitInfo SubmitInfo;
-			memset(&SubmitInfo, NULL, sizeof(SubmitInfo));
+			memset(&SubmitInfo, 0, sizeof(SubmitInfo));
 			SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 			SubmitInfo.pWaitSemaphores = WaitSemaphores;
 			SubmitInfo.pWaitDstStageMask = WaitStages;
@@ -7217,7 +7344,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			VkSwapchainKHR SwapChains[] = { pGraphicsWindow->SwapChain.VkSwapChain };
 
 			VkPresentInfoKHR PresentInfo;
-			memset(&PresentInfo, NULL, sizeof(PresentInfo));
+			memset(&PresentInfo, 0, sizeof(PresentInfo));
 			PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 			PresentInfo.waitSemaphoreCount = WaitSemaphoresSize;
 			PresentInfo.pWaitSemaphores = SignalSemaphores;
@@ -7501,7 +7628,7 @@ TEXRESULT Update_Graphics()
 				{
 					for (size_t i2 = 0; i2 < DeferredImageCount; i2++)
 					{
-						VkDescriptorImageInfo ImageInfo;
+						VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 						ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 						ImageInfo.imageView = pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[i2].ImageView;
 						ImageInfo.sampler = NULL;
@@ -7536,7 +7663,7 @@ TEXRESULT Update_Graphics()
 			iWindow++;
 		}
 	}
-	return Success;
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -7545,8 +7672,8 @@ TEXRESULT Update_Graphics()
 
 TEXRESULT Initialise_Graphics()
 {
-	memset(&Utils, NULL, sizeof(Utils));
-	memset(&Config, NULL, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
 
 	//config 
 	Config.ExtensionsEnabledSize = 3;
@@ -7565,12 +7692,14 @@ TEXRESULT Initialise_Graphics()
 	Config.InitialElementsMax = 1024;
 	Config.InitialHeadersMax = 1024;
 
-	Config.InitialStagingGPUBufferSize = MebiBytes(1);
-	Config.InitialNativeGPUBufferSize = MebiBytes(1);
+	Config.InitialStagingGPUBufferSize = MebiBytes(3);
+	Config.InitialNativeGPUBufferSize = MebiBytes(3);
 
 	Config.Samples = VK_SAMPLE_COUNT_1_BIT;
 	Config.MaxAnisotropy = 16;
 	Config.AnisotropicFiltering = true;
+
+	Config.Active_GPU_MemoryResizing = true;
 
 	Engine_Ref_Create_Mutex(Utils.ConvertersToTEXIMutex, MutexType_Plain);
 	Engine_Ref_Create_Mutex(Utils.ConvertersFromTEXIMutex, MutexType_Plain);
@@ -7893,7 +8022,7 @@ TEXRESULT Initialise_Graphics()
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	VkResult res = VK_SUCCESS;
-	TEXRESULT tres = (TEXRESULT)Success;
+	TEXRESULT tres = (Success);
 	{//instance startup
 
 		//instance extensions
@@ -7967,7 +8096,7 @@ TEXRESULT Initialise_Graphics()
 */
 		{//instance creation
 			VkApplicationInfo ApplicationInfo;
-			memset(&ApplicationInfo, NULL, sizeof(ApplicationInfo));
+			memset(&ApplicationInfo, 0, sizeof(ApplicationInfo));
 			ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 			ApplicationInfo.pApplicationName = "Triangle Engine X";
 			ApplicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -7976,7 +8105,7 @@ TEXRESULT Initialise_Graphics()
 			ApplicationInfo.apiVersion = VK_API_VERSION_1_2;
 
 			VkInstanceCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 			Info.pApplicationInfo = &ApplicationInfo;
 
@@ -8029,7 +8158,7 @@ TEXRESULT Initialise_Graphics()
 	for (size_t i = 0; i < Utils.DevicesSize; i++)
 	{
 		{//material textures bindings
-			VkDescriptorSetLayoutBinding BindingsMaterialTextures[MaterialTextureBindings + 1];
+			VkDescriptorSetLayoutBinding BindingsMaterialTextures[MaterialTextureBindings + 1] = { sizeof(*BindingsMaterialTextures) * (MaterialTextureBindings + 1) };
 			{
 				BindingsMaterialTextures[0].binding = 0;
 				BindingsMaterialTextures[0].descriptorCount = 1;
@@ -8046,7 +8175,7 @@ TEXRESULT Initialise_Graphics()
 				BindingsMaterialTextures[i].pImmutableSamplers = NULL;
 			}
 			VkDescriptorSetLayoutCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 			Info.bindingCount = (uint32_t)MaterialTextureBindings + 1;
 			Info.pBindings = BindingsMaterialTextures;
@@ -8055,11 +8184,11 @@ TEXRESULT Initialise_Graphics()
 			if ((res = vkCreateDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].VkDescriptorSetLayoutMaterial)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 		{//storagebuffer bindings
-			VkDescriptorSetLayoutBinding BindingsStorageBuffers[StorageBufferBindings];
+			VkDescriptorSetLayoutBinding BindingsStorageBuffers[StorageBufferBindings] = { sizeof(*BindingsStorageBuffers) * StorageBufferBindings };
 			for (size_t i = 0; i < StorageBufferBindings; i++)
 			{
 				BindingsStorageBuffers[i].binding = i;
@@ -8069,7 +8198,7 @@ TEXRESULT Initialise_Graphics()
 				BindingsStorageBuffers[i].pImmutableSamplers = NULL;
 			}
 			VkDescriptorSetLayoutCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 			Info.bindingCount = (uint32_t)StorageBufferBindings;
 			Info.pBindings = BindingsStorageBuffers;
@@ -8078,20 +8207,20 @@ TEXRESULT Initialise_Graphics()
 			if ((res = vkCreateDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 		{//layout 3D
 			VkDescriptorSetLayout layouts[2] = { Utils.GenericResources[i].VkDescriptorSetLayoutMaterial, Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers };
 			uint32_t layoutsSize = 2;
 
-			VkPushConstantRange push_constant;
+			VkPushConstantRange push_constant = { sizeof(push_constant) };
 			push_constant.offset = 0;
 			push_constant.size = Utils.LogicalDevices[i].pPhysicalDevice->Properties.limits.maxPushConstantsSize;
 			push_constant.stageFlags = VK_SHADER_STAGE_ALL;
 
 			VkPipelineLayoutCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 			Info.setLayoutCount = layoutsSize;
 			Info.pSetLayouts = layouts;
@@ -8102,7 +8231,7 @@ TEXRESULT Initialise_Graphics()
 			if ((res = vkCreatePipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].PipelineLayout3D)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 		{//layout 2D
@@ -8110,13 +8239,13 @@ TEXRESULT Initialise_Graphics()
 			VkDescriptorSetLayout layouts[1] = { Utils.GenericResources[i].VkDescriptorSetLayoutMaterial };
 			uint32_t layoutsSize = 1;
 
-			VkPushConstantRange push_constant;
+			VkPushConstantRange push_constant = { sizeof(push_constant) };
 			push_constant.offset = 0;
 			push_constant.size = Utils.LogicalDevices[i].pPhysicalDevice->Properties.limits.maxPushConstantsSize;
 			push_constant.stageFlags = VK_SHADER_STAGE_ALL;
 
 			VkPipelineLayoutCreateInfo Info;
-			memset(&Info, NULL, sizeof(Info));
+			memset(&Info, 0, sizeof(Info));
 			Info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 			Info.setLayoutCount = layoutsSize;
 			Info.pSetLayouts = layouts;
@@ -8127,20 +8256,20 @@ TEXRESULT Initialise_Graphics()
 			if ((res = vkCreatePipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].PipelineLayout2D)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-				return (TEXRESULT)(Failure);
+				return (Failure);
 			}
 		}
 		{
 			Utils.GenericResources[i].VkDescriptorSetsStorageBuffers = (VkDescriptorSet*)calloc(Utils.LogicalDevices[i].GraphicsQueueFamilySize, sizeof(VkDescriptorSet));
 			{
 				uint32_t PoolSizesSize = 1;
-				VkDescriptorPoolSize PoolSizes[1];
+				VkDescriptorPoolSize PoolSizes[1] = { PoolSizesSize * sizeof(*PoolSizes) };
 
 				PoolSizes[0].descriptorCount = DeferredImageCount * Utils.LogicalDevices[i].GraphicsQueueFamilySize;
 				PoolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
 				VkDescriptorPoolCreateInfo Info;
-				memset(&Info, NULL, sizeof(Info));
+				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 				Info.maxSets = 1 * Utils.LogicalDevices[i].GraphicsQueueFamilySize;
 				Info.poolSizeCount = PoolSizesSize;
@@ -8160,7 +8289,7 @@ TEXRESULT Initialise_Graphics()
 				VkDescriptorSet sets[1];
 
 				VkDescriptorSetAllocateInfo Info;
-				memset(&Info, NULL, sizeof(Info));
+				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 				Info.descriptorPool = Utils.GenericResources[i].VkDescriptorPool3D;
 				Info.descriptorSetCount = layoutsSize;
@@ -8175,7 +8304,7 @@ TEXRESULT Initialise_Graphics()
 			}
 		}
 	}
-	return (TEXRESULT)Success;
+	return (Success);
 }
 
 TEXRESULT Destroy_Graphics()
@@ -8279,11 +8408,11 @@ TEXRESULT Destroy_Graphics()
 
 	vkDestroyInstance(Utils.Instance, NULL);
 
-	memset(&Config, NULL, sizeof(Config));
-	memset(&Utils, NULL, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
 
 
-	return Success;
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -8341,7 +8470,7 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Check_Memory"), &GraphicsRes.pCheck_Memory, &Check_Memory, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_GPU_MemoryBuffer"), &GraphicsRes.pDestroy_GPU_MemoryBuffer, &Destroy_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Create_GPU_MemoryBuffer"), &GraphicsRes.pCreate_GPU_MemoryBuffer, &Create_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Resize_GPU_MemoryBuffer"), &GraphicsRes.pResize_GPU_MemoryBuffer, &Resize_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::ReCreate_GPU_MemoryBuffer"), &GraphicsRes.pReCreate_GPU_MemoryBuffer, &ReCreate_GPU_MemoryBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUmalloc"), &GraphicsRes.pGPUmalloc, &GPUmalloc, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::GPUfree"), &GraphicsRes.pGPUfree, &GPUfree, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 

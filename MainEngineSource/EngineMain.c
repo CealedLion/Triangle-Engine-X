@@ -1168,7 +1168,7 @@ TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCr
 
 
 	pExtensionData = &Utils.ExtensionBuffer.Buffer[pointer];
-	memset(pExtensionData, NULL, sizeof(ExtensionData) * reqchunks);
+	memset(pExtensionData, 0, sizeof(ExtensionData) * reqchunks);
 
 	pExtensionData->AllocationSize = reqchunks;
 	pExtensionData->Allocation = pointer;
@@ -1197,7 +1197,7 @@ TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCr
 			(void(*)(ExtensionCreateInfo* ReturnInfo))pfunc;
 
 		ExtensionCreateInfo ExtenCreateInfo;
-		memset(&ExtenCreateInfo, NULL, sizeof(ExtenCreateInfo));
+		memset(&ExtenCreateInfo, 0, sizeof(ExtenCreateInfo));
 
 		EntryPoint(&ExtenCreateInfo);
 
@@ -1228,16 +1228,17 @@ TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCr
 
 		if (Check_VersionCompatibility(pExtensionData->MinRequiredVersion, pExtensionData->MaxRequiredVersion) == Failure)
 		{
+			FunctionError("Create_ExtensionData()", "Engine Version is incompatible with Extension Version.", NULL);
+			/*
 			printf("Engine Version %u.%u.%u is incompatible with Extension Version %u.%u.%u %u.%u.%u, %s\n",
 				EngineVersion[0], EngineVersion[1], EngineVersion[2],
 				pExtensionData->MinRequiredVersion[0], pExtensionData->MinRequiredVersion[1], pExtensionData->MinRequiredVersion[2],
 				pExtensionData->MaxRequiredVersion[0], pExtensionData->MaxRequiredVersion[1], pExtensionData->MaxRequiredVersion[2],
-				pExtensionData->Name);
+				pExtensionData->Name);*/
 		}
-
 		if (pExtensionData->BinType != EngineBinType)
 		{
-			printf("Engine BinType is incompatible with ExtensionBintype, %s\n", pExtensionData->Name);
+			FunctionError("Create_ExtensionData()", "Engine BinType is incompatible with ExtensionBintype.", pExtensionData->BinType);
 			return Failure;
 		}
 	}
@@ -1296,7 +1297,7 @@ void Destroy_ExtensionData(ExtensionAllocation Allocation)
 	if (pExtensionData->handle != NULL)
 		Close_DLL(pExtensionData->handle);
 
-	memset(pExtensionData, NULL, sizeof(*pExtensionData) * pExtensionData->AllocationSize);
+	memset(pExtensionData, 0, sizeof(*pExtensionData) * pExtensionData->AllocationSize);
 }
 
 //////////////////////////////////////////
@@ -1317,7 +1318,7 @@ TEXRESULT Create_ExtensionDataBuffer(uint64_t InitialSize)
 		return Invalid_Parameter | Failure;
 	}
 #endif
-	memset(&Utils.ExtensionBuffer, NULL, sizeof(Utils.ExtensionBuffer));
+	memset(&Utils.ExtensionBuffer, 0, sizeof(Utils.ExtensionBuffer));
 
 	Utils.ExtensionBuffer.Buffer = (ExtensionData*)calloc(InitialSize, sizeof(*Utils.ExtensionBuffer.Buffer));
 	Utils.ExtensionBuffer.Max = InitialSize;
@@ -1375,7 +1376,7 @@ void Destroy_ExtensionDataBuffer()
 
 	Destroy_Mutex(Utils.ExtensionBuffer.mutex);
 
-	memset(&Utils.ExtensionBuffer, NULL, sizeof(Utils.ExtensionBuffer));
+	memset(&Utils.ExtensionBuffer, 0, sizeof(Utils.ExtensionBuffer));
 }
 
 //////////////////////////////////////////
@@ -2183,7 +2184,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		Utils.Drop_Callback_state.Paths = calloc(Utils.Drop_Callback_state.PathsSize, sizeof(*Utils.Drop_Callback_state.Paths));
 		for (size_t i = 0; i < Utils.Drop_Callback_state.PathsSize; i++)
 		{
-			uint64_t reqsize = DragQueryFile(wParam, i, NULL, NULL) + 1;
+			uint64_t reqsize = (uint64_t)DragQueryFile(wParam, i, NULL, NULL) + 1;
 			LPWSTR lpwstr = malloc(sizeof(LPWSTR) * reqsize);
 			DragQueryFile(wParam, i, lpwstr, reqsize);
 			
@@ -2724,8 +2725,8 @@ TEXRESULT Initialize()
 	////////////////////////////////////////////////////////////////////////////////////////
 	//Reseting
 	////////////////////////////////////////////////////////////////////////////////////////
-	memset(&Config, NULL, sizeof(Config));
-	memset(&Utils, NULL, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
 
 	//stupid endian test
 	unsigned int x = 0x76543210;
@@ -2922,8 +2923,8 @@ TEXRESULT Destroy()
 
 	Destroy_Mutex(Utils.WindowsMutex);
 
-	memset(&Config, NULL, sizeof(Config));
-	memset(&Utils, NULL, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
 
 	return Success;
 }

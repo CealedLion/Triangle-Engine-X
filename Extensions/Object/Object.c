@@ -346,7 +346,7 @@ void Destroy_ArenaAllocater(ArenaAllocater* pAllocater)
 	if (pAllocater == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_ArenaAllocater()", "pAllocater == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return;
 	}
 #endif
 	Engine_Ref_Destroy_Mutex(pAllocater->mutex);
@@ -384,7 +384,7 @@ TEXRESULT Create_ObjectBuffer(ObjectBuffer* pBuffer, uint64_t InitialSize)
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
-	memset(pBuffer, NULL, sizeof(*pBuffer));
+	memset(pBuffer, 0, sizeof(*pBuffer));
 	pBuffer->Buffer = (Object*)calloc(InitialSize, sizeof(*pBuffer->Buffer));
 	pBuffer->Size = InitialSize;
 
@@ -423,7 +423,7 @@ TEXRESULT Create_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer, uint64_t In
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
-	memset(pBuffer, NULL, sizeof(*pBuffer));
+	memset(pBuffer, 0, sizeof(*pBuffer));
 	pBuffer->Buffer = (ResourceHeader*)calloc(InitialSize, sizeof(*pBuffer->Buffer));
 	pBuffer->Size = InitialSize;
 
@@ -462,7 +462,7 @@ TEXRESULT Create_ElementBuffer(ElementBuffer* pBuffer, uint64_t InitialSize)
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
-	memset(pBuffer, NULL, sizeof(*pBuffer));
+	memset(pBuffer, 0, sizeof(*pBuffer));
 	pBuffer->Buffer = (Element*)calloc(InitialSize, sizeof(*pBuffer->Buffer));
 	pBuffer->Size = InitialSize;
 
@@ -845,7 +845,7 @@ TEXRESULT CreateInstance_Object(ObjectAllocation Allocation, ObjectInstance* pRe
 	TEXRESULT res = Success;
 	uint64_t Pointer = 0;
 	pObjectBuffer pBuffer;
-	memset(&pBuffer, NULL, sizeof(pBuffer));
+	memset(&pBuffer, 0, sizeof(pBuffer));
 	pBuffer.Object = &Utils.InternalObjectBuffer;
 	if ((res = Find_Allocation(pBuffer, ObjectBufferType_Object, pObject->Header.AllocationSize, &Pointer, ThreadIndex)) != Success)
 	{
@@ -886,7 +886,7 @@ TEXRESULT CreateInstance_ResourceHeader(ResourceHeaderAllocation Allocation, Res
 	TEXRESULT res = Success;
 	uint64_t Pointer = 0;
 	pObjectBuffer pBuffer;
-	memset(&pBuffer, NULL, sizeof(pBuffer));
+	memset(&pBuffer, 0, sizeof(pBuffer));
 	pBuffer.ResourceHeader = &Utils.InternalResourceHeaderBuffer;
 	if ((res = Find_Allocation(pBuffer, ObjectBufferType_ResourceHeader, pResourceHeader->Header.AllocationSize, &Pointer, ThreadIndex)) != Success)
 	{
@@ -926,7 +926,7 @@ TEXRESULT CreateInstance_Element(ElementAllocation Allocation, ElementInstance* 
 	TEXRESULT res = Success;
 	uint64_t Pointer = 0;
 	pObjectBuffer pBuffer;
-	memset(&pBuffer, NULL, sizeof(pBuffer));
+	memset(&pBuffer, 0, sizeof(pBuffer));
 	pBuffer.Element = &Utils.InternalElementBuffer;
 	if ((res = Find_Allocation(pBuffer, ObjectBufferType_Element, pElement->Header.AllocationSize, &Pointer, ThreadIndex)) != Success)
 	{
@@ -1004,36 +1004,29 @@ TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateIn
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	Object* pObject = NULL;
 	uint64_t RequiredSizeBytes = NULL;
-
 	if (pObjectSignature->Constructor != NULL)
 	{
-		Create_ObjectTemplate* func = *pObjectSignature->Constructor;
-		func(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex);
+		Create_ObjectTemplate* pFunction = *pObjectSignature->Constructor;
+		if ((tres = pFunction(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
+			return tres;
 	}
-
-
 	uint64_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
 		RequiredSizeBytes / sizeof(Object) + ((RequiredSizeBytes % sizeof(Object)) != 0) :
 		pObjectSignature->ByteLength / sizeof(Object) + ((pObjectSignature->ByteLength % sizeof(Object)) != 0);
 	uint64_t Pointer = 0;
-
-	TEXRESULT res = Success;
-
 	pObjectBuffer pBuffer;
-	memset(&pBuffer, NULL, sizeof(pBuffer));
+	memset(&pBuffer, 0, sizeof(pBuffer));
 	pBuffer.Object = pObjectSignature->Buffer;
-	if ((res = Find_Allocation(pBuffer, ObjectBufferType_Object, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
+	if ((tres = Find_Allocation(pBuffer, ObjectBufferType_Object, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
 	{
-		Engine_Ref_FunctionError("Create_Object()", "Find_Allocation() Failed, TEXRESULT == ", res);
-		return res;
+		Engine_Ref_FunctionError("Create_Object()", "Find_Allocation() Failed, TEXRESULT == ", tres);
+		return tres;
 	}
-
-
 	pObject = &pObjectSignature->Buffer->Buffer[Pointer];
-	memset(pObject, NULL, sizeof(Object) * RequiredSizeChunks);
-
+	memset(pObject, 0, sizeof(Object) * RequiredSizeChunks);
 	pObject->Header.AllocationSize = RequiredSizeChunks;
 	pObject->Header.Allocation.Pointer = Pointer;
 	pObject->Header.Allocation.Identifier = CreateInfo.Identifier;
@@ -1045,7 +1038,6 @@ TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateIn
 		pObject->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
 		pObject->Header.pDelayedInstances[i].Latest = 1;
 	}
-
 	if (CreateInfo.Name != NULL)
 		pObject->Header.Name = (UTF8*)CopyData((void*)CreateInfo.Name);
 	else
@@ -1055,14 +1047,12 @@ TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateIn
 		sprintf((char*)TempBuffer, "Object_%i_%i", pObject->Header.Allocation.Identifier, pObject->Header.Allocation.Pointer);
 		pObject->Header.Name = (UTF8*)CopyData((void*)TempBuffer);
 	}
-
-
 	if (pObjectSignature->Constructor != NULL)
 	{
-		Create_ObjectTemplate* func = *pObjectSignature->Constructor;
-		func(pObject, pCreateInfo, &RequiredSizeBytes, ThreadIndex);
+		Create_ObjectTemplate* pFunction = *pObjectSignature->Constructor;
+		if ((tres = pFunction(pObject, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
+			return tres;
 	}
-
 	*pAllocation = pObject->Header.Allocation;
 	return (TEXRESULT)(Success);
 }
@@ -1081,7 +1071,6 @@ TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceH
 	ResourceHeaderSignature* pResourceHeaderSignature = NULL;
 	ResourceHeaderBufferIndex BufferIndex = 0;
 	Find_ResourceHeaderSignature(CreateInfo.Identifier, &pResourceHeaderSignature, &BufferIndex);
-
 #ifndef NDEBUG
 	if (pAllocation == NULL)
 	{
@@ -1114,36 +1103,29 @@ TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceH
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ResourceHeader* pResourceHeader = NULL;
 	uint64_t RequiredSizeBytes = NULL;
-
 	if (pResourceHeaderSignature->Constructor != NULL)
 	{
-		Create_ResourceHeaderTemplate* func = *pResourceHeaderSignature->Constructor;
-		func(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex);
+		Create_ResourceHeaderTemplate* pFunction = *pResourceHeaderSignature->Constructor;
+		if ((tres = pFunction(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
+			return tres;
 	}
-
-
 	uint64_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
 		RequiredSizeBytes / sizeof(ResourceHeader) + ((RequiredSizeBytes % sizeof(ResourceHeader)) != 0) :
 		pResourceHeaderSignature->ByteLength / sizeof(ResourceHeader) + ((pResourceHeaderSignature->ByteLength % sizeof(ResourceHeader)) != 0);
 	uint64_t Pointer = 0;
-
-	TEXRESULT res = Success;
-
 	pObjectBuffer pBuffer;
-	memset(&pBuffer, NULL, sizeof(pBuffer));
+	memset(&pBuffer, 0, sizeof(pBuffer));
 	pBuffer.ResourceHeader = pResourceHeaderSignature->Buffer;
-	if ((res = Find_Allocation(pBuffer, ObjectBufferType_ResourceHeader, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
+	if ((tres = Find_Allocation(pBuffer, ObjectBufferType_ResourceHeader, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
 	{
-		Engine_Ref_FunctionError("Create_ResourceHeader()", "Find_Allocation() Failed, TEXRESULT == ", res);
-		return res;
+		Engine_Ref_FunctionError("Create_ResourceHeader()", "Find_Allocation() Failed, TEXRESULT == ", tres);
+		return tres;
 	}
-
-
 	pResourceHeader = &pResourceHeaderSignature->Buffer->Buffer[Pointer];
-	memset(pResourceHeader, NULL, sizeof(ResourceHeader) * RequiredSizeChunks);
-
+	memset(pResourceHeader, 0, sizeof(ResourceHeader) * RequiredSizeChunks);
 	pResourceHeader->Header.AllocationSize = RequiredSizeChunks;
 	pResourceHeader->Header.Allocation.Pointer = Pointer;
 	pResourceHeader->Header.Allocation.Identifier = CreateInfo.Identifier;
@@ -1155,7 +1137,6 @@ TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceH
 		pResourceHeader->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
 		pResourceHeader->Header.pDelayedInstances[i].Latest = 1;
 	}
-
 	if (CreateInfo.Name != NULL)
 		pResourceHeader->Header.Name = (UTF8*)CopyData((void*)CreateInfo.Name);
 	else
@@ -1165,13 +1146,12 @@ TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceH
 		sprintf((char*)TempBuffer, "ResourceHeader_%i_%i", pResourceHeader->Header.Allocation.Identifier, pResourceHeader->Header.Allocation.Pointer);
 		pResourceHeader->Header.Name = (UTF8*)CopyData((void*)TempBuffer);
 	}
-
 	if (pResourceHeaderSignature->Constructor != NULL)
 	{
-		Create_ResourceHeaderTemplate* func = *pResourceHeaderSignature->Constructor;
-		func(pResourceHeader, pCreateInfo, &RequiredSizeBytes, ThreadIndex);
+		Create_ResourceHeaderTemplate* pFunction = *pResourceHeaderSignature->Constructor;
+		if ((tres = pFunction(pResourceHeader, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
+			return tres;
 	}
-
 	*pAllocation = pResourceHeader->Header.Allocation;
 	return (TEXRESULT)(Success);
 }
@@ -1190,8 +1170,6 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 	ElementSignature* pElementSignature = NULL;
 	ElementBufferIndex BufferIndex = 0;
 	Find_ElementSignature(CreateInfo.Identifier, &pElementSignature, &BufferIndex);
-
-
 #ifndef NDEBUG
 	if (pAllocation == NULL)
 	{
@@ -1224,34 +1202,29 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	Element* pElement = NULL;
 	uint64_t RequiredSizeBytes = NULL;
-
 	if (pElementSignature->Constructor != NULL)
 	{
-		Create_ElementTemplate* func = *pElementSignature->Constructor;
-		func(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex);
+		Create_ElementTemplate* pFunction = *pElementSignature->Constructor;
+		if ((tres = pFunction(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
+			return tres;
 	}
-
 	uint32_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
 		RequiredSizeBytes / sizeof(Element) + ((RequiredSizeBytes % sizeof(Element)) != 0) :
 		pElementSignature->ByteLength / sizeof(Element) + ((pElementSignature->ByteLength % sizeof(Element)) != 0);
 	uint64_t Pointer = 0;
-
-	TEXRESULT res = Success;
-
 	pObjectBuffer pBuffer;
-	memset(&pBuffer, NULL, sizeof(pBuffer));
+	memset(&pBuffer, 0, sizeof(pBuffer));
 	pBuffer.Element = pElementSignature->Buffer;
-	if ((res = Find_Allocation(pBuffer, ObjectBufferType_Element, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
+	if ((tres = Find_Allocation(pBuffer, ObjectBufferType_Element, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
 	{
-		Engine_Ref_FunctionError("Create_Element()", "Find_Allocation() Failed, TEXRESULT == ", res);
-		return res;
+		Engine_Ref_FunctionError("Create_Element()", "Find_Allocation() Failed, TEXRESULT == ", tres);
+		return tres;
 	}
-
 	pElement = &pElementSignature->Buffer->Buffer[Pointer];
-	memset(pElement, NULL, sizeof(Element) * RequiredSizeChunks);
-
+	memset(pElement, 0, sizeof(Element) * RequiredSizeChunks);
 	pElement->Header.AllocationSize = RequiredSizeChunks;
 	pElement->Header.Allocation.Pointer = Pointer;
 	pElement->Header.Allocation.Identifier = CreateInfo.Identifier;
@@ -1263,7 +1236,6 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 		pElement->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
 		pElement->Header.pDelayedInstances[i].Latest = 1;
 	}
-
 	if (CreateInfo.Name != NULL)
 		pElement->Header.Name = (UTF8*)CopyData((void*)CreateInfo.Name);
 	else
@@ -1273,13 +1245,12 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 		sprintf((char*)TempBuffer, "Element_%i_%i", pElement->Header.Allocation.Identifier, pElement->Header.Allocation.Pointer);
 		pElement->Header.Name = (UTF8*)CopyData((void*)TempBuffer);
 	}
-
 	if (pElementSignature->Constructor != NULL)
 	{
-		Create_ElementTemplate* func = *pElementSignature->Constructor;
-		func(pElement, pCreateInfo, &RequiredSizeBytes, ThreadIndex);
+		Create_ElementTemplate* pFunction = *pElementSignature->Constructor;
+		if ((tres = pFunction(pElement, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
+			return tres;
 	}
-
 	*pAllocation = pElement->Header.Allocation;
 	return (TEXRESULT)(Success);
 }
@@ -1298,15 +1269,16 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 * @note Multithread safe when threadindex is unique on each thread calling.
 * @note Externally Synchronized.
 */
-void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Get_ObjectAllocationValidity(Allocation) != Success)
 	{
 		Engine_Ref_ArgsError("Destroy_Object()", "Allocation Invalid.");
-		return;
+		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ObjectSignature* pSignature = NULL;
 	ObjectBufferIndex BufferIndex = 0;
 	Find_ObjectSignature(Allocation.Identifier, &pSignature, &BufferIndex);
@@ -1317,7 +1289,8 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 	if (pSignature->Destructor != NULL)
 	{
 		Destroy_ObjectTemplate* func = *pSignature->Destructor;
-		func(pInstance, Full, ThreadIndex);
+		if ((tres = func(pInstance, Full, ThreadIndex)) != Success)
+			return tres;
 	}
 
 	if (pObject->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
@@ -1334,7 +1307,7 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 		if (pAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("Destroy_Object()", "Arena Allocater could not be found. ", pAllocater);
-			return;
+			return (TEXRESULT)(Failure);
 		}
 		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 		memset(&Utils.InternalObjectBuffer.Buffer[pObject->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pObject) * pObject->Header.AllocationSize);
@@ -1358,7 +1331,7 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 		if (pAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("Destroy_Object()", "Arena Allocater could not be found. ", pAllocater);
-			return;
+			return (TEXRESULT)(Failure);
 		}
 		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 
@@ -1401,7 +1374,7 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 			Object* pChild = Get_ObjectPointer(pObject->Header.iChildren[i]);
 			if (pChild != NULL)
 			{
-				memset(&pChild->Header.iParent, NULL, sizeof(pChild->Header.iParent));
+				memset(&pChild->Header.iParent, 0, sizeof(pChild->Header.iParent));
 			}
 		}
 
@@ -1413,9 +1386,10 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 		if (pObject->Header.Name != NULL)
 			free(pObject->Header.Name);
 
-		memset(pObject, NULL, sizeof(*pObject) * pObject->Header.AllocationSize);
+		memset(pObject, 0, sizeof(*pObject) * pObject->Header.AllocationSize);
 		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
 	}
+	return Success;
 }
 /*
 * Added in 1.0.0
@@ -1427,15 +1401,16 @@ void Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex
 * @note Multithread safe when threadindex is unique on each thread calling.
 * @note Externally Synchronized.
 */
-void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Get_ResourceHeaderAllocationValidity(Allocation) != Success)
 	{
 		Engine_Ref_ArgsError("Destroy_ResourceHeader()", "Allocation Invalid.");
-		return;
+		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ResourceHeaderSignature* pSignature = NULL;
 	ResourceHeaderBufferIndex BufferIndex = 0;
 	Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature, &BufferIndex);
@@ -1446,7 +1421,8 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 	if (pSignature->Destructor != NULL)
 	{
 		Destroy_ResourceHeaderTemplate* func = *pSignature->Destructor;
-		func(pInstance, Full, ThreadIndex);
+		if ((tres = func(pInstance, Full, ThreadIndex)) != Success)
+			return tres;
 	}
 	
 	if (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
@@ -1463,7 +1439,7 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 		if (pAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("Destroy_ResourceHeader()", "Arena Allocater could not be found. ", pAllocater);
-			return;
+			return (TEXRESULT)(Failure);
 		}
 		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 		memset(&Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pResourceHeader) * pResourceHeader->Header.AllocationSize);
@@ -1487,7 +1463,7 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 		if (pAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("Destroy_ResourceHeader()", "Arena Allocater could not be found. ", pAllocater);
-			return;
+			return (TEXRESULT)(Failure);
 		}
 		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 
@@ -1554,9 +1530,10 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 		if (pResourceHeader->Header.Name != NULL)
 			free(pResourceHeader->Header.Name);
 
-		memset(pResourceHeader, NULL, sizeof(ResourceHeader) * pResourceHeader->Header.AllocationSize);
+		memset(pResourceHeader, 0, sizeof(ResourceHeader) * pResourceHeader->Header.AllocationSize);
 		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
 	}
+	return Success;
 }
 /*
 * Added in 1.0.0
@@ -1568,15 +1545,16 @@ void Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint
 * @note Multithread safe when threadindex is unique on each thread calling.
 * @note Externally Synchronized.
 */
-void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Get_ElementAllocationValidity(Allocation) != Success)
 	{
 		Engine_Ref_ArgsError("Destroy_Element()", "Allocation Invalid.");
-		return;
+		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ElementSignature* pSignature = NULL;
 	ElementBufferIndex BufferIndex = 0;
 	Find_ElementSignature(Allocation.Identifier, &pSignature, &BufferIndex);
@@ -1587,7 +1565,8 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 	if (pSignature->Destructor != NULL)
 	{
 		Destroy_ElementTemplate* func = *pSignature->Destructor;
-		func(pInstance, Full, ThreadIndex);
+		if ((tres = func(pInstance, Full, ThreadIndex)) != Success)
+			return tres;
 	}
 	
 	if (pElement->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
@@ -1604,7 +1583,7 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 		if (pAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("Destroy_Element()", "Arena Allocater could not be found. ", pAllocater);
-			return;
+			return (TEXRESULT)(Failure);
 		}
 		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 		memset(&Utils.InternalElementBuffer.Buffer[pElement->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pElement) * pElement->Header.AllocationSize);
@@ -1628,7 +1607,7 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 		if (pAllocater == NULL)
 		{
 			Engine_Ref_FunctionError("Destroy_Element()", "Arena Allocater could not be found. ", pAllocater);
-			return;
+			return (TEXRESULT)(Failure);
 		}
 		Engine_Ref_Lock_Mutex(pAllocater->mutex);
 
@@ -1669,9 +1648,10 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 		if (pElement->Header.Name != NULL)
 			free(pElement->Header.Name);
 
-		memset(pElement, NULL, sizeof(Element) * pElement->Header.AllocationSize);
+		memset(pElement, 0, sizeof(Element) * pElement->Header.AllocationSize);
 		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
 	}
+	return Success;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1686,15 +1666,16 @@ void Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadInd
 * @param ThreadIndex Index of the thread that is calling this.
 * @note Externally Synchronized.
 */
-void ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uint32_t ThreadIndex)
+TEXRESULT ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Get_ObjectAllocationValidity(Allocation) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_Object()", "Allocation Invalid.");
-		return;
+		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ObjectSignature* pSignature = NULL;
 	ObjectBufferIndex BufferIndex = 0;
 	Find_ObjectSignature(Allocation.Identifier, &pSignature, &BufferIndex);
@@ -1733,10 +1714,12 @@ void ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uin
 	{
 		if (pSignature->ReConstructor != NULL)
 		{
-			ReCreate_ObjectTemplate* func = *pSignature->ReConstructor;
-			func(pObject, ThreadIndex);
+			ReCreate_ObjectTemplate* pFunction = *pSignature->ReConstructor;
+			if ((tres = pFunction(pObject, ThreadIndex)) != Success)
+				return tres;
 		}
 	}
+	return Success;
 }
 /*
 * Added in 1.0.0
@@ -1746,15 +1729,16 @@ void ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uin
 * @param ThreadIndex Index of the thread that is calling this.
 * @note Externally Synchronized.
 */
-void ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeaderInstance* pInstance, uint32_t ThreadIndex)
+TEXRESULT ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeaderInstance* pInstance, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Get_ResourceHeaderAllocationValidity(Allocation) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_ResourceHeader()", "Allocation Invalid.");
-		return;
+		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ResourceHeaderSignature* pSignature = NULL;
 	ResourceHeaderBufferIndex BufferIndex = 0;
 	Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature, &BufferIndex);
@@ -1793,11 +1777,12 @@ void ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeader
 	{
 		if (pSignature->ReConstructor != NULL)
 		{
-			ReCreate_ResourceHeaderTemplate* func = *pSignature->ReConstructor;
-			func(pResourceHeader, ThreadIndex);
+			ReCreate_ResourceHeaderTemplate* pFunction = *pSignature->ReConstructor;
+			if ((tres = pFunction(pResourceHeader, ThreadIndex)) != Success)
+				return tres;
 		}
 	}
-
+	return Success;
 }
 /*
 * Added in 1.0.0
@@ -1807,15 +1792,16 @@ void ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeader
 * @param ThreadIndex Index of the thread that is calling this.
 * @note Externally Synchronized.
 */
-void ReCreate_Element(ElementAllocation Allocation, ElementInstance* pInstance, uint32_t ThreadIndex)
+TEXRESULT ReCreate_Element(ElementAllocation Allocation, ElementInstance* pInstance, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Get_ElementAllocationValidity(Allocation) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_Element()", "Allocation Invalid.");
-		return;
+		return (TEXRESULT)(Invalid_Parameter | Failure);
 	}
 #endif
+	TEXRESULT tres = Success;
 	ElementSignature* pSignature = NULL;
 	ElementBufferIndex BufferIndex = 0;
 	Find_ElementSignature(Allocation.Identifier, &pSignature, &BufferIndex);
@@ -1854,10 +1840,12 @@ void ReCreate_Element(ElementAllocation Allocation, ElementInstance* pInstance, 
 	{
 		if (pSignature->ReConstructor != NULL)
 		{
-			ReCreate_ElementTemplate* func = *pSignature->ReConstructor;
-			func(pElement, ThreadIndex);
+			ReCreate_ElementTemplate* pFunction = *pSignature->ReConstructor;
+			if ((tres = pFunction(pElement, ThreadIndex)) != Success)
+				return tres;
 		}
 	}
+	return Success;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2073,7 +2061,7 @@ void Destroy_ObjectBuffer(ObjectBuffer* pBuffer)
 	}
 	pBuffer->ArenaAllocaters = NULL;
 
-	memset(pBuffer, NULL, sizeof(*pBuffer));
+	memset(pBuffer, 0, sizeof(*pBuffer));
 }
 /*
 * Added in 1.0.0
@@ -2121,7 +2109,7 @@ void Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer)
 	}
 	pBuffer->ArenaAllocaters = NULL;
 
-	memset(pBuffer, NULL, sizeof(*pBuffer));
+	memset(pBuffer, 0, sizeof(*pBuffer));
 }
 /*
 * Added in 1.0.0
@@ -2168,7 +2156,7 @@ void Destroy_ElementBuffer(ElementBuffer* pBuffer)
 	}	
 	pBuffer->ArenaAllocaters = NULL;
 
-	memset(pBuffer, NULL, sizeof(*pBuffer));
+	memset(pBuffer, 0, sizeof(*pBuffer));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2340,7 +2328,7 @@ void Remove_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent)
 
 	{
 		Object* pChild = Get_ObjectPointer(Allocation);
-		memset(&pChild->Header.iParent, NULL, sizeof(pChild->Header.iParent));
+		memset(&pChild->Header.iParent, 0, sizeof(pChild->Header.iParent));
 	}
 }
 /*
@@ -2596,12 +2584,12 @@ ResourceHeader* Scan_ObjectHeadersSingle(ObjectAllocation Allocation, ResourceHe
 	if (Get_ObjectAllocationValidity(Allocation) == Failure)
 	{
 		Engine_Ref_ArgsError("Scan_ObjectHeadersSingle", "Allocation Invalid.");
-		return;
+		return NULL;
 	}
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Scan_ObjectHeadersSingle", "Identifier Invalid.");
-		return;
+		return NULL;
 	}
 #endif
 	Object* pObject = Get_ObjectPointer(Allocation);
@@ -2937,7 +2925,7 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 	}
 
 	TEIF_HEADER header;
-	memset(&header, NULL, sizeof(header));
+	memset(&header, 0, sizeof(header));
 	header.filecode[0] = 'T'; header.filecode[1] = 'E'; header.filecode[2] = 'I'; header.filecode[3] = 'F';
 
 	Object* ObjectsData = NULL;
@@ -3157,6 +3145,7 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 */
 TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 {
+	TEXRESULT tres = Success;
 #ifndef NDEBUG
 	if (Path == NULL)
 	{
@@ -3221,6 +3210,12 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 			UnPack_ObjectTemplate* func = *pSignature->UnPacker;
 			func(pObject, pCopiedObject, pDataBuffer, ThreadIndex);
 		}
+		if (pSignature->ReConstructor != NULL)
+		{
+			ReCreate_ObjectTemplate* pFunction = *pSignature->ReConstructor;
+			if ((tres = pFunction(pObject, ThreadIndex)) != Success)
+				return tres;
+		}
 		i += pObject->Header.AllocationSize;
 	}
 	for (size_t i = 0; i < ResourceHeadersSize;)
@@ -3253,6 +3248,12 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 			UnPack_ResourceHeaderTemplate* func = *pSignature->UnPacker;
 			func(pResourceHeader, pCopiedResourceHeader, pDataBuffer, ThreadIndex);
 		}
+		if (pSignature->ReConstructor != NULL)
+		{
+			ReCreate_ResourceHeaderTemplate* pFunction = *pSignature->ReConstructor;
+			if ((tres = pFunction(pResourceHeader, ThreadIndex)) != Success)
+				return tres;
+		}
 		i += pResourceHeader->Header.AllocationSize;
 	}
 	for (size_t i = 0; i < ElementsSize;)
@@ -3280,6 +3281,12 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 			UnPack_ElementTemplate* func = *pSignature->UnPacker;
 			func(pElement, pCopiedElement, pDataBuffer, ThreadIndex);
 		}
+		if (pSignature->ReConstructor != NULL)
+		{
+			ReCreate_ElementTemplate* pFunction = *pSignature->ReConstructor;
+			if ((tres = pFunction(pElement, ThreadIndex)) != Success)
+				return tres;
+		}
 		i += pElement->Header.AllocationSize;
 	}
 	free(data.pData);
@@ -3292,8 +3299,8 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 
 TEXRESULT Initialise_Objects()
 {
-	memset(&Utils, NULL, sizeof(Utils));
-	memset(&Config, NULL, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
 	Config.InitialParametersMax = 1024;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -3388,8 +3395,8 @@ TEXRESULT Destroy_Objects()
 	Engine_Ref_Destroy_Mutex(Utils.ElementSignaturesMutex, MutexType_Plain);
 
 
-	memset(&Utils, NULL, sizeof(Utils));
-	memset(&Config, NULL, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
 	return Success;
 }
 

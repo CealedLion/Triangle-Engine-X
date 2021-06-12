@@ -431,35 +431,35 @@ uint16_t swap_uint16(uint16_t val)
 //! Byte swap short
 int16_t swap_int16(int16_t val)
 {
-	return (val << 8) | ((val >> 8) & 0xFF);
-}
-
-//! Byte swap unsigned int
-uint32_t swap_uint32(uint32_t val)
-{
-	val = ((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF);
-	return (val << 16) | (val >> 16);
+	return (val << (int16_t)8) | ((val >> (int16_t)8) & 0xFF);
 }
 
 //! Byte swap int
 int32_t swap_int32(int32_t val)
 {
-	val = ((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF);
-	return (val << 16) | ((val >> 16) & 0xFFFF);
+	val = ((val << (int32_t)8) & 0xFF00FF00) | ((val >> (int32_t)8) & 0xFF00FF);
+	return (val << (int32_t)16) | ((val >> (int32_t)16) & 0xFFFF);
+}
+
+//! Byte swap unsigned int
+uint32_t swap_uint32(uint32_t val)
+{
+	val = ((val << (uint32_t)8) & 0xFF00FF00) | ((val >> (uint32_t)8) & 0xFF00FF);
+	return (val << (uint32_t)16) | (val >> (uint32_t)16);
 }
 
 int64_t swap_int64(int64_t val)
 {
-	val = ((val << 8) & 0xFF00FF00FF00FF00ULL) | ((val >> 8) & 0x00FF00FF00FF00FFULL);
-	val = ((val << 16) & 0xFFFF0000FFFF0000ULL) | ((val >> 16) & 0x0000FFFF0000FFFFULL);
-	return (val << 32) | ((val >> 32) & 0xFFFFFFFFULL);
+	val = ((val << (int64_t)8) & 0xFF00FF00FF00FF00ULL) | ((val >> (int64_t)8) & 0x00FF00FF00FF00FFULL);
+	val = ((val << (int64_t)16) & 0xFFFF0000FFFF0000ULL) | ((val >> (int64_t)16) & 0x0000FFFF0000FFFFULL);
+	return (val << (int64_t)32) | ((val >> (int64_t)32) & 0xFFFFFFFFULL);
 }
 
 uint64_t swap_uint64(uint64_t val)
 {
-	val = ((val << 8) & 0xFF00FF00FF00FF00ULL) | ((val >> 8) & 0x00FF00FF00FF00FFULL);
-	val = ((val << 16) & 0xFFFF0000FFFF0000ULL) | ((val >> 16) & 0x0000FFFF0000FFFFULL);
-	return (val << 32) | (val >> 32);
+	val = ((val << (uint64_t)8) & 0xFF00FF00FF00FF00ULL) | ((val >> (uint64_t)8) & 0x00FF00FF00FF00FFULL);
+	val = ((val << (uint64_t)16) & 0xFFFF0000FFFF0000ULL) | ((val >> (uint64_t)16) & 0x0000FFFF0000FFFFULL);
+	return (val << (uint64_t)32) | (val >> (uint64_t)32);
 }
 
 /*
@@ -1030,7 +1030,7 @@ TEXRESULT UTF32_To_UTF8(UTF32* src, UTF8** dst)
 	{
 		i11++;
 	}
-	*dst = (UTF8*)malloc((i11 * 8) + 1);
+	*dst = (UTF8*)malloc((i11 * (uint64_t)8) + (uint64_t)1);
 	UTF8* target = *dst;
 	UTF32* source = src;
 	for (size_t i = 0; i < i11; i++)
@@ -1486,7 +1486,7 @@ typedef struct EngineUtils{
 	}posix;
 	//Computer Information.
 	struct CPUINFO {
-		size_t MaxThreads;
+		uint32_t MaxThreads;
 	}CPU;
 	//Internal Window Buffer.
 	Window** pWindows;
@@ -1737,7 +1737,7 @@ struct EngineResStruct
 //Initialise_Resources MUST be called to use the library in your extension
 void Engine_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&EngineRes, NULL, sizeof(EngineRes));
+	memset(&EngineRes, 0, sizeof(EngineRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Engine::Utils"), &EngineRes.pUtils);
 

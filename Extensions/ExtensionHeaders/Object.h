@@ -341,6 +341,8 @@ typedef union pObjectBuffer{
 * UnPackers on the other hand, will get passed a refrence to the current object thats being unpacked and a pointer to the stored data.
   And then you do whatever you want to restore the data to its original state, be it pointers or whatever.
 
+* when unpacking recreate will be called.
+
 
 * Code Example For Unpacking.
 
@@ -364,12 +366,12 @@ void UnPack_Element2D(const Element2D* pElement, Element2D* pCopiedElement, void
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TEXRESULT(Create_ObjectTemplate)(Object* pObject, void* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex);
-typedef void(Destroy_ObjectTemplate)(Object* pObject, bool Full, uint32_t ThreadIndex);
+typedef TEXRESULT(Destroy_ObjectTemplate)(Object* pObject, bool Full, uint32_t ThreadIndex);
 
-typedef void(ReCreate_ObjectTemplate)(Object* pObject, uint32_t ThreadIndex);
+typedef TEXRESULT(ReCreate_ObjectTemplate)(Object* pObject, uint32_t ThreadIndex);
 
-typedef void(Pack_ObjectTemplate)(const Object* pObject, Object* pCopiedObject, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
-typedef void(UnPack_ObjectTemplate)(const Object* pObject, Object* pCopiedObject, const void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(Pack_ObjectTemplate)(const Object* pObject, Object* pCopiedObject, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(UnPack_ObjectTemplate)(const Object* pObject, Object* pCopiedObject, const void* pData, uint32_t ThreadIndex);
 
 /*
 * Added in 1.0.0
@@ -391,12 +393,12 @@ typedef struct ObjectSignature{
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TEXRESULT(Create_ResourceHeaderTemplate)(ResourceHeader* pResourceHeader, void* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex);
-typedef void(Destroy_ResourceHeaderTemplate)(ResourceHeader* pResourceHeader, bool Full, uint32_t ThreadIndex);
+typedef TEXRESULT(Destroy_ResourceHeaderTemplate)(ResourceHeader* pResourceHeader, bool Full, uint32_t ThreadIndex);
 
-typedef void(ReCreate_ResourceHeaderTemplate)(ResourceHeader* pResourceHeader, uint32_t ThreadIndex);
+typedef TEXRESULT(ReCreate_ResourceHeaderTemplate)(ResourceHeader* pResourceHeader, uint32_t ThreadIndex);
 
-typedef void(Pack_ResourceHeaderTemplate)(const ResourceHeader* pResourceHeader, ResourceHeader* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
-typedef void(UnPack_ResourceHeaderTemplate)(const ResourceHeader* pResourceHeader, ResourceHeader* pCopiedResourceHeader, const void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(Pack_ResourceHeaderTemplate)(const ResourceHeader* pResourceHeader, ResourceHeader* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(UnPack_ResourceHeaderTemplate)(const ResourceHeader* pResourceHeader, ResourceHeader* pCopiedResourceHeader, const void* pData, uint32_t ThreadIndex);
 
 /*
 * Added in 1.0.0
@@ -418,12 +420,12 @@ typedef struct ResourceHeaderSignature{
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TEXRESULT(Create_ElementTemplate)(Element* pElement, void* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex);
-typedef void(Destroy_ElementTemplate)(Element* pElement, bool Full, uint32_t ThreadIndex);
+typedef TEXRESULT(Destroy_ElementTemplate)(Element* pElement, bool Full, uint32_t ThreadIndex);
 
-typedef void(ReCreate_ElementTemplate)(Element* pElement, uint32_t ThreadIndex);
+typedef TEXRESULT(ReCreate_ElementTemplate)(Element* pElement, uint32_t ThreadIndex);
 
-typedef void(Pack_ElementTemplate)(const Element* pElement, Element* pCopiedElement, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
-typedef void(UnPack_ElementTemplate)(const Element* pElement, Element* pCopiedElement, const void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(Pack_ElementTemplate)(const Element* pElement, Element* pCopiedElement, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
+typedef TEXRESULT(UnPack_ElementTemplate)(const Element* pElement, Element* pCopiedElement, const void* pData, uint32_t ThreadIndex);
 
 /*
 * Added in 1.0.0
@@ -489,7 +491,7 @@ typedef struct ObjectUtils{
 	Mutex ElementSignaturesMutex;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//default signatures
+	//Default signatures
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	//Internal Buffers
@@ -594,7 +596,7 @@ struct ObjectResStruct
 
 void Object_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&ObjectsRes, NULL, sizeof(ObjectsRes));
+	memset(&ObjectsRes, 0, sizeof(ObjectsRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Object::Utils"), &ObjectsRes.pUtils);
 
@@ -849,48 +851,48 @@ TEXRESULT Object_Ref_Create_Element(ElementAllocation* pAllocation, ElementCreat
 	return function(pAllocation, CreateInfo, pCreateInfo, ThreadIndex);
 }
 
-void Object_Ref_Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex)
+TEXRESULT Object_Ref_Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex)
 {
-	void (*function)(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex) =
-		(void (*)(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex))ObjectsRes.pDestroy_Object;
+	TEXRESULT(*function)(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex))ObjectsRes.pDestroy_Object;
 
-	function(Allocation, Full, ThreadIndex);
+	return function(Allocation, Full, ThreadIndex);
 }
-void Object_Ref_Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex)
+TEXRESULT Object_Ref_Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex)
 {
-	void (*function)(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex) =
-		(void (*)(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex))ObjectsRes.pDestroy_ResourceHeader;
+	TEXRESULT(*function)(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex))ObjectsRes.pDestroy_ResourceHeader;
 
-	function(Allocation, Full, ThreadIndex);
+	return function(Allocation, Full, ThreadIndex);
 }
-void Object_Ref_Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex)
+TEXRESULT Object_Ref_Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex)
 {
-	void (*function)(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex) =
-		(void (*)(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex))ObjectsRes.pDestroy_Element;
+	TEXRESULT(*function)(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex))ObjectsRes.pDestroy_Element;
 
-	function(Allocation, Full, ThreadIndex);
+	return function(Allocation, Full, ThreadIndex);
 }
 
-void Object_Ref_ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uint32_t ThreadIndex)
+TEXRESULT Object_Ref_ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uint32_t ThreadIndex)
 {
-	void (*function)(ObjectAllocation Allocation, ObjectInstance * pInstance, uint32_t ThreadIndex) =
-		(void (*)(ObjectAllocation Allocation, ObjectInstance * pInstance, uint32_t ThreadIndex))ObjectsRes.pReCreate_Object;
+	TEXRESULT(*function)(ObjectAllocation Allocation, ObjectInstance * pInstance, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ObjectAllocation Allocation, ObjectInstance * pInstance, uint32_t ThreadIndex))ObjectsRes.pReCreate_Object;
 
-	function(Allocation, pInstance, ThreadIndex);
+	return function(Allocation, pInstance, ThreadIndex);
 }
-void Object_Ref_ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeaderInstance* pInstance, uint32_t ThreadIndex)
+TEXRESULT Object_Ref_ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeaderInstance* pInstance, uint32_t ThreadIndex)
 {
-	void (*function)(ResourceHeaderAllocation Allocation, ResourceHeaderInstance * pInstance, uint32_t ThreadIndex) =
-		(void (*)(ResourceHeaderAllocation Allocation, ResourceHeaderInstance * pInstance, uint32_t ThreadIndex))ObjectsRes.pReCreate_ResourceHeader;
+	TEXRESULT(*function)(ResourceHeaderAllocation Allocation, ResourceHeaderInstance * pInstance, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ResourceHeaderAllocation Allocation, ResourceHeaderInstance * pInstance, uint32_t ThreadIndex))ObjectsRes.pReCreate_ResourceHeader;
 
-	function(Allocation, pInstance, ThreadIndex);
+	return function(Allocation, pInstance, ThreadIndex);
 }
-void Object_Ref_ReCreate_Element(ElementAllocation Allocation, ElementInstance* pInstance, uint32_t ThreadIndex)
+TEXRESULT Object_Ref_ReCreate_Element(ElementAllocation Allocation, ElementInstance* pInstance, uint32_t ThreadIndex)
 {
-	void (*function)(ElementAllocation Allocation, ElementInstance * pInstance, uint32_t ThreadIndex) =
-		(void (*)(ElementAllocation Allocation, ElementInstance * pInstance, uint32_t ThreadIndex))ObjectsRes.pReCreate_Element;
+	TEXRESULT(*function)(ElementAllocation Allocation, ElementInstance * pInstance, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ElementAllocation Allocation, ElementInstance * pInstance, uint32_t ThreadIndex))ObjectsRes.pReCreate_Element;
 
-	function(Allocation, pInstance, ThreadIndex);
+	return function(Allocation, pInstance, ThreadIndex);
 }
 
 

@@ -292,7 +292,7 @@ struct FormatsResStruct
 //Initialise_Resources MUST be called to use the library in your dll
 void Formats_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
 {
-	memset(&FormatsRes, NULL, sizeof(FormatsRes));
+	memset(&FormatsRes, 0, sizeof(FormatsRes));
 
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Load_2Dscene"), &FormatsRes.pLoad_2Dscene);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Formats::Load_3Dscene"), &FormatsRes.pLoad_3Dscene);

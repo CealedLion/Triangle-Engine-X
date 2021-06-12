@@ -1850,7 +1850,6 @@ SPIRV_Header(124)\
 (1<<SpvWordCountShift)|SpvOpFunctionEnd,\
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Misc
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1860,7 +1859,7 @@ TEXRESULT Create_WaterTexture(GPU_Texture* pGPU_Texture, LogicalDevice* pLogical
 	VkResult res = VK_SUCCESS;
 	{
 		VkImageCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		Info.pNext = NULL;
 		Info.flags = NULL;
@@ -1881,7 +1880,7 @@ TEXRESULT Create_WaterTexture(GPU_Texture* pGPU_Texture, LogicalDevice* pLogical
 		if ((res = vkCreateImage(pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGPU_Texture->VkImage)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("Create_WaterTexture()", "vkCreateImage Failed, VkResult == ", res);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 	}
 	VkMemoryRequirements memRequirements;
@@ -1890,17 +1889,17 @@ TEXRESULT Create_WaterTexture(GPU_Texture* pGPU_Texture, LogicalDevice* pLogical
 	if (pGPU_Texture->Allocation.SizeBytes == NULL)
 	{
 		Engine_Ref_FunctionError("Create_WaterTexture()", "Not Enough Space In GPU Memory!", NULL);
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 
 	if ((res = vkBindImageMemory(pLogicalDevice->VkLogicalDevice, pGPU_Texture->VkImage, pGPU_Texture->Allocation.Allocater.VkMemory, pGPU_Texture->Allocation.Pointer)) != VK_SUCCESS)
 	{
 		Engine_Ref_FunctionError("Create_WaterTexture()", "vkBindImageMemory Failed, VkResult == ", res);
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 	{
 		VkImageViewCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		Info.image = pGPU_Texture->VkImage;
 		Info.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -1920,10 +1919,10 @@ TEXRESULT Create_WaterTexture(GPU_Texture* pGPU_Texture, LogicalDevice* pLogical
 		if ((res = vkCreateImageView(pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGPU_Texture->VkImageView)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("Create_WaterTexture()", "vkCreateImageView Failed, VkResult == ", res);
-			return (TEXRESULT)(Failure);
+			return (Failure);
 		}
 	}
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 unsigned char reverse(unsigned char n, size_t b){
@@ -1938,7 +1937,7 @@ unsigned char reverse(unsigned char n, size_t b){
 //Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
+TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
 	Engine_Ref_Lock_Mutex(pResourceHeader->mutex);
 
@@ -1946,7 +1945,6 @@ void Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, u
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 
 	LogicalDevice* pLogicalDevice = pGraphicsWindow->pLogicalDevice;
-
 
 	Graphics_Ref_GPUfree(pLogicalDevice, &pResourceHeader->AllocationBitReversedIndices);
 
@@ -2010,30 +2008,30 @@ void Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, u
 		vkDestroyDescriptorPool(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorPoolWater, NULL);
 
 	Engine_Ref_Destroy_Mutex(pResourceHeader->mutex);
-
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //ReCreate
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t ThreadIndex)
+TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iGraphicsWindow Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iTextureTarget) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iTextureTarget Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iNoise) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iNoise Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
@@ -2046,12 +2044,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pTexture->iImageSource) != Success)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pTexture->iImageSource Invalid");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 	if (pImageSource->ImageData == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pImageSource->ImageData == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	pImageSource->ImageData->Width = pResourceHeader->WaterResolution;
@@ -2082,22 +2080,22 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 
 	if ((tres = Create_WaterTexture(&pResourceHeader->Textureh0k, pGraphicsWindow->pLogicalDevice, pResourceHeader->WaterResolution, pResourceHeader->WaterResolution,
 		GraphicsFormat_R32G32B32A32_SFLOAT, AllocationType_Linear, ThreadIndex)) != Success)
-		return;
+		return (Failure);
 	if ((tres = Create_WaterTexture(&pResourceHeader->Texturehkt_dy, pGraphicsWindow->pLogicalDevice, pResourceHeader->WaterResolution, pResourceHeader->WaterResolution,
 		GraphicsFormat_R32G32B32A32_SFLOAT, AllocationType_Linear, ThreadIndex)) != Success)
-		return;
+		return (Failure);
 	if ((tres = Create_WaterTexture(&pResourceHeader->Texturehkt_dx, pGraphicsWindow->pLogicalDevice, pResourceHeader->WaterResolution, pResourceHeader->WaterResolution,
 		GraphicsFormat_R32G32B32A32_SFLOAT, AllocationType_Linear, ThreadIndex)) != Success)
-		return;
+		return (Failure);
 	if ((tres = Create_WaterTexture(&pResourceHeader->Texturehkt_dz, pGraphicsWindow->pLogicalDevice, pResourceHeader->WaterResolution, pResourceHeader->WaterResolution,
 		GraphicsFormat_R32G32B32A32_SFLOAT, AllocationType_Linear, ThreadIndex)) != Success)
-		return;
+		return (Failure);
 	if ((tres = Create_WaterTexture(&pResourceHeader->TextureTwiddleFactors, pGraphicsWindow->pLogicalDevice, log_2_N, pResourceHeader->WaterResolution,
 		GraphicsFormat_R32G32B32A32_SFLOAT, AllocationType_Linear, ThreadIndex)) != Success)
-		return;
+		return (Failure);
 	if ((tres = Create_WaterTexture(&pResourceHeader->TexturePingPong, pGraphicsWindow->pLogicalDevice, pResourceHeader->WaterResolution, pResourceHeader->WaterResolution,
 		GraphicsFormat_R32G32B32A32_SFLOAT, AllocationType_Linear, ThreadIndex)) != Success)
-		return;
+		return (Failure);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//DescriptorLayout
@@ -2129,7 +2127,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorSetLayouth0k)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//Layout twiddlefactors
@@ -2157,7 +2155,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorSetLayoutTwiddleFactors)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//Layout hkt
@@ -2199,7 +2197,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorSetLayouthkt)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//Layout butterfly
@@ -2234,7 +2232,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorSetLayoutButterfly)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//Layout inversion
@@ -2269,7 +2267,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorSetLayoutInversion)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -2297,7 +2295,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreatePipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkPipelineLayouth0k)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//layout twiddlefactors
@@ -2320,7 +2318,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreatePipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkPipelineLayoutTwiddleFactors)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//layout hkt
@@ -2343,7 +2341,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreatePipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkPipelineLayouthkt)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//layout butterfly
@@ -2366,7 +2364,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreatePipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkPipelineLayoutButterfly)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//layout inversion
@@ -2389,7 +2387,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreatePipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkPipelineLayoutInversion)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreatePipelineLayout Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -2399,7 +2397,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 
 	{//pipeline h0k
 		VkComputePipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -2413,12 +2411,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pResourceHeader->VkPipelineh0k)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateComputePipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//pipeline TwiddleFactors
 		VkComputePipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -2432,12 +2430,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pResourceHeader->VkPipelineTwiddleFactors)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateComputePipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//pipeline hkt
 		VkComputePipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -2451,12 +2449,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pResourceHeader->VkPipelinehkt)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateComputePipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//pipeline Butterfly
 		VkComputePipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -2470,12 +2468,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pResourceHeader->VkPipelineButterfly)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateComputePipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//pipeline Inversion
 		VkComputePipelineCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		Info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		Info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -2489,7 +2487,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateComputePipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pResourceHeader->VkPipelineInversion)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateComputePipelines Failed. VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -2511,7 +2509,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		PoolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
 		VkDescriptorPoolCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		Info.maxSets = 5;
 		Info.poolSizeCount = PoolSizesSize;
@@ -2519,7 +2517,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkCreateDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pResourceHeader->VkDescriptorPoolWater)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateDescriptorPool, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{//sets
@@ -2529,7 +2527,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		VkDescriptorSet sets[5];
 
 		VkDescriptorSetAllocateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		Info.descriptorPool = pResourceHeader->VkDescriptorPoolWater;
 		Info.descriptorSetCount = layoutsSize;
@@ -2538,7 +2536,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkAllocateDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkAllocateDescriptorSets, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 		pResourceHeader->VkDescriptorSeth0k = sets[0];
 		pResourceHeader->VkDescriptorSetTwiddleFactors = sets[1];
@@ -2558,6 +2556,11 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 		requirements.memoryTypeBits = NULL;
 		pResourceHeader->AllocationBitReversedIndices = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, requirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
+		if (pResourceHeader->AllocationBitReversedIndices.SizeBytes == NULL)
+		{
+			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "Not Enough Space In GPU Memory!", NULL);
+			return (Out_Of_Memory_Result | Failure);
+		}
 		int* targetbits = (int*)((void*)(((uint64_t)pResourceHeader->AllocationBitReversedIndices.Allocater.pArenaAllocater->MappedMemory + pResourceHeader->AllocationBitReversedIndices.Pointer)));
 		for (int i = 0; i < pResourceHeader->WaterResolution; i++)
 		{
@@ -2668,19 +2671,19 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 	VkCommandBuffer VkCmdBuffer = NULL;
 	{
 		VkCommandPoolCreateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		Info.queueFamilyIndex = pGraphicsWindow->pLogicalDevice->ComputeQueueFamilyIndex;
 		Info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 		if ((res = vkCreateCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &VkCmdPool)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkCreateCommandPool Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkCommandBufferAllocateInfo Info;
-		memset(&Info, NULL, sizeof(Info));
+		memset(&Info, 0, sizeof(Info));
 		Info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		Info.commandPool = VkCmdPool;
 		Info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -2689,12 +2692,12 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkAllocateCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, &VkCmdBuffer)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkAllocateCommandBuffers Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 	{
 		VkCommandBufferBeginInfo BeginInfo;
-		memset(&BeginInfo, NULL, sizeof(BeginInfo));
+		memset(&BeginInfo, 0, sizeof(BeginInfo));
 		BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		BeginInfo.pInheritanceInfo = NULL;
@@ -2702,7 +2705,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 		if ((res = vkBeginCommandBuffer(VkCmdBuffer, &BeginInfo)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkBeginCommandBuffer Failed, VkResult == ", res);
-			return;
+			return (Failure);
 		}
 	}
 
@@ -2885,7 +2888,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 	vkGetDeviceQueue(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->pLogicalDevice->ComputeQueueFamilyIndex, QueueIndex, &Queue);
 
 	VkSubmitInfo SubmitInfo;
-	memset(&SubmitInfo, NULL, sizeof(SubmitInfo));
+	memset(&SubmitInfo, 0, sizeof(SubmitInfo));
 	SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	SubmitInfo.commandBufferCount = (uint32_t)1;
 	SubmitInfo.pCommandBuffers = &VkCmdBuffer;
@@ -2893,7 +2896,7 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 	if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, VK_NULL_HANDLE)) != VK_SUCCESS)
 	{
 		Engine_Ref_FunctionError("ReCreate_WaterRenderHeader()", "vkQueueSubmit Failed, VkResult == ", res);
-		return;
+		return (Failure);
 	}
 
 	vkQueueWaitIdle(Queue);
@@ -2907,67 +2910,68 @@ void ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t Th
 //Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Pack_WaterRenderHeader(const RHeaderWaterRender* pResourceHeader, RHeaderWaterRender* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+TEXRESULT Pack_WaterRenderHeader(const RHeaderWaterRender* pResourceHeader, RHeaderWaterRender* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedResourceHeader->mutex, NULL, sizeof(pCopiedResourceHeader->mutex));
+		memset(&pCopiedResourceHeader->mutex, 0, sizeof(pCopiedResourceHeader->mutex));
 
-		memset(&pCopiedResourceHeader->AllocationBitReversedIndices, NULL, sizeof(pCopiedResourceHeader->AllocationBitReversedIndices));
+		memset(&pCopiedResourceHeader->AllocationBitReversedIndices, 0, sizeof(pCopiedResourceHeader->AllocationBitReversedIndices));
 
-		memset(&pCopiedResourceHeader->Textureh0k, NULL, sizeof(pCopiedResourceHeader->Textureh0k));
-		memset(&pCopiedResourceHeader->TextureTwiddleFactors, NULL, sizeof(pCopiedResourceHeader->TextureTwiddleFactors));
-		memset(&pCopiedResourceHeader->Texturehkt_dy, NULL, sizeof(pCopiedResourceHeader->Texturehkt_dy));
-		memset(&pCopiedResourceHeader->Texturehkt_dx, NULL, sizeof(pCopiedResourceHeader->Texturehkt_dx));
-		memset(&pCopiedResourceHeader->Texturehkt_dz, NULL, sizeof(pCopiedResourceHeader->Texturehkt_dz));
-		memset(&pCopiedResourceHeader->TexturePingPong, NULL, sizeof(pCopiedResourceHeader->TexturePingPong));
+		memset(&pCopiedResourceHeader->Textureh0k, 0, sizeof(pCopiedResourceHeader->Textureh0k));
+		memset(&pCopiedResourceHeader->TextureTwiddleFactors, 0, sizeof(pCopiedResourceHeader->TextureTwiddleFactors));
+		memset(&pCopiedResourceHeader->Texturehkt_dy, 0, sizeof(pCopiedResourceHeader->Texturehkt_dy));
+		memset(&pCopiedResourceHeader->Texturehkt_dx, 0, sizeof(pCopiedResourceHeader->Texturehkt_dx));
+		memset(&pCopiedResourceHeader->Texturehkt_dz, 0, sizeof(pCopiedResourceHeader->Texturehkt_dz));
+		memset(&pCopiedResourceHeader->TexturePingPong, 0, sizeof(pCopiedResourceHeader->TexturePingPong));
 
-		memset(&pCopiedResourceHeader->VkShaderh0k, NULL, sizeof(pCopiedResourceHeader->VkShaderh0k));
-		memset(&pCopiedResourceHeader->VkShaderTwiddleFactors, NULL, sizeof(pCopiedResourceHeader->VkShaderTwiddleFactors));
-		memset(&pCopiedResourceHeader->VkShaderhkt, NULL, sizeof(pCopiedResourceHeader->VkShaderhkt));
-		memset(&pCopiedResourceHeader->VkShaderButterfly, NULL, sizeof(pCopiedResourceHeader->VkShaderButterfly));
-		memset(&pCopiedResourceHeader->VkShaderInversion, NULL, sizeof(pCopiedResourceHeader->VkShaderInversion));
+		memset(&pCopiedResourceHeader->VkShaderh0k, 0, sizeof(pCopiedResourceHeader->VkShaderh0k));
+		memset(&pCopiedResourceHeader->VkShaderTwiddleFactors, 0, sizeof(pCopiedResourceHeader->VkShaderTwiddleFactors));
+		memset(&pCopiedResourceHeader->VkShaderhkt, 0, sizeof(pCopiedResourceHeader->VkShaderhkt));
+		memset(&pCopiedResourceHeader->VkShaderButterfly, 0, sizeof(pCopiedResourceHeader->VkShaderButterfly));
+		memset(&pCopiedResourceHeader->VkShaderInversion, 0, sizeof(pCopiedResourceHeader->VkShaderInversion));
 
-		memset(&pCopiedResourceHeader->VkDescriptorSetLayouth0k, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetLayouth0k));
-		memset(&pCopiedResourceHeader->VkDescriptorSetLayoutTwiddleFactors, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetLayoutTwiddleFactors));
-		memset(&pCopiedResourceHeader->VkDescriptorSetLayouthkt, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetLayouthkt));
-		memset(&pCopiedResourceHeader->VkDescriptorSetLayoutButterfly, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetLayoutButterfly));
-		memset(&pCopiedResourceHeader->VkDescriptorSetLayoutInversion, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetLayoutInversion));
+		memset(&pCopiedResourceHeader->VkDescriptorSetLayouth0k, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetLayouth0k));
+		memset(&pCopiedResourceHeader->VkDescriptorSetLayoutTwiddleFactors, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetLayoutTwiddleFactors));
+		memset(&pCopiedResourceHeader->VkDescriptorSetLayouthkt, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetLayouthkt));
+		memset(&pCopiedResourceHeader->VkDescriptorSetLayoutButterfly, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetLayoutButterfly));
+		memset(&pCopiedResourceHeader->VkDescriptorSetLayoutInversion, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetLayoutInversion));
 
-		memset(&pCopiedResourceHeader->VkPipelineLayouth0k, NULL, sizeof(pCopiedResourceHeader->VkPipelineLayouth0k));
-		memset(&pCopiedResourceHeader->VkPipelineLayoutTwiddleFactors, NULL, sizeof(pCopiedResourceHeader->VkPipelineLayoutTwiddleFactors));
-		memset(&pCopiedResourceHeader->VkPipelineLayouthkt, NULL, sizeof(pCopiedResourceHeader->VkPipelineLayouthkt));
-		memset(&pCopiedResourceHeader->VkPipelineLayoutButterfly, NULL, sizeof(pCopiedResourceHeader->VkPipelineLayoutButterfly));
-		memset(&pCopiedResourceHeader->VkPipelineLayoutInversion, NULL, sizeof(pCopiedResourceHeader->VkPipelineLayoutInversion));
+		memset(&pCopiedResourceHeader->VkPipelineLayouth0k, 0, sizeof(pCopiedResourceHeader->VkPipelineLayouth0k));
+		memset(&pCopiedResourceHeader->VkPipelineLayoutTwiddleFactors, 0, sizeof(pCopiedResourceHeader->VkPipelineLayoutTwiddleFactors));
+		memset(&pCopiedResourceHeader->VkPipelineLayouthkt, 0, sizeof(pCopiedResourceHeader->VkPipelineLayouthkt));
+		memset(&pCopiedResourceHeader->VkPipelineLayoutButterfly, 0, sizeof(pCopiedResourceHeader->VkPipelineLayoutButterfly));
+		memset(&pCopiedResourceHeader->VkPipelineLayoutInversion, 0, sizeof(pCopiedResourceHeader->VkPipelineLayoutInversion));
 
-		memset(&pCopiedResourceHeader->VkPipelineh0k, NULL, sizeof(pCopiedResourceHeader->VkPipelineh0k));
-		memset(&pCopiedResourceHeader->VkPipelineTwiddleFactors, NULL, sizeof(pCopiedResourceHeader->VkPipelineTwiddleFactors));
-		memset(&pCopiedResourceHeader->VkPipelinehkt, NULL, sizeof(pCopiedResourceHeader->VkPipelinehkt));
-		memset(&pCopiedResourceHeader->VkPipelineButterfly, NULL, sizeof(pCopiedResourceHeader->VkPipelineButterfly));
-		memset(&pCopiedResourceHeader->VkPipelineInversion, NULL, sizeof(pCopiedResourceHeader->VkPipelineInversion));
+		memset(&pCopiedResourceHeader->VkPipelineh0k, 0, sizeof(pCopiedResourceHeader->VkPipelineh0k));
+		memset(&pCopiedResourceHeader->VkPipelineTwiddleFactors, 0, sizeof(pCopiedResourceHeader->VkPipelineTwiddleFactors));
+		memset(&pCopiedResourceHeader->VkPipelinehkt, 0, sizeof(pCopiedResourceHeader->VkPipelinehkt));
+		memset(&pCopiedResourceHeader->VkPipelineButterfly, 0, sizeof(pCopiedResourceHeader->VkPipelineButterfly));
+		memset(&pCopiedResourceHeader->VkPipelineInversion, 0, sizeof(pCopiedResourceHeader->VkPipelineInversion));
 
 
-		memset(&pCopiedResourceHeader->VkDescriptorPoolWater, NULL, sizeof(pCopiedResourceHeader->VkDescriptorPoolWater));
+		memset(&pCopiedResourceHeader->VkDescriptorPoolWater, 0, sizeof(pCopiedResourceHeader->VkDescriptorPoolWater));
 
-		memset(&pCopiedResourceHeader->VkDescriptorSeth0k, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSeth0k));
-		memset(&pCopiedResourceHeader->VkDescriptorSetTwiddleFactors, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetTwiddleFactors));
-		memset(&pCopiedResourceHeader->VkDescriptorSethkt, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSethkt));
-		memset(&pCopiedResourceHeader->VkDescriptorSetButterfly, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetButterfly));
-		memset(&pCopiedResourceHeader->VkDescriptorSetInversion, NULL, sizeof(pCopiedResourceHeader->VkDescriptorSetInversion));
+		memset(&pCopiedResourceHeader->VkDescriptorSeth0k, 0, sizeof(pCopiedResourceHeader->VkDescriptorSeth0k));
+		memset(&pCopiedResourceHeader->VkDescriptorSetTwiddleFactors, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetTwiddleFactors));
+		memset(&pCopiedResourceHeader->VkDescriptorSethkt, 0, sizeof(pCopiedResourceHeader->VkDescriptorSethkt));
+		memset(&pCopiedResourceHeader->VkDescriptorSetButterfly, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetButterfly));
+		memset(&pCopiedResourceHeader->VkDescriptorSetInversion, 0, sizeof(pCopiedResourceHeader->VkDescriptorSetInversion));
 	}
 	else
 	{
 	
 	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Unpackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UnPack_WaterRenderHeader(const RHeaderWaterRender* pResourceHeader, RHeaderWaterRender* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+TEXRESULT UnPack_WaterRenderHeader(const RHeaderWaterRender* pResourceHeader, RHeaderWaterRender* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
-	ReCreate_WaterRenderHeader(pCopiedResourceHeader, ThreadIndex);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2986,7 +2990,7 @@ TEXRESULT Create_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderW
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_WaterRenderHeader()", "pCreateInfo == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 #endif
 		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
@@ -3004,7 +3008,7 @@ TEXRESULT Create_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderW
 		ReCreate_WaterRenderHeader(pResourceHeader, ThreadIndex);
 	}
 	*pAllocationSize = sizeof(RHeaderWaterRender);
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3527,14 +3531,13 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 
 TEXRESULT Update_GraphicsEffects()
 {
-
 	return Success;
 }
 
 TEXRESULT Initialise_GraphicsEffects()
 {
-	memset(&Utils, NULL, sizeof(Utils));
-	memset(&Config, NULL, sizeof(Config));
+	memset(&Utils, 0, sizeof(Utils));
+	memset(&Config, 0, sizeof(Config));
 
 	//Config
 	Config.InitialHeadersMax = 512;
@@ -3575,7 +3578,7 @@ TEXRESULT Initialise_GraphicsEffects()
 	//other
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 TEXRESULT Destroy_GraphicsEffects()
@@ -3595,8 +3598,8 @@ TEXRESULT Destroy_GraphicsEffects()
 
 	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.WaterSig);
 
-	//memset(&Utils, NULL, sizeof(Utils));
-	//memset(&Config, NULL, sizeof(Config));
+	//memset(&Utils, 0, sizeof(Utils));
+	//memset(&Config, 0, sizeof(Config));
 
 	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
 	return Success;
