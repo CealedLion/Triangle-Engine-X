@@ -1431,8 +1431,8 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFundamental* pEffect,
 	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
 {	
-	VkBuffer vkBuffer = pEffect->AllocationParticles.Allocater.pArenaAllocater->VkBuffer;
-	VkDeviceSize VkOffset = pEffect->AllocationParticles.Pointer;
+	VkBuffer vkBuffer = pEffect->AllocationParticlesPingPong1.Allocater.pArenaAllocater->VkBuffer;
+	VkDeviceSize VkOffset = pEffect->AllocationParticlesPingPong1.Pointer;
 
 	vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
 
@@ -1588,12 +1588,18 @@ void Update_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Obje
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//Updating Descriptor Sets
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		{//compute
+		{
 			VkDescriptorBufferInfo BufferInfo = { sizeof(BufferInfo) };
-			BufferInfo.buffer = pEffect->AllocationParticles.Allocater.pArenaAllocater->VkBuffer;
-			BufferInfo.offset = pEffect->AllocationParticles.Pointer;
-			BufferInfo.range = pEffect->AllocationParticles.SizeBytes;
+			BufferInfo.buffer = pEffect->AllocationParticlesPingPong0.Allocater.pArenaAllocater->VkBuffer;
+			BufferInfo.offset = pEffect->AllocationParticlesPingPong0.Pointer;
+			BufferInfo.range = pEffect->AllocationParticlesPingPong0.SizeBytes;
 			Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pEffect->VkDescriptorSets[FrameIndex], 0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &BufferInfo, NULL);
+		} {
+			VkDescriptorBufferInfo BufferInfo = { sizeof(BufferInfo) };
+			BufferInfo.buffer = pEffect->AllocationParticlesPingPong1.Allocater.pArenaAllocater->VkBuffer;
+			BufferInfo.offset = pEffect->AllocationParticlesPingPong1.Pointer;
+			BufferInfo.range = pEffect->AllocationParticlesPingPong1.SizeBytes;
+			Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pEffect->VkDescriptorSets[FrameIndex], 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &BufferInfo, NULL);
 		}
 	}
 }
@@ -1798,8 +1804,7 @@ void DrawSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphic
 }
 
 void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
-{
-	
+{	
 	for (size_t i2 = 0; i2 < ((GraphicsUtils*)GraphicsRes.pUtils)->ElementGraphicsBuffer.Size;)
 	{
 		ElementGraphics* pElement = &((GraphicsUtils*)GraphicsRes.pUtils)->ElementGraphicsBuffer.Buffer[i2];
@@ -1820,9 +1825,30 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 					{
 						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
 						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-						Barrier.buffer = pEffect->AllocationParticles.Allocater.pArenaAllocater->VkBuffer;
-						Barrier.offset = pEffect->AllocationParticles.Pointer;
-						Barrier.size = pEffect->AllocationParticles.SizeBytes;
+						Barrier.buffer = pEffect->AllocationParticlesPingPong0.Allocater.pArenaAllocater->VkBuffer;
+						Barrier.offset = pEffect->AllocationParticlesPingPong0.Pointer;
+						Barrier.size = pEffect->AllocationParticlesPingPong0.SizeBytes;
+						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+						Barrier.srcAccessMask = 0;
+						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+						Barrier.pNext = NULL;
+
+						vkCmdPipelineBarrier(
+							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+							0,
+							0, NULL,
+							1, &Barrier,
+							0, NULL
+						);
+					}
+					{
+						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
+						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+						Barrier.buffer = pEffect->AllocationParticlesPingPong1.Allocater.pArenaAllocater->VkBuffer;
+						Barrier.offset = pEffect->AllocationParticlesPingPong1.Pointer;
+						Barrier.size = pEffect->AllocationParticlesPingPong1.SizeBytes;
 						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 						Barrier.srcAccessMask = 0;
@@ -1843,7 +1869,8 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 
 						PushConstantsComputeFundamental PushConstants;
 						memset(&PushConstants, 0, sizeof(PushConstants));
-						PushConstants.Resolution = 0;
+						PushConstants.PingPongIndex = pEffect->PingPongIndex;
+						PushConstants.Particles = pEffect->ParticlesSize;
 						vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
 							pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
@@ -1855,9 +1882,9 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 					{
 						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
 						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-						Barrier.buffer = pEffect->AllocationParticles.Allocater.pArenaAllocater->VkBuffer;
-						Barrier.offset = pEffect->AllocationParticles.Pointer;
-						Barrier.size = pEffect->AllocationParticles.SizeBytes;
+						Barrier.buffer = pEffect->AllocationParticlesPingPong0.Allocater.pArenaAllocater->VkBuffer;
+						Barrier.offset = pEffect->AllocationParticlesPingPong0.Pointer;
+						Barrier.size = pEffect->AllocationParticlesPingPong0.SizeBytes;
 						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
@@ -1873,6 +1900,28 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 							0, NULL
 						);
 					}
+					{
+						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
+						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+						Barrier.buffer = pEffect->AllocationParticlesPingPong1.Allocater.pArenaAllocater->VkBuffer;
+						Barrier.offset = pEffect->AllocationParticlesPingPong1.Pointer;
+						Barrier.size = pEffect->AllocationParticlesPingPong1.SizeBytes;
+						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+						Barrier.pNext = NULL;
+
+						vkCmdPipelineBarrier(
+							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+							0,
+							0, NULL,
+							1, &Barrier,
+							0, NULL
+						);
+					}
+					pEffect->PingPongIndex = !pEffect->PingPongIndex;
 					Engine_Ref_Unlock_Mutex(pEffect->mutex);
 				}
 				pointer += pEffect->Header.AllocationSize;
@@ -2002,7 +2051,8 @@ TEXRESULT Destroy_Fundamental(ElementGraphics* pElement, ChemistryEffectFundamen
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
 	pEffect->VkShaderFragment = NULL;
 
-	Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles);
+	Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticlesPingPong0);
+	Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticlesPingPong1);
 
 	Engine_Ref_Destroy_Mutex(pEffect->mutex);
 
@@ -2768,13 +2818,27 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 		MemoryRequirements.alignment = pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minStorageBufferOffsetAlignment;
 		MemoryRequirements.size = pEffect->ParticlesSize * sizeof(*pEffect->Particles);
 		MemoryRequirements.memoryTypeBits = NULL;
-		pEffect->AllocationParticles = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, MemoryRequirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
-		if (pEffect->AllocationParticles.SizeBytes == NULL)
+		pEffect->AllocationParticlesPingPong0 = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, MemoryRequirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
+		if (pEffect->AllocationParticlesPingPong0.SizeBytes == NULL)
 		{
 			Engine_Ref_FunctionError("ReCreate_Fundamental()", "Not Enough Space In GPU Memory!", NULL);
 			return (Out_Of_Memory_Result | Failure);
 		}
-		GPU_Particle* pParticles = (GPU_Particle*)((void*)(((uint64_t)pEffect->AllocationParticles.Allocater.pArenaAllocater->MappedMemory + pEffect->AllocationParticles.Pointer)));
+		GPU_Particle* pParticles = (GPU_Particle*)((void*)(((uint64_t)pEffect->AllocationParticlesPingPong0.Allocater.pArenaAllocater->MappedMemory + pEffect->AllocationParticlesPingPong0.Pointer)));
+		memcpy(pParticles, pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+	}
+	{
+		VkMemoryRequirements MemoryRequirements = { sizeof(MemoryRequirements) };
+		MemoryRequirements.alignment = pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minStorageBufferOffsetAlignment;
+		MemoryRequirements.size = pEffect->ParticlesSize * sizeof(*pEffect->Particles);
+		MemoryRequirements.memoryTypeBits = NULL;
+		pEffect->AllocationParticlesPingPong1 = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, MemoryRequirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
+		if (pEffect->AllocationParticlesPingPong1.SizeBytes == NULL)
+		{
+			Engine_Ref_FunctionError("ReCreate_Fundamental()", "Not Enough Space In GPU Memory!", NULL);
+			return (Out_Of_Memory_Result | Failure);
+		}
+		GPU_Particle* pParticles = (GPU_Particle*)((void*)(((uint64_t)pEffect->AllocationParticlesPingPong1.Allocater.pArenaAllocater->MappedMemory + pEffect->AllocationParticlesPingPong1.Pointer)));
 		memcpy(pParticles, pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
 	}
 
@@ -3049,9 +3113,12 @@ TEXRESULT Pack_Fundamental(const ElementGraphics* pElement, ElementGraphics* pCo
 {
 	if (pData != NULL)
 	{
+		memset(&pCopiedEffect->PingPongIndex, 0, sizeof(pCopiedEffect->PingPongIndex));
+
 		memset(&pCopiedEffect->mutex, 0, sizeof(pCopiedEffect->mutex));
 
-		memset(&pCopiedEffect->AllocationParticles, 0, sizeof(pCopiedEffect->AllocationParticles));
+		memset(&pCopiedEffect->AllocationParticlesPingPong0, 0, sizeof(pCopiedEffect->AllocationParticlesPingPong0));
+		memset(&pCopiedEffect->AllocationParticlesPingPong1, 0, sizeof(pCopiedEffect->AllocationParticlesPingPong1));
 
 		memset(&pCopiedEffect->VkPipelineCompute, 0, sizeof(pCopiedEffect->VkPipelineCompute));
 		memset(&pCopiedEffect->VkShaderCompute, 0, sizeof(pCopiedEffect->VkShaderCompute));

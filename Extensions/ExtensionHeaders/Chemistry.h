@@ -312,6 +312,7 @@ typedef struct PushConstantsFundamental {
 */
 typedef struct PushConstantsComputeFundamental {
 	int PingPongIndex;
+	int Particles;
 }PushConstantsComputeFundamental;
 /*
 * Added in 1.0.0
@@ -399,6 +400,8 @@ typedef struct ChemistryEffectFundamental {
 	GPU_Particle* Particles;
 
 	//every reinit
+	int32_t PingPongIndex;
+
 	Mutex mutex;
 
 	GPU_Allocation AllocationParticlesPingPong0;
@@ -448,7 +451,7 @@ typedef struct ChemistryEffectFundamental {
 #define ChemistryFullModelBuffersCount 1
 #define ChemistryFullModelImagesCount 2
 
-#define ChemistryFundamentalBuffersCount 1
+#define ChemistryFundamentalBuffersCount 2
 
 typedef struct ChemistryUtils{
 	GraphicsEffectSignature SimpleModelSignature;

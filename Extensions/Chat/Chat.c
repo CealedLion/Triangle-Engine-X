@@ -1099,32 +1099,45 @@ TEXRESULT Initialise_Chat()
 				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
 				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
 
-				Info.ParticlesSize = 256;
+				Info.ParticlesSize = 1024;
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
-				/*
-				for (size_t i = 0; i < 128; i++)
+				
+				for (size_t i = 0; i < 256; i++)
 				{
 					Info.Particles[i].Position[0] = 0.0f + (i * 0.707);
 					Info.Particles[i].Position[1] = 0.0f + (i * 0.707);
 					Info.Particles[i].Position[2] = 0.0f;
-					Info.Particles[i].PositionVelocity[0] = 0.0f;
-					Info.Particles[i].PositionVelocity[1] = 0.707f;
+					Info.Particles[i].Position[3] = 1.0f;
+					Info.Particles[i].PositionVelocity[0] = -0.5f;
+					Info.Particles[i].PositionVelocity[1] = 0.5f;
 					Info.Particles[i].PositionVelocity[2] = 0.0f;
-				}*/
-				for (size_t i = 0; i < 128; i++)
+				}
+				for (size_t i = 256; i < 512; i++)
 				{
-					Info.Particles[i].Position[0] = 200.0f;
-					Info.Particles[i].Position[1] = 50.0f + (i * 1);
+					Info.Particles[i].Position[0] = -256.0f + (i * 0.707);
+					Info.Particles[i].Position[1] = 0.0f + (i * 0.707);
 					Info.Particles[i].Position[2] = 0.0f;
-					Info.Particles[i].PositionVelocity[0] = -1.0f;
+					Info.Particles[i].Position[3] = 1.0f;
+					Info.Particles[i].PositionVelocity[0] = -0.5f;
+					Info.Particles[i].PositionVelocity[1] = 0.5f;
+					Info.Particles[i].PositionVelocity[2] = 0.0f;
+				}
+				for (size_t i = 512; i < 768; i++)
+				{
+					Info.Particles[i].Position[0] = -1000.0f;
+					Info.Particles[i].Position[1] = 240.0f + ((i - 256) * 1);
+					Info.Particles[i].Position[2] = 0.0f;
+					Info.Particles[i].Position[3] = 1.0f;
+					Info.Particles[i].PositionVelocity[0] = 1.0f;
 					Info.Particles[i].PositionVelocity[1] = 0.0f;
 					Info.Particles[i].PositionVelocity[2] = 0.0f;
 				}
-				for (size_t i = 128; i < 256; i++)
+				for (size_t i = 768; i < 1024; i++)
 				{
-					Info.Particles[i].Position[0] = -200.0f;
-					Info.Particles[i].Position[1] = 50.0f + ((i - 128) * 1);
+					Info.Particles[i].Position[0] = -1100.0f;
+					Info.Particles[i].Position[1] = 240.0f + ((i - 512) * 1);
 					Info.Particles[i].Position[2] = 0.0f;
+					Info.Particles[i].Position[3] = -1.0f;
 					Info.Particles[i].PositionVelocity[0] = 1.0f;
 					Info.Particles[i].PositionVelocity[1] = 0.0f;
 					Info.Particles[i].PositionVelocity[2] = 0.0f;
