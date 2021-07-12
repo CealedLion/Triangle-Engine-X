@@ -789,7 +789,7 @@ TEXRESULT Update_Chat()
 			Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 		}
 	}
-	/*
+	/**/
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0)//fps counter shit
 	{	
 		double FPS = ((double)pGraphicsWindow->FramesDone);
@@ -810,9 +810,10 @@ TEXRESULT Update_Chat()
 		char buffer[128 + 19];
 		snprintf(&buffer, 128 + 19, "FPS: %f | MSPF: %f", ((float)FPS), ((float)MSPF));
 
-		pEffect->UTF8_Text = CopyData(buffer);
+
+		pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
 		Object_Ref_ReCreate_Element(iFPS_DisplayText, &ElementInstance, 0);
-	}*/
+	}
 	
 	
 	RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pCameraHeader->Header.iParents[0], (uint32_t)GraphicsHeader_Position);
@@ -983,7 +984,6 @@ TEXRESULT Initialise_Chat()
 		//TEXRESULT ress = Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\z-23\\scene.gltf",
 		//	(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
 
-		/**/
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -993,7 +993,6 @@ TEXRESULT Initialise_Chat()
 				MainCreateInfo.Name = NULL;
 				Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
 				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject);
-
 			}
 
 			ResourceHeaderAllocation iMaterial;
@@ -1099,49 +1098,157 @@ TEXRESULT Initialise_Chat()
 				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
 				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
 
-				Info.ParticlesSize = 1024;
+				Info.ChunkSize = 1;
+				Info.Resolution = 5096;
+
+				Info.ParticlesSize = (4672);
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
+
+
+				uint64_t it = 0;	
+
+				/*
+				for (size_t i1 = 0; i1 < 32; i1++)
+				{
+					for (size_t i = 0; i < 32; i++)
+					{
+						Info.Particles[it].Position[0] = 20.0f + (1.5 * i1) + (i);
+						Info.Particles[it].Position[1] = -50.0f + (-1.5 * i1) + (i);
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].Position[3] = i1 % 2 ? -1 : 1;
+						Info.Particles[it].PositionVelocity[0] = -1.0f;
+						Info.Particles[it].PositionVelocity[1] = 1.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+						it++;
+					}
+				}*/
+				/*
+				for (size_t ix = 0; ix < 16; ix++)
+				{
+					for (size_t iy = 0; iy < 16; iy++)
+					{
+						for (size_t iz = 0; iz < 16; iz++)
+						{
+							Info.Particles[it].Position[0] = ix;
+							Info.Particles[it].Position[1] = iy;
+							Info.Particles[it].Position[2] = iz;
+							Info.Particles[it].Position[3] = 1;
+							Info.Particles[it].PositionVelocity[0] = 1.0f;
+							Info.Particles[it].PositionVelocity[1] = 0.0f;
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+							it++;
+						}
+					}
+				}*/
 				
-				for (size_t i = 0; i < 256; i++)
+				uint64_t val = 0;
+				/**/
+				for (int i0 = 0; i0 < 1; i0++)
 				{
-					Info.Particles[i].Position[0] = 0.0f + (i * 0.707);
-					Info.Particles[i].Position[1] = 0.0f + (i * 0.707);
-					Info.Particles[i].Position[2] = 0.0f;
-					Info.Particles[i].Position[3] = 1.0f;
-					Info.Particles[i].PositionVelocity[0] = -0.5f;
-					Info.Particles[i].PositionVelocity[1] = 0.5f;
-					Info.Particles[i].PositionVelocity[2] = 0.0f;
+					for (size_t i = 16; i < 18; i++)
+					{
+						val = (M_PI * 2 * (i));					
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * i;
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * i;
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = 1.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							//glm_normalize(Info.Particles[it].PositionVelocity);
+
+							//Info.Particles[it].Position[0] += 60;
+							//Info.Particles[it].Position[1] += 60;
+
+							it++;
+						}
+					}
 				}
-				for (size_t i = 256; i < 512; i++)
+
+				/*
+				for (int i0 = 0; i0 < 1; i0++)
 				{
-					Info.Particles[i].Position[0] = -256.0f + (i * 0.707);
-					Info.Particles[i].Position[1] = 0.0f + (i * 0.707);
-					Info.Particles[i].Position[2] = 0.0f;
-					Info.Particles[i].Position[3] = 1.0f;
-					Info.Particles[i].PositionVelocity[0] = -0.5f;
-					Info.Particles[i].PositionVelocity[1] = 0.5f;
-					Info.Particles[i].PositionVelocity[2] = 0.0f;
+					for (size_t i = 1; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val * 2))) * i;
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val * 2))) * i;
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = i % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val * 2)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val * 2)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] += 30;
+							//Info.Particles[it].Position[1] += 30;
+
+							it++;
+						}
+					}
 				}
-				for (size_t i = 512; i < 768; i++)
+
+				for (int i0 = 0; i0 < 1; i0++)
 				{
-					Info.Particles[i].Position[0] = -1000.0f;
-					Info.Particles[i].Position[1] = 240.0f + ((i - 256) * 1);
-					Info.Particles[i].Position[2] = 0.0f;
-					Info.Particles[i].Position[3] = 1.0f;
-					Info.Particles[i].PositionVelocity[0] = 1.0f;
-					Info.Particles[i].PositionVelocity[1] = 0.0f;
-					Info.Particles[i].PositionVelocity[2] = 0.0f;
-				}
-				for (size_t i = 768; i < 1024; i++)
+					for (size_t i = 1; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val * 2))) * i;
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val * 2))) * i;
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = i % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val * 2)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val * 2)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] -= 30;
+						//	I//nfo.Particles[it].Position[1] -= 30;
+
+							it++;
+						}
+					}
+				}*/
+
+				Engine_Ref_FunctionError("AAAA", "CCCOUNT", it);
+				
+				uint64_t ringc = 4;
+				/*
+				for (size_t i0 = 0; i0 < ringc; i0++)
 				{
-					Info.Particles[i].Position[0] = -1100.0f;
-					Info.Particles[i].Position[1] = 240.0f + ((i - 512) * 1);
-					Info.Particles[i].Position[2] = 0.0f;
-					Info.Particles[i].Position[3] = -1.0f;
-					Info.Particles[i].PositionVelocity[0] = 1.0f;
-					Info.Particles[i].PositionVelocity[1] = 0.0f;
-					Info.Particles[i].PositionVelocity[2] = 0.0f;
+					for (size_t i = 5; i < 10; i++)
+					{
+						val = (M_PI * 2 * i);
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * i);
+							Info.Particles[it].Position[1] = 0.0f;
+							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * i;
+							Info.Particles[it].Position[3] = 1.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = 0.0f;
+							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[2]);
+
+							Info.Particles[it].Position[0] += i;
+
+							vec3 axis = {0.0f, 0.0f, 1.0f};
+
+
+							glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
+							glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
+
+							it++;
+						}
+					}
 				}
+				*/
+
+
 
 				ElementCreateInfo MainCreateInfo;
 				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
@@ -1153,7 +1260,7 @@ TEXRESULT Initialise_Chat()
 				free(Info.Particles);
 			}
 		}
-		/*
+		
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -1325,11 +1432,9 @@ TEXRESULT Initialise_Chat()
 				free(CreateInfo.EffectCreateInfos);
 				free(InfoText.pFonts);
 			}
-		}
-		*/
+		}	
 	}
-	
-	
+		
 	/*
 	for (size_t i = 0; i < 1; i++)
 	{
@@ -1471,8 +1576,7 @@ TEXRESULT Initialise_Chat()
 				free(Info.Particles);
 			}
 		}
-*/
-
+	*/
 	/*
 		ResourceHeaderAllocation iAudioSource;
 		{
@@ -1537,8 +1641,6 @@ TEXRESULT Initialise_Chat()
 		*/
 	//Object_Ref_Write_TEIF((const UTF8*)"BIN.teif", 0);	
 	//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
-
-
 
 	return (TEXRESULT)((Success));
 }

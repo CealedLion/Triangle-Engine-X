@@ -2022,7 +2022,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 		pGraphicsWindow->CurrentFrameBuffersSize = pGraphicsWindow->TargetFrameBuffersSize;
 		pGraphicsWindow->CurrentFrameBuffersSize = (pGraphicsWindow->CurrentFrameBuffersSize > Capabilities.maxImageCount) ? Capabilities.maxImageCount : pGraphicsWindow->CurrentFrameBuffersSize;
 		pGraphicsWindow->CurrentFrameBuffersSize = (pGraphicsWindow->CurrentFrameBuffersSize < Capabilities.minImageCount) ? Capabilities.minImageCount : pGraphicsWindow->CurrentFrameBuffersSize;
-
+		
 		pGraphicsWindow->CurrentExtentWidth = pGraphicsWindow->TargetExtentWidth;
 		pGraphicsWindow->CurrentExtentWidth = (pGraphicsWindow->CurrentExtentWidth > Capabilities.maxImageExtent.width) ? Capabilities.maxImageExtent.width : pGraphicsWindow->CurrentExtentWidth;
 		pGraphicsWindow->CurrentExtentWidth = (pGraphicsWindow->CurrentExtentWidth < Capabilities.minImageExtent.width) ? Capabilities.minImageExtent.width : pGraphicsWindow->CurrentExtentWidth;
@@ -2415,6 +2415,7 @@ TEXRESULT Destroy_MaterialHeader(RHeaderMaterial* pResourceHeader, bool Full, ui
 
 TEXRESULT Destroy_TextureHeader(RHeaderTexture* pResourceHeader, bool Full, uint32_t ThreadIndex)
 {
+	Engine_Ref_FunctionError("eee", "aaa", ThreadIndex);
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
 	Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Texture);
 	if (Full == true)
@@ -2640,7 +2641,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 	pResourceHeader->CurrentFrameBuffersSize = pResourceHeader->TargetFrameBuffersSize;
 	pResourceHeader->CurrentFrameBuffersSize = (pResourceHeader->CurrentFrameBuffersSize > Capabilities.maxImageCount) ? Capabilities.maxImageCount : pResourceHeader->CurrentFrameBuffersSize;		
 	pResourceHeader->CurrentFrameBuffersSize = (pResourceHeader->CurrentFrameBuffersSize < Capabilities.minImageCount) ? Capabilities.minImageCount : pResourceHeader->CurrentFrameBuffersSize;
-	
+
 	pResourceHeader->CurrentExtentWidth = pResourceHeader->TargetExtentWidth;
 	pResourceHeader->CurrentExtentWidth = (pResourceHeader->CurrentExtentWidth > Capabilities.maxImageExtent.width) ? Capabilities.maxImageExtent.width : pResourceHeader->CurrentExtentWidth;	
 	pResourceHeader->CurrentExtentWidth = (pResourceHeader->CurrentExtentWidth < Capabilities.minImageExtent.width) ? Capabilities.minImageExtent.width : pResourceHeader->CurrentExtentWidth;
@@ -7077,7 +7078,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		BeginInfo.pNext = NULL;
 		if ((res = vkBeginCommandBuffer(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, &BeginInfo)) != VK_SUCCESS)
 		{
-			Engine_Ref_FunctionError("Display_Graphics()", "vkBeginCommandBuffer Failed, VkResult == ", res);
+			Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkBeginCommandBuffer Failed, VkResult == ", res);
 		}
 
 		VkViewport Viewport = { sizeof(Viewport) };
@@ -7109,9 +7110,9 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 
 		Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
 		if ((res = vkAcquireNextImageKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain,
-			UINT64_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT)
+			UINT32_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT)
 		{
-			return;
+			Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkAcquireNextImageKHR Failed, VkResult == ", res);
 		}
 
 		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
@@ -7337,7 +7338,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			SubmitInfo.commandBufferCount = 1;
 			if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence)) != VK_SUCCESS)
 			{
-				Engine_Ref_FunctionError("Display_Graphics()", "vkQueueSubmit Failed, VkResult == ", res);
+				Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkQueueSubmit Failed, VkResult == ", res);
 			}
 
 			uint32_t SwapChainsSize = 1;
@@ -7357,12 +7358,12 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			{
 				if (res == VK_ERROR_OUT_OF_DATE_KHR)
 				{
-					Engine_Ref_FunctionError("Display_Graphics()", "Recreate Flag Set. ", res);
+					//Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
 					c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				}
 				else
 				{
-					Engine_Ref_FunctionError("Display_Graphics()", "vkQueuePresentKHR Failed, VkResult == ", res);
+					Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkQueuePresentKHR Failed, VkResult == ", res);
 				}
 			}
 			pGraphicsWindow->FramesDone++;
@@ -8362,7 +8363,6 @@ TEXRESULT Destroy_Graphics()
 
 	DeRegister_GraphicsEffectSignature(&Utils.Generic2DSig);
 	DeRegister_GraphicsEffectSignature(&Utils.Generic3DSig);
-	DeRegister_GraphicsEffectSignature(&Utils.ReflectionSig);
 
 	if (Utils.GraphicsEffectSignatures != NULL)
 		free(Utils.GraphicsEffectSignatures);

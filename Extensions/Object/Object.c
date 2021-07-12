@@ -2428,13 +2428,6 @@ void Remove_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHe
 		RemoveMember_Array((void**)&pElement->Header.iParents, pElement->Header.iParentsSize, index, sizeof(*pElement->Header.iParents), 1);
 		pElement->Header.iParentsSize = pElement->Header.iParentsSize - 1;
 	}
-	/*
-	{
-		Element* pElement = Get_ElementPointer(Allocation);
-
-		pElement->Header.iParent = {};
-	}
-	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

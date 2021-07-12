@@ -262,6 +262,9 @@ const uint8_t ChemistryElementsElectrons[][8] = {
 typedef struct GPU_Particle {
 	vec4 Position;
 	vec4 PositionVelocity;
+
+	//int Info0[2][2][2];
+	//int level;
 }GPU_Particle;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,8 +314,10 @@ typedef struct PushConstantsFundamental {
 * Added in 1.0.0
 */
 typedef struct PushConstantsComputeFundamental {
-	int PingPongIndex;
+	int Part;
 	int Particles;
+	float ChunkSize;
+	int Resolution;
 }PushConstantsComputeFundamental;
 /*
 * Added in 1.0.0
@@ -392,6 +397,9 @@ typedef struct ChemistryEffectFullModel {
 typedef struct ChemistryEffectCreateInfoFundamental {
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
+
+	float ChunkSize;
+	uint64_t Resolution;
 }ChemistryEffectCreateInfoFundamental;
 typedef struct ChemistryEffectFundamental {
 	GraphicsEffectTemplate Header;
@@ -399,36 +407,29 @@ typedef struct ChemistryEffectFundamental {
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
 
-	//every reinit
-	int32_t PingPongIndex;
+	uint64_t Resolution;
 
+	//every reinit
 	Mutex mutex;
 
-	GPU_Allocation AllocationParticlesPingPong0;
-	GPU_Allocation AllocationParticlesPingPong1;
+	GPU_Allocation AllocationParticles0;
+	GPU_Allocation AllocationParticles1;
 
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipelineCompute;
 	VkShaderModule VkShaderCompute;
 
-	/////VkPipeline VkPipelineComputePass1;
-	///VkShaderModule VkShaderComputePass1;
-
-
 	VkPipelineLayout VkPipelineLayout;
 	VkDescriptorSetLayout VkDescriptorSetLayout;
-	VkDescriptorSet* VkDescriptorSets;
+	VkDescriptorSet VkDescriptorSet;
 	VkDescriptorPool VkDescriptorPool;
 #else
-	void* VkPipelineComputePass0;
-	void* VkShaderComputePass0;
-
-	void* VkPipelineComputePass1;
-	void* VkShaderComputePass1;
+	void* VkPipelineCompute;
+	void* VkShaderCompute;
 
 	void* VkPipelineLayout;
 	void* VkDescriptorSetLayout;
-	void** VkDescriptorSets;
+	void* VkDescriptorSet;
 	void* VkDescriptorPool;
 #endif
 
@@ -452,6 +453,7 @@ typedef struct ChemistryEffectFundamental {
 #define ChemistryFullModelImagesCount 2
 
 #define ChemistryFundamentalBuffersCount 2
+#define ChemistryFundamentalImagesCount 2
 
 typedef struct ChemistryUtils{
 	GraphicsEffectSignature SimpleModelSignature;

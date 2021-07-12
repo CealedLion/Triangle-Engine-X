@@ -2850,7 +2850,6 @@ typedef struct GraphicsUtils {
 	//Effects
 	GraphicsEffectSignature Generic3DSig;
 	GraphicsEffectSignature Generic2DSig;
-	GraphicsEffectSignature ReflectionSig;
 
 	//internal
 
