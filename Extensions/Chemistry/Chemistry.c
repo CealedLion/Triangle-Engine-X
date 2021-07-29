@@ -1447,7 +1447,7 @@ void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 	
 	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
-	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 6 + (2), pEffect->ParticlesSize, 0, 0);
+	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 6, pEffect->ParticlesSize, 0, 0);
 	Engine_Ref_Unlock_Mutex(pEffect->mutex);
 }
 

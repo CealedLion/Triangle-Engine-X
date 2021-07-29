@@ -1101,28 +1101,28 @@ TEXRESULT Initialise_Chat()
 				Info.ChunkSize = 1;
 				Info.Resolution = 5096;
 
-				Info.ParticlesSize = (4672);
+				Info.ParticlesSize = (3000);
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
-
 				uint64_t it = 0;	
-
+				
 				/*
-				for (size_t i1 = 0; i1 < 32; i1++)
+				for (size_t i1 = 0; i1 < 4; i1++)
 				{
 					for (size_t i = 0; i < 32; i++)
 					{
-						Info.Particles[it].Position[0] = 20.0f + (1.5 * i1) + (i);
-						Info.Particles[it].Position[1] = -50.0f + (-1.5 * i1) + (i);
-						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].Position[0] = -(-0.0f + (-0.8 * i1)) + (i * 0.1);
+						Info.Particles[it].Position[1] = -(-5.0f + (0.8 * i1)) + (i * 0.1);
+						Info.Particles[it].Position[2] = 0;
 						Info.Particles[it].Position[3] = i1 % 2 ? -1 : 1;
 						Info.Particles[it].PositionVelocity[0] = -1.0f;
 						Info.Particles[it].PositionVelocity[1] = 1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = 0;
+						glm_vec3_normalize(Info.Particles[it].PositionVelocity);
 						it++;
 					}
-				}*/
-				/*
+				}
+			
 				for (size_t ix = 0; ix < 16; ix++)
 				{
 					for (size_t iy = 0; iy < 16; iy++)
@@ -1132,109 +1132,128 @@ TEXRESULT Initialise_Chat()
 							Info.Particles[it].Position[0] = ix;
 							Info.Particles[it].Position[1] = iy;
 							Info.Particles[it].Position[2] = iz;
-							Info.Particles[it].Position[3] = 1;
+							Info.Particles[it].Position[3] = 1.0f;
 							Info.Particles[it].PositionVelocity[0] = 1.0f;
 							Info.Particles[it].PositionVelocity[1] = 0.0f;
 							Info.Particles[it].PositionVelocity[2] = 0.0f;
 							it++;
 						}
 					}
-				}*/
+				}
 				
+				
+				for (size_t i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 25; i++)
+					{
+						Info.Particles[it].Position[0] = 0.0f;
+						Info.Particles[it].Position[1] = 0.0f;
+						Info.Particles[it].Position[2] = (0.0f + i);
+						Info.Particles[it].Position[3] = 1.0f;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = -1;
+
+						Info.Particles[it].Position[1] += 10.0f;
+						it++;
+					}
+				}
+			*/
+				
+		
 				uint64_t val = 0;
-				/**/
 				for (int i0 = 0; i0 < 1; i0++)
 				{
-					for (size_t i = 16; i < 18; i++)
+					for (size_t i = 5; i < 6; i++)
 					{
-						val = (M_PI * 2 * (i));					
+						float height = i;
+
+						val = (M_PI * 2 * height);
 						for (size_t i1 = 0; i1 < val; i1++)
 						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * i;
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * i;
-							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[2] = 0.0f;
 							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[1]);
 							Info.Particles[it].PositionVelocity[2] = 0.0f;
 
-							//glm_normalize(Info.Particles[it].PositionVelocity);
-
-							//Info.Particles[it].Position[0] += 60;
-							//Info.Particles[it].Position[1] += 60;
+							Info.Particles[it].Position[1] += 10.0f;
 
 							it++;
 						}
 					}
 				}
-
-				/*
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 1; i < 20; i++)
-					{
-						val = (M_PI * 2 * (i));
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val * 2))) * i;
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val * 2))) * i;
-							Info.Particles[it].Position[2] = i0;
-							Info.Particles[it].Position[3] = i % 2 ? -1 : 1;
-							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val * 2)));
-							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val * 2)));
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] += 30;
-							//Info.Particles[it].Position[1] += 30;
-
-							it++;
-						}
-					}
-				}
-
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 1; i < 20; i++)
-					{
-						val = (M_PI * 2 * (i));
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val * 2))) * i;
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val * 2))) * i;
-							Info.Particles[it].Position[2] = i0;
-							Info.Particles[it].Position[3] = i % 2 ? -1 : 1;
-							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val * 2)));
-							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val * 2)));
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] -= 30;
-						//	I//nfo.Particles[it].Position[1] -= 30;
-
-							it++;
-						}
-					}
-				}*/
-
-				Engine_Ref_FunctionError("AAAA", "CCCOUNT", it);
 				
-				uint64_t ringc = 4;
+				
 				/*
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						val = 500;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] += 40;
+
+							it++;
+						}
+					}
+				}
+
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						val = 500;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] -= 40;
+
+							it++;
+						}
+					}
+				}
+			
+				
+				uint64_t ringc = 24;
+				
 				for (size_t i0 = 0; i0 < ringc; i0++)
 				{
-					for (size_t i = 5; i < 10; i++)
+					for (size_t i = 1; i < 5; i++)
 					{
-						val = (M_PI * 2 * i);
+						float height = i * 0.5;
+						val = (M_PI * 2 * height) * 4;
 						for (size_t i1 = 0; i1 < val; i1++)
 						{
-							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * i);
+							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
 							Info.Particles[it].Position[1] = 0.0f;
-							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * i;
+							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
 							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
 							Info.Particles[it].PositionVelocity[1] = 0.0f;
-							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * i) - Info.Particles[it].Position[2]);
+							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
 
-							Info.Particles[it].Position[0] += i;
+							Info.Particles[it].Position[0] += height;
 
 							vec3 axis = {0.0f, 0.0f, 1.0f};
 
@@ -1242,13 +1261,15 @@ TEXRESULT Initialise_Chat()
 							glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
 							glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
 
+							Info.Particles[it].Position[1] += 20.0f;
+
 							it++;
 						}
 					}
-				}
+				}	
 				*/
 
-
+				Engine_Ref_FunctionError("PARTICLES SIZE", "AAA", it);
 
 				ElementCreateInfo MainCreateInfo;
 				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));

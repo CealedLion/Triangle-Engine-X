@@ -70,7 +70,8 @@ float CubicSplineInterpolation(float previousPoint, float previousTangent, float
 }
 /*
 * Added in 1.0.0
-* Returns the priority of an attribute, as in the usefulness in drawing.
+* Returns the priority of an Attribute, as in the priority of a type of attribute, lower priority means it has priority over others before
+  being culled from attribute limit.
 */
 float Get_AttributeTypePriority(Attribute attribute)
 {
