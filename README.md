@@ -8,7 +8,7 @@ Link: https://trello.com/b/GCflx1Ij/triangle-engine-x-active-pre-release
 
 ## **Features:**
 * Designed with modern 2021 features, Such As:
-* Multi-threaded programming.
+* Unique and revolutionary multi-thread programming support that allows easy and efficient scaling of general program logic across threads.
 * Native Windows Support and Linux Support using WINAPI and XWINDOW
 * Multi-Level Graphics API based on Vulkan, The latest 3D rendering API.
 * Easily extendable systems, Like Graphics Effects and Audio Effects.
