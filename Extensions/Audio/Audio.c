@@ -14,20 +14,13 @@
 #define TEX_EXPOSE_AUDIO
 #include "Audio.h"
 
-
-volatile struct{
-	uint64_t InitialElementsMax;
-	uint64_t InitialHeadersMax;
-}Config;
-
 volatile AudioUtils Utils;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Converters
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //common with graphics
-TEXRESULT Add_XtoTEXAconverter(ConvertXtoTEXA* Converter, uint32_t Identifier)
-{
+TEXRESULT Add_XtoTEXAconverter(ConvertXtoTEXA* Converter, uint32_t Identifier) {
 #ifndef NDEBUG
 	if (Converter == NULL)
 	{
@@ -40,17 +33,16 @@ TEXRESULT Add_XtoTEXAconverter(ConvertXtoTEXA* Converter, uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersToTEXAMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersToTEXAMutex);
 	Resize_Array((void**)&Utils.ConvertersToTEXA, Utils.ConvertersToTEXASize, Utils.ConvertersToTEXASize + 1, sizeof(*Utils.ConvertersToTEXA));
 	Utils.ConvertersToTEXA[Utils.ConvertersToTEXASize].pFunction = Converter;
 	Utils.ConvertersToTEXA[Utils.ConvertersToTEXASize].Identifier = Identifier;
 	Utils.ConvertersToTEXASize++;
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXAMutex);
-	return ((Success));
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersToTEXAMutex);
+	return (Success);
 }
 
-TEXRESULT Add_TEXAtoXconverter(ConvertTEXAtoX* Converter, uint32_t Identifier)
-{
+TEXRESULT Add_TEXAtoXconverter(ConvertTEXAtoX* Converter, uint32_t Identifier) {
 #ifndef NDEBUG
 	if (Converter == NULL)
 	{
@@ -63,17 +55,16 @@ TEXRESULT Add_TEXAtoXconverter(ConvertTEXAtoX* Converter, uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersFromTEXAMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersFromTEXAMutex);
 	Resize_Array((void**)&Utils.ConvertersFromTEXA, Utils.ConvertersFromTEXASize, Utils.ConvertersFromTEXASize + 1, sizeof(*Utils.ConvertersFromTEXA));
 	Utils.ConvertersFromTEXA[Utils.ConvertersFromTEXASize].pFunction = Converter;
 	Utils.ConvertersFromTEXA[Utils.ConvertersFromTEXASize].Identifier = Identifier;
 	Utils.ConvertersFromTEXASize++;
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXAMutex);
-	return ((Success));
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersFromTEXAMutex);
+	return (Success);
 }
 
-TEXRESULT Remove_XtoTEXAconverter(uint32_t Identifier)
-{
+TEXRESULT Remove_XtoTEXAconverter(uint32_t Identifier) {
 #ifndef NDEBUG
 	if (Identifier == NULL)
 	{
@@ -81,24 +72,23 @@ TEXRESULT Remove_XtoTEXAconverter(uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersToTEXAMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersToTEXAMutex);
 	for (size_t i = 0; i < Utils.ConvertersToTEXASize; i++)
 	{
 		if (Identifier == Utils.ConvertersToTEXA[i].Identifier)
 		{
 			RemoveMember_Array((void**)&Utils.ConvertersToTEXA, Utils.ConvertersToTEXASize, i, sizeof(*Utils.ConvertersToTEXA) , 1);
 			Utils.ConvertersToTEXASize--;
-			Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXAMutex);
-			return ((Success));
+			Engine_Ref_Unlock_Mutex(&Utils.ConvertersToTEXAMutex);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Remove_XtoTEXAconverter()", "Identifier Invalid.");
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXAMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersToTEXAMutex);
 	return (Invalid_Parameter | Failure);
 }
 
-TEXRESULT Remove_TEXAtoXconverter(uint32_t Identifier)
-{
+TEXRESULT Remove_TEXAtoXconverter(uint32_t Identifier) {
 #ifndef NDEBUG
 	if (Identifier == NULL)
 	{
@@ -106,24 +96,23 @@ TEXRESULT Remove_TEXAtoXconverter(uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersFromTEXAMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersFromTEXAMutex);
 	for (size_t i = 0; i < Utils.ConvertersFromTEXASize; i++)
 	{
 		if (Identifier == Utils.ConvertersFromTEXA[i].Identifier)
 		{
 			RemoveMember_Array((void**)&Utils.ConvertersFromTEXA, Utils.ConvertersFromTEXASize, i, sizeof(*Utils.ConvertersFromTEXA), 1);
 			Utils.ConvertersFromTEXASize--;
-			Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXAMutex);
-			return ((Success));
+			Engine_Ref_Unlock_Mutex(&Utils.ConvertersFromTEXAMutex);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Remove_TEXAtoXconverter()", "Identifier Invalid.");
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXAMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersFromTEXAMutex);
 	return (Invalid_Parameter | Failure);
 }
 
-TEXRESULT XtoTEXA(FileData* Src, TEXA_HEADER** Dst, uint32_t Identifier) //converts all supported formats to TEXI 
-{
+TEXRESULT XtoTEXA(FileData* Src, TEXA_HEADER** Dst, uint32_t Identifier) {
 #ifndef NDEBUG
 	if (Src == NULL)
 	{
@@ -153,8 +142,7 @@ TEXRESULT XtoTEXA(FileData* Src, TEXA_HEADER** Dst, uint32_t Identifier) //conve
 	return (Invalid_Parameter | Failure);
 }
 
-TEXRESULT TEXAtoX(TEXA_HEADER* Src, FileData* Dst, uint32_t Identifier) //converts all supported formats from texi 
-{
+TEXRESULT TEXAtoX(TEXA_HEADER* Src, FileData* Dst, uint32_t Identifier) {
 #ifndef NDEBUG
 	if (Src == NULL)
 	{
@@ -188,8 +176,7 @@ TEXRESULT TEXAtoX(TEXA_HEADER* Src, FileData* Dst, uint32_t Identifier) //conver
 //Effects
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //common with graphics
-TEXRESULT Register_AudioEffectSignature(AudioEffectSignature* pSignature)
-{
+TEXRESULT Register_AudioEffectSignature(AudioEffectSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
@@ -197,13 +184,13 @@ TEXRESULT Register_AudioEffectSignature(AudioEffectSignature* pSignature)
 		return (Invalid_Parameter | Failure);
 	}
 #endif 
-	Engine_Ref_Lock_Mutex(Utils.AudioEffectSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.AudioEffectSignaturesMutex);
 	for (size_t i = 0; i < Utils.AudioEffectSignaturesSize; i++)
 	{
 		if (Utils.AudioEffectSignatures[i]->Identifier == pSignature->Identifier)
 		{
 			Engine_Ref_ArgsError("Register_AudioEffectSignature()", "Signature->Identifier Already Used.");
-			Engine_Ref_Unlock_Mutex(Utils.AudioEffectSignaturesMutex);
+			Engine_Ref_Unlock_Mutex(&Utils.AudioEffectSignaturesMutex);
 			return (Invalid_Parameter | Failure);
 		}
 	}
@@ -211,12 +198,11 @@ TEXRESULT Register_AudioEffectSignature(AudioEffectSignature* pSignature)
 	Resize_Array((void**)&Utils.AudioEffectSignatures, Utils.AudioEffectSignaturesSize, Utils.AudioEffectSignaturesSize + 1, sizeof(*Utils.AudioEffectSignatures));
 	Utils.AudioEffectSignatures[Utils.AudioEffectSignaturesSize] = pSignature;
 	Utils.AudioEffectSignaturesSize += 1;
-	Engine_Ref_Unlock_Mutex(Utils.AudioEffectSignaturesMutex);
-	return ((Success));
+	Engine_Ref_Unlock_Mutex(&Utils.AudioEffectSignaturesMutex);
+	return (Success);
 }
 
-TEXRESULT DeRegister_AudioEffectSignature(AudioEffectSignature* pSignature)
-{
+TEXRESULT DeRegister_AudioEffectSignature(AudioEffectSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
@@ -224,24 +210,23 @@ TEXRESULT DeRegister_AudioEffectSignature(AudioEffectSignature* pSignature)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.AudioEffectSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.AudioEffectSignaturesMutex);
 	for (size_t i = 0; i < Utils.AudioEffectSignaturesSize; i++)
 	{
 		if ((uint64_t)Utils.AudioEffectSignatures[i]->Identifier == (uint64_t)pSignature->Identifier)
 		{
 			RemoveMember_Array((void**)&Utils.AudioEffectSignatures, Utils.AudioEffectSignaturesSize, i, sizeof(*Utils.AudioEffectSignatures), 1);
 			Utils.AudioEffectSignaturesSize -= 1;
-			Engine_Ref_Unlock_Mutex(Utils.AudioEffectSignaturesMutex);
-			return ((Success));
+			Engine_Ref_Unlock_Mutex(&Utils.AudioEffectSignaturesMutex);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("DeRegister_AudioEffectSignature()", "pSignature Not Found.");
-	Engine_Ref_Unlock_Mutex(Utils.AudioEffectSignaturesMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.AudioEffectSignaturesMutex);
 	return (Invalid_Parameter | Failure);
 }
 
-TEXRESULT Find_AudioEffectSignature(AudioEffectIdentifier Identifier, AudioEffectSignature** ppSignature, AudioEffectBufferIndex* pBufferIndex)
-{
+TEXRESULT Find_AudioEffectSignature(AudioEffectIdentifier Identifier, AudioEffectSignature** ppSignature, AudioEffectBufferIndex* pBufferIndex) {
 #ifndef NDEBUG
 	if (Identifier == NULL)
 	{
@@ -262,15 +247,14 @@ TEXRESULT Find_AudioEffectSignature(AudioEffectIdentifier Identifier, AudioEffec
 				*ppSignature = Utils.AudioEffectSignatures[i];
 			if (pBufferIndex != NULL)
 				*pBufferIndex = i;
-			return ((Success));
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Find_AudioEffectSignature()", "Identifier Invalid");
 	return (Invalid_Parameter | Failure);
 }
 
-TEXRESULT Get_AudioEffect(ElementAudio* pElement, AudioEffectIdentifier Identifier, void** pReturnEffect)
-{
+TEXRESULT Get_AudioEffect(ElementAudio* pElement, AudioEffectIdentifier Identifier, void** pReturnEffect) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -290,7 +274,7 @@ TEXRESULT Get_AudioEffect(ElementAudio* pElement, AudioEffectIdentifier Identifi
 		if (pEffect->Header.Identifier == Identifier)
 		{
 			*pReturnEffect = pEffect;
-			return ((Success));
+			return (Success);
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
@@ -302,14 +286,11 @@ TEXRESULT Get_AudioEffect(ElementAudio* pElement, AudioEffectIdentifier Identifi
 //Misc
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FormatDetails Get_FormatDetails(AudioFormat format)
-{
+FormatDetails Get_FormatDetails(AudioFormat format) {
 	FormatDetails details;
 	memset(&details, 0, sizeof(details));
-
 	details.ChannelCount = AudioFormatChannelCounts[(uint32_t)format];
 	details.Stride = AudioFormatStrides[(uint32_t)format];
-
 	details.ChannelTypes = (DataType*)AudioFormatDataType[(uint32_t)format];
 	details.ChannelNames = (char*)AudioFormatChannelIndentifiers[(uint32_t)format];
 	details.BitsPerChannel = (uint8_t*)AudioFormatBitsPerChannels[(uint32_t)format];
@@ -321,26 +302,35 @@ FormatDetails Get_FormatDetails(AudioFormat format)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Draw_ElementAudio(ElementAudio* pElement, uint32_t FrameCountMin, uint32_t FrameCountMax, AudioElementUsageFlags Usage) {
-	for (size_t i0 = 0; i0 < pElement->Header.iParentsSize; i0++)
+	uint32_t ThreadIndex = 0;
+	for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++)
 	{
-		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iParents[i0]);
-		for (size_t i1 = 0; i1 < pParentHeader->Header.iParentsSize; i1++)
+		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
+		for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++)
 		{
-			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iParents[i1]);
-			uint64_t pointer = 0;
-			for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
+			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+			ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
+			RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+			if (pSceneHeader->Active == true)
 			{
-				AudioEffect* pEffect = (AudioEffect*)((void*)((uint64_t)pElement->Effects + pointer));
-				AudioEffectSignature* pSignature = NULL;
-				AudioEffectBufferIndex BufferIndex = NULL;
-				Find_AudioEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
-				if (pSignature->Draw != NULL)
+				uint64_t pointer = 0;
+				for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
 				{
-					pSignature->Draw(pElement, pParentHeader, pObject, pEffect, FrameCountMin, FrameCountMax,Usage);
+					AudioEffect* pEffect = (AudioEffect*)((void*)((uint64_t)pElement->Effects + pointer));
+					AudioEffectSignature* pSignature = NULL;
+					AudioEffectBufferIndex BufferIndex = NULL;
+					Find_AudioEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
+					if (pSignature->Draw != NULL)
+					{
+						pSignature->Draw(pElement, pParentHeader, pObject, pEffect, FrameCountMin, FrameCountMax, Usage, ThreadIndex);
+					}
+					pointer += pEffect->Header.AllocationSize;
 				}
-				pointer += pEffect->Header.AllocationSize;
 			}
+			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+			Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 		}
+		Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 	}
 }
 
@@ -348,23 +338,23 @@ void Draw_ElementAudio(ElementAudio* pElement, uint32_t FrameCountMin, uint32_t 
 //soundio callback callback
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void write_callback(struct SoundIoOutStream* outStream, int frame_count_min, int frame_count_max)
-{
-	ElementAudio* pElement = (ElementAudio*)Object_Ref_Get_ElementPointer(*((ElementAllocation*)outStream->userdata));
+static void write_callback(struct SoundIoOutStream* outStream, int frame_count_min, int frame_count_max) {
+	uint32_t ThreadIndex = 0;
+	ElementAudio* pElement = Object_Ref_Get_ElementPointer(*((ElementAllocation*)outStream->userdata), false, false, ThreadIndex);
 	Draw_ElementAudio(pElement, frame_count_min, frame_count_max, AudioElementUsage_Playback);
+	Object_Ref_End_ElementPointer(*((ElementAllocation*)outStream->userdata), false, false, ThreadIndex);
 }
-static void underflow_callback(struct SoundIoOutStream* inStream)
-{
+static void underflow_callback(struct SoundIoOutStream* inStream) {
 
 }
 
-static void read_callback(struct SoundIoInStream* inStream, int frame_count_min, int frame_count_max)
-{
-	ElementAudio* pElement = (ElementAudio*)Object_Ref_Get_ElementPointer(*((ElementAllocation*)inStream->userdata));
+static void read_callback(struct SoundIoInStream* inStream, int frame_count_min, int frame_count_max) {
+	uint32_t ThreadIndex = 0;
+	ElementAudio* pElement = Object_Ref_Get_ElementPointer(*((ElementAllocation*)inStream->userdata), false, false, ThreadIndex);
 	Draw_ElementAudio(pElement, frame_count_min, frame_count_max, AudioElementUsage_Recording);
+	Object_Ref_End_ElementPointer(*((ElementAllocation*)inStream->userdata), false, false, ThreadIndex);
 }
-static void overflow_callback(struct SoundIoInStream* inStream)
-{
+static void overflow_callback(struct SoundIoInStream* inStream) {
 
 }
 
@@ -372,8 +362,7 @@ static void overflow_callback(struct SoundIoInStream* inStream)
 //Stream
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Start_InputStream(ElementAudio* pElement)
-{
+void Start_InputStream(ElementAudio* pElement) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -393,8 +382,7 @@ void Start_InputStream(ElementAudio* pElement)
 	soundio_instream_start(pElement->InStream);
 }
 
-void Start_OutputStream(ElementAudio* pElement)
-{
+void Start_OutputStream(ElementAudio* pElement) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -414,8 +402,7 @@ void Start_OutputStream(ElementAudio* pElement)
 	soundio_outstream_start(pElement->OutStream);
 }
 
-void Pause_InputStream(ElementAudio* pElement, bool pause)
-{
+void Pause_InputStream(ElementAudio* pElement, bool pause) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -435,8 +422,7 @@ void Pause_InputStream(ElementAudio* pElement, bool pause)
 	soundio_instream_pause(pElement->InStream, pause);
 }
 
-void Pause_OutputStream(ElementAudio* pElement, bool pause)
-{
+void Pause_OutputStream(ElementAudio* pElement, bool pause) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -460,8 +446,7 @@ void Pause_OutputStream(ElementAudio* pElement, bool pause)
 //Convert
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) //do floating point in future
-{
+TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) {
 #ifndef NDEBUG
 	if ((uint32_t)dstformat == NULL)
 	{
@@ -474,7 +459,6 @@ TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) //do float
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-
 	TEXA_HEADER* psrc = *src;
 
 	FormatDetails srcdetails = Get_FormatDetails(psrc->Format);
@@ -486,7 +470,6 @@ TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) //do float
 	filedata.LinearSize = psrc->LinearSize;
 
 	Convert_Data(&filedata, &srcdetails, &dstdetails);
-
 
 	TEXA_HEADER* tempdstheader = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + filedata.LinearSize);
 	memcpy(tempdstheader, *src, sizeof(TEXA_HEADER)); //copy header
@@ -500,19 +483,14 @@ TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) //do float
 	tempdstheader->ByteRate = tempdstheader->SampleRate * tempdstheader->ChannelCount * (dstdetails.BitsPerChannel[0] / 8);
 	tempdstheader->BlockAlign = tempdstheader->ChannelCount * (dstdetails.BitsPerChannel[0] / 8);
 	*src = tempdstheader;
-
-	return ((Success));
+	return (Success);
 }
 
 TEXRESULT Create_DummyTEXA(TEXA_HEADER** pDst, AudioFormat Format, uint32_t SampleRate, uint32_t ChannelCount,
-	uint32_t ByteRate, uint32_t BlockAlign, uint64_t FrameCount, uint64_t InitialSize)
-{
-
+	uint32_t ByteRate, uint32_t BlockAlign, uint64_t FrameCount, uint64_t InitialSize) {
 	TEXA_HEADER* tempdstheader = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + InitialSize);
 	memset(tempdstheader, 0L, sizeof(TEXA_HEADER) + InitialSize);
-
 	tempdstheader->Format = Format;
-
 	tempdstheader->LinearSize = InitialSize;
 	tempdstheader->SampleRate = SampleRate;
 	tempdstheader->ChannelCount = ChannelCount;
@@ -520,8 +498,7 @@ TEXRESULT Create_DummyTEXA(TEXA_HEADER** pDst, AudioFormat Format, uint32_t Samp
 	tempdstheader->BlockAlign = BlockAlign;
 	tempdstheader->FrameCount = FrameCount;
 	*pDst = tempdstheader;
-
-	return ((Success));
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -627,32 +604,32 @@ int list_devices(struct SoundIo* soundio) {
 //Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Destroy_AudioSourceHeader(RHeaderAudioSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
+TEXRESULT Destroy_AudioSourceHeader(RHeaderAudioSource* pResourceHeader, RHeaderAudioSource* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	//for full destruct items.
+	if ((((pResourceHeaderOverlay != NULL) ? (pResourceHeader->AudioData != pResourceHeaderOverlay->AudioData) : false) || Full == true) && pResourceHeader->AudioData != NULL) {
 		free(pResourceHeader->AudioData);
+		pResourceHeader->AudioData = NULL;
 	}
 	return (Success);
 }
 
-TEXRESULT Destroy_ElementAudio(ElementAudio* pElement, bool Full, uint32_t ThreadIndex)
-{
+TEXRESULT Destroy_ElementAudio(ElementAudio* pElement, ElementAudio* pElementOverlay, bool Full, uint32_t ThreadIndex) {
 	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
 		AudioEffect* pEffect = (AudioEffect*)((void*)((uint64_t)pElement->Effects + pointer));
+		AudioEffect* pEffectOverlay = (AudioEffect*)((void*)((uint64_t)pElementOverlay->Effects + pointer));
 		AudioEffectSignature* pSignature = NULL;
 		AudioEffectBufferIndex BufferIndex = NULL;
 		Find_AudioEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
 		if (pSignature->Destructor != NULL)
 		{
-			if ((tres = pSignature->Destructor(pElement, pEffect, Full, ThreadIndex)) != (Success))
+			if ((tres = pSignature->Destructor(pElement, pElementOverlay, pEffect, pEffectOverlay, Full, ThreadIndex)) != (Success))
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Destruction Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Destruction Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("Destroy_ElementAudio()", buffer, tres);
 #endif
 				return tres;
@@ -660,17 +637,27 @@ TEXRESULT Destroy_ElementAudio(ElementAudio* pElement, bool Full, uint32_t Threa
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
-
-	if (pElement->InStream != NULL)
-		soundio_instream_destroy(pElement->InStream);
-	if (pElement->OutStream != NULL)
+	//if they are different its safe to destruct.
+	if (((pElementOverlay != NULL) ? (pElement->OutStream != pElementOverlay->OutStream) : true) && pElement->OutStream != NULL) {
 		soundio_outstream_destroy(pElement->OutStream);
-	if (pElement->InDevice != NULL)
-		soundio_device_unref(pElement->InDevice);
-	if (pElement->OutDevice != NULL)
+		pElement->OutStream = NULL;
+	}
+	if (((pElementOverlay != NULL) ? (pElement->InStream != pElementOverlay->InStream) : true) && pElement->InStream != NULL) {
+		soundio_instream_destroy(pElement->InStream);
+		pElement->InStream = NULL;
+	}
+	if (((pElementOverlay != NULL) ? (pElement->OutDevice != pElementOverlay->OutDevice) : true) && pElement->OutDevice != NULL) {
 		soundio_device_unref(pElement->OutDevice);
-	if (pElement->RingBuffer != NULL)
+		pElement->OutDevice = NULL;
+	}
+	if (((pElementOverlay != NULL) ? (pElement->InDevice != pElementOverlay->InDevice) : true) && pElement->InDevice != NULL) {
+		soundio_device_unref(pElement->InDevice);
+		pElement->InDevice = NULL;
+	}
+	if (((pElementOverlay != NULL) ? (pElement->RingBuffer != pElementOverlay->RingBuffer) : true) && pElement->RingBuffer != NULL) {
 		soundio_ring_buffer_destroy(pElement->RingBuffer);
+		pElement->RingBuffer = NULL;
+	}
 
 	if (Full == true)
 	{
@@ -683,11 +670,10 @@ TEXRESULT Destroy_ElementAudio(ElementAudio* pElement, bool Full, uint32_t Threa
 //Object ReCreation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 	TEXRESULT tres = (Success);
 	int SoundIoError = SoundIoErrorNone;
-	RHeaderAudioSource* pAudioHeader = (RHeaderAudioSource*)Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource);
+	RHeaderAudioSource* pAudioHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
 	soundio_flush_events(Utils.AudioHandle);
 	if (pElement->UsageFlags & AudioElementUsage_Playback)
 	{
@@ -835,7 +821,7 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex)
 			return (Failure);
 		}
 	}
-
+	Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
@@ -848,8 +834,8 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex)
 			if ((tres = pSignature->ReConstructor(pElement, pEffect, ThreadIndex)) != (Success))
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Recreation Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Recreation Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("ReCreate_ElementAudio()", buffer, tres);
 #endif
 				return tres;
@@ -857,15 +843,15 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex)
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
-	return ((Success));
+
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Pack_AudioSourceHeader(const RHeaderAudioSource* pResourceHeader, RHeaderAudioSource* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT Pack_AudioSourceHeader(const RHeaderAudioSource* pResourceHeader, RHeaderAudioSource* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	if (pData != NULL)
 	{
 		if (pResourceHeader->AudioData != NULL)
@@ -879,11 +865,10 @@ TEXRESULT Pack_AudioSourceHeader(const RHeaderAudioSource* pResourceHeader, RHea
 	{
 		*pBufferPointer += sizeof(TEXA_HEADER) + pResourceHeader->AudioData->LinearSize;
 	}
-	return ((Success));
+	return (Success);
 }
 
-TEXRESULT Pack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopiedElement, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT Pack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopiedElement, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
@@ -898,8 +883,8 @@ TEXRESULT Pack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopiedE
 			if ((tres = pSignature->Packer(pElement, pCopiedElement, pEffect, pCopiedEffect, pBufferPointer, pData, ThreadIndex)) != (Success))
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Packing Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Packing Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("Pack_ElementAudio()", buffer, tres);
 #endif
 				return tres;
@@ -920,27 +905,24 @@ TEXRESULT Pack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopiedE
 	{
 
 	}
-	return ((Success));
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //UnPackers	
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT UnPack_AudioSourceHeader(const RHeaderAudioSource* pResourceHeader, RHeaderAudioSource* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT UnPack_AudioSourceHeader(const RHeaderAudioSource* pResourceHeader, RHeaderAudioSource* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex) {
 	if (pResourceHeader->AudioData != NULL)
 	{
 		TEXA_HEADER* pheader = (TEXA_HEADER*)((void*)((uint64_t)pData + (uint64_t)pResourceHeader->AudioData));
-
 		pCopiedResourceHeader->AudioData = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + pheader->LinearSize);
 		memcpy(pCopiedResourceHeader->AudioData, (void*)((uint64_t)pData + (uint64_t)pResourceHeader->AudioData), sizeof(TEXA_HEADER) + pheader->LinearSize);
 	}
-	return ((Success));
+	return (Success);
 }
 
-TEXRESULT UnPack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopiedElement, const void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT UnPack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopiedElement, const void* pData, uint32_t ThreadIndex) {
 	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
@@ -955,8 +937,8 @@ TEXRESULT UnPack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopie
 			if ((tres = pSignature->UnPacker(pElement, pCopiedElement, pEffect, pCopiedEffect, pData, ThreadIndex)) != (Success))
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "UnPacking Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Unpacking Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("UnPack_ElementAudio()", buffer, tres);
 #endif
 				return tres;
@@ -964,15 +946,14 @@ TEXRESULT UnPack_ElementAudio(const ElementAudio* pElement, ElementAudio* pCopie
 		}
 		pointer += pEffect->Header.AllocationSize;
 	}
-	return ((Success));
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Constructors	
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Create_AudioSourceHeader(RHeaderAudioSource* pResourceHeader, RHeaderAudioSourceCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
+TEXRESULT Create_AudioSourceHeader(RHeaderAudioSource* pResourceHeader, RHeaderAudioSourceCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
 	if (pResourceHeader == NULL)
 	{
 
@@ -995,12 +976,11 @@ TEXRESULT Create_AudioSourceHeader(RHeaderAudioSource* pResourceHeader, RHeaderA
 		memcpy(pResourceHeader->AudioData, pCreateInfo->AudioData, sizeof(*pResourceHeader->AudioData) + pCreateInfo->AudioData->LinearSize);
 	}
 	*pAllocationSize = sizeof(RHeaderAudioSource);
-	return ((Success));
+	return (Success);
 }
 
-TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
-	TEXRESULT tres = (TEXRESULT)(Success);
+TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
+	TEXRESULT tres = (Success);
 	uint64_t bytes = 0;
 	for (size_t i = 0; i < pCreateInfo->EffectCreateInfosSize; i++)
 	{
@@ -1011,11 +991,11 @@ TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pC
 		uint64_t AllocationSize = 0;
 		if (pSignature->Constructor != NULL)
 		{
-			if ((tres = pSignature->Constructor(pElement, NULL, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)(Success))
+			if ((tres = pSignature->Constructor(pElement, NULL, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (Success))
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Creating Of Effect %p %p Returned TEXRESULT == ", pSignature, NULL);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Creation Of Effect %i Returned TEXRESULT == ", pCreateInfo->EffectCreateInfos[i].Identifier);
 				Engine_Ref_FunctionError("Create_ElementAudio()", buffer, tres);
 #endif
 				return tres;
@@ -1036,13 +1016,13 @@ TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pC
 			Engine_Ref_ArgsError("Create_ElementAudio()", "pCreateInfo == NULL");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pAudioSource == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iAudioSource) == NULL)
 		{
-			Engine_Ref_ObjectError("Create_ElementAudio()", "pCreateInfo", &pCreateInfo, "pCreateInfo->pAudioSource == NULL");
+			Engine_Ref_ArgsError("Create_ElementAudio()", "pCreateInfo->iAudioSource Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		pElement->iAudioSource = pCreateInfo->pAudioSource->Header.Allocation;
+		pElement->iAudioSource = pCreateInfo->iAudioSource;
 		pElement->RingBufferSize_Seconds = (pCreateInfo->RingBufferSize_Seconds <= 10) ? pCreateInfo->RingBufferSize_Seconds + 10 : pCreateInfo->RingBufferSize_Seconds;
 		pElement->CurrentFrame = pCreateInfo->StartFrame;
 		pElement->UsageFlags = pCreateInfo->UsageFlags;
@@ -1064,11 +1044,11 @@ TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pC
 			uint64_t AllocationSize = 0;
 			if (pSignature->Constructor != NULL)
 			{
-				if ((tres = pSignature->Constructor(pElement, pEffect, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)(Success))
+				if ((tres = pSignature->Constructor(pElement, pEffect, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (Success))
 				{
 #ifndef NDEBUG
-					char buffer[51 + 64 + 64];
-					snprintf(buffer, 51 + 64 + 64, "Creating Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+					char buffer[51 + 64];
+					snprintf(buffer, 51 + 64, "Creation Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 					Engine_Ref_FunctionError("Create_ElementAudio()", buffer, tres);
 #endif
 					return tres;
@@ -1079,7 +1059,7 @@ TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pC
 		}
 	}
 	*pAllocationSize = sizeof(ElementAudio) + bytes;
-	return ((Success));
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1090,8 +1070,7 @@ TEXRESULT Create_ElementAudio(ElementAudio* pElement, ElementAudioCreateInfo* pC
 //Draw Effect Element
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectVolume* pEffect, uint32_t FrameCountMin, uint32_t FrameCountMax, AudioElementUsageFlags Usage)
-{
+void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectVolume* pEffect, uint32_t FrameCountMin, uint32_t FrameCountMax, AudioElementUsageFlags Usage, uint32_t ThreadIndex) {
 	if (Usage & AudioElementUsage_Playback)
 	{
 #ifndef NDEBUG
@@ -1100,8 +1079,7 @@ void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObjec
 			Engine_Ref_ArgsError("Draw_Volume()", "pElement->UsageFlags Dont Mention AudioElementUsage_Playback, But Yet it is used.");
 		}
 #endif
-		RHeaderAudioSource* pAudioSource = (RHeaderAudioSource*)Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource);
-
+		RHeaderAudioSource* pAudioSource = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
 		int SoundIoError = SoundIoErrorNone;
 		struct SoundIoChannelLayout* layout = &pElement->OutStream->layout;
 		struct SoundIoChannelArea* areas;
@@ -1222,6 +1200,7 @@ void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObjec
 
 			frames_left -= frame_count;
 		}
+		Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
 	}
 	if (Usage & AudioElementUsage_Recording)
 	{
@@ -1250,14 +1229,11 @@ void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObjec
 		for (;;)
 		{
 			int frame_count = frames_left;
-
 			if ((SoundIoError = soundio_instream_begin_read(pElement->InStream, &areas, &frame_count)))
 			{
 				Engine_Ref_FunctionError("Draw_Volume()", "soundio_instream_begin_read Failed, SoundIoError == ", SoundIoError);
 				return;
 			}
-
-
 			if (!frame_count)
 				break;
 			if (!areas)
@@ -1365,9 +1341,7 @@ void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObjec
 					}
 					break;
 				}
-
 				pElement->CurrentFrame += framestodo;
-
 			}
 			if ((SoundIoError = soundio_instream_end_read(pElement->InStream)))
 			{
@@ -1384,8 +1358,7 @@ void Draw_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObjec
 	}
 }
 
-void Draw_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectAudio3D* pEffect, uint32_t FrameCountMin, uint32_t FrameCountMax, AudioElementUsageFlags Usage)
-{
+void Draw_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectAudio3D* pEffect, uint32_t FrameCountMin, uint32_t FrameCountMax, AudioElementUsageFlags Usage, uint32_t ThreadIndex) {
 
 }
 /*
@@ -1393,13 +1366,11 @@ void Draw_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObje
 //Update Effect Element
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Update_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectVolume* pEffect)
-{
+void Update_Volume(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectVolume* pEffect) {
 
 }
 
-void Update_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectAudio3D* pEffect)
-{
+void Update_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pObject, AudioEffectAudio3D* pEffect) {
 
 }
 */
@@ -1407,59 +1378,57 @@ void Update_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pOb
 //Effect Signature Updates
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UpdateSignature_Volume(AudioEffectSignature* pSignature)
-{
-	for (size_t i = 0; i < Utils.ElementAudioBuffer.Size;)
+void UpdateSignature_Volume(AudioEffectSignature* pSignature, uint32_t ThreadIndex) {
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ElementAudio* pElement = (ElementAudio*)&Utils.ElementAudioBuffer.Buffer[i];
-		if (pElement->Header.AllocationSize != (uint64_t)NULL && pElement->Header.Allocation.Identifier == (uint32_t)AudioElement_ElementAudio)
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Element.Identifier == AudioElement_ElementAudio)
 		{
-			if (pElement->UsageFlags & AudioElementUsage_Recording)
+			ElementAudio* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+			if (pElement != NULL)
 			{
-
-				if ((((double)clock() / (double)CLOCKS_PER_SEC) - pElement->LastTime) >= ((double)pElement->RingBufferSize_Seconds / (double)4))
+				if (pElement->UsageFlags & AudioElementUsage_Recording)
 				{
-					uint32_t ReadBufferSize = soundio_ring_buffer_fill_count(pElement->RingBuffer);
-					const char* ReadBuffer = soundio_ring_buffer_read_ptr(pElement->RingBuffer);
-					soundio_ring_buffer_advance_read_ptr(pElement->RingBuffer, ReadBufferSize);
-					if (ReadBufferSize != (uint32_t)NULL)
+					if ((((double)clock() / (double)CLOCKS_PER_SEC) - pElement->LastTime) >= ((double)pElement->RingBufferSize_Seconds / (double)4))
 					{
-						RHeaderAudioSource* pAudioProduct = (RHeaderAudioSource*)Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource);
+						uint32_t ReadBufferSize = soundio_ring_buffer_fill_count(pElement->RingBuffer);
+						const char* ReadBuffer = soundio_ring_buffer_read_ptr(pElement->RingBuffer);
+						soundio_ring_buffer_advance_read_ptr(pElement->RingBuffer, ReadBufferSize);
+						if (ReadBufferSize != (uint32_t)NULL)
+						{
+							RHeaderAudioSource* pAudioProduct = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
 
-						FormatDetails formatDetails = Get_FormatDetails(pAudioProduct->AudioData->Format);
+							FormatDetails formatDetails = Get_FormatDetails(pAudioProduct->AudioData->Format);
 
-						//resizing audiosource
-						TEXA_HEADER* tempdstheader = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + pAudioProduct->AudioData->LinearSize + ReadBufferSize);
-						memset(tempdstheader, 0, sizeof(TEXA_HEADER) + pAudioProduct->AudioData->LinearSize + ReadBufferSize);
-						memcpy(tempdstheader, pAudioProduct->AudioData, sizeof(TEXA_HEADER) + pAudioProduct->AudioData->LinearSize); //copy header
+							//resizing audiosource
+							TEXA_HEADER* tempdstheader = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + pAudioProduct->AudioData->LinearSize + ReadBufferSize);
+							memset(tempdstheader, 0, sizeof(TEXA_HEADER) + pAudioProduct->AudioData->LinearSize + ReadBufferSize);
+							memcpy(tempdstheader, pAudioProduct->AudioData, sizeof(TEXA_HEADER) + pAudioProduct->AudioData->LinearSize); //copy header
 
-						free(pAudioProduct->AudioData);
-						pAudioProduct->AudioData = tempdstheader;
+							free(pAudioProduct->AudioData);
+							pAudioProduct->AudioData = tempdstheader;
 
-						//filling the new spots with data and updating parameters
-						unsigned char* ptr = &pAudioProduct->AudioData->Data[pAudioProduct->AudioData->LinearSize];
-						memcpy(ptr, ReadBuffer, ReadBufferSize);
-						pAudioProduct->AudioData->LinearSize = pAudioProduct->AudioData->LinearSize + ReadBufferSize;
-						pAudioProduct->AudioData->Data[pAudioProduct->AudioData->LinearSize - 1] = '\0';
-						pAudioProduct->AudioData->ChannelCount = pElement->InStream->layout.channel_count;
-						pAudioProduct->AudioData->BlockAlign = pAudioProduct->AudioData->ChannelCount * (formatDetails.BitsPerChannel[0] / 8);
-						pAudioProduct->AudioData->ByteRate = pAudioProduct->AudioData->SampleRate * pAudioProduct->AudioData->ChannelCount * (formatDetails.BitsPerChannel[0] / 8);
-						pAudioProduct->AudioData->FrameCount = pAudioProduct->AudioData->LinearSize / (((uint64_t)formatDetails.BitsPerChannel[0] / (uint64_t)8) * (uint64_t)pAudioProduct->AudioData->ChannelCount);
+							//filling the new spots with data and updating parameters
+							unsigned char* ptr = &pAudioProduct->AudioData->Data[pAudioProduct->AudioData->LinearSize];
+							memcpy(ptr, ReadBuffer, ReadBufferSize);
+							pAudioProduct->AudioData->LinearSize = pAudioProduct->AudioData->LinearSize + ReadBufferSize;
+							pAudioProduct->AudioData->Data[pAudioProduct->AudioData->LinearSize - 1] = '\0';
+							pAudioProduct->AudioData->ChannelCount = pElement->InStream->layout.channel_count;
+							pAudioProduct->AudioData->BlockAlign = pAudioProduct->AudioData->ChannelCount * (formatDetails.BitsPerChannel[0] / 8);
+							pAudioProduct->AudioData->ByteRate = pAudioProduct->AudioData->SampleRate * pAudioProduct->AudioData->ChannelCount * (formatDetails.BitsPerChannel[0] / 8);
+							pAudioProduct->AudioData->FrameCount = pAudioProduct->AudioData->LinearSize / (((uint64_t)formatDetails.BitsPerChannel[0] / (uint64_t)8) * (uint64_t)pAudioProduct->AudioData->ChannelCount);
+							Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
+						}
+						pElement->LastTime += (double)pElement->RingBufferSize_Seconds / (double)4;
 					}
-					pElement->LastTime += (double)pElement->RingBufferSize_Seconds / (double)4;
 				}
+				Object_Ref_End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
 			}
-			i += pElement->Header.AllocationSize;
-		}
-		else
-		{
-			i++;
 		}
 	}
 }
 
-void UpdateSignature_Audio3D(AudioEffectSignature* pSignature)
-{
+void UpdateSignature_Audio3D(AudioEffectSignature* pSignature, uint32_t ThreadIndex) {
 
 }
 
@@ -1467,22 +1436,19 @@ void UpdateSignature_Audio3D(AudioEffectSignature* pSignature)
 //Effect Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Destroy_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, bool Full, uint32_t ThreadIndex)
-{
-	return ((Success));
+TEXRESULT Destroy_Volume(ElementAudio* pElement, ElementAudio* pElementOverlay, AudioEffectVolume* pEffect, AudioEffectVolume* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
+	return (Success);
 }
 
-TEXRESULT Destroy_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, bool Full, uint32_t ThreadIndex)
-{
-	return ((Success));
+TEXRESULT Destroy_Audio3D(ElementAudio* pElement, ElementAudio* pElementOverlay, AudioEffectAudio3D* pEffect, AudioEffectVolume* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect Recreation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT ReCreate_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, uint32_t ThreadIndex) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -1495,11 +1461,10 @@ TEXRESULT ReCreate_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, ui
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
-TEXRESULT ReCreate_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, uint32_t ThreadIndex) {
 #ifndef NDEBUG
 	if (pElement == NULL)
 	{
@@ -1512,15 +1477,14 @@ TEXRESULT ReCreate_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, 
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Pack_Volume(const ElementAudio* pElement, ElementAudio* pCopiedElement, const AudioEffectVolume* pEffect, AudioEffectVolume* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT Pack_Volume(const ElementAudio* pElement, ElementAudio* pCopiedElement, const AudioEffectVolume* pEffect, AudioEffectVolume* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	if (pData != NULL)
 	{
 
@@ -1529,11 +1493,10 @@ TEXRESULT Pack_Volume(const ElementAudio* pElement, ElementAudio* pCopiedElement
 	{
 
 	}
-	return ((Success));
+	return (Success);
 }
 
-TEXRESULT Pack_Audio3D(const ElementAudio* pElement, ElementAudio* pCopiedElement, const  AudioEffectAudio3D* pEffect, AudioEffectAudio3D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT Pack_Audio3D(const ElementAudio* pElement, ElementAudio* pCopiedElement, const  AudioEffectAudio3D* pEffect, AudioEffectAudio3D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	if (pData != NULL)
 	{
 
@@ -1542,29 +1505,26 @@ TEXRESULT Pack_Audio3D(const ElementAudio* pElement, ElementAudio* pCopiedElemen
 	{
 
 	}
-	return ((Success));
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect UnPackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT UnPack_Volume(const ElementAudio* pElement, ElementAudio* pCopiedElement, const AudioEffectVolume* pEffect, AudioEffectVolume* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
-{
-	return ((Success));
+TEXRESULT UnPack_Volume(const ElementAudio* pElement, ElementAudio* pCopiedElement, const AudioEffectVolume* pEffect, AudioEffectVolume* pCopiedEffect, const void* pData, uint32_t ThreadIndex) {
+	return (Success);
 }
 
-TEXRESULT UnPack_Audio3D(const ElementAudio* pElement, ElementAudio* pCopiedElement, const  AudioEffectAudio3D* pEffect, AudioEffectAudio3D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
-{
-	return ((Success));
+TEXRESULT UnPack_Audio3D(const ElementAudio* pElement, ElementAudio* pCopiedElement, const  AudioEffectAudio3D* pEffect, AudioEffectAudio3D* pCopiedEffect, const void* pData, uint32_t ThreadIndex) {
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Effect Constructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Create_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, const AudioEffectCreateInfoVolume* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
+TEXRESULT Create_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, const AudioEffectCreateInfoVolume* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
 	if (pEffect == NULL)
 	{
 
@@ -1585,8 +1545,7 @@ TEXRESULT Create_Volume(ElementAudio* pElement, AudioEffectVolume* pEffect, cons
 	return (Success);
 }
 
-TEXRESULT Create_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, const AudioEffectCreateInfoAudio3D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
+TEXRESULT Create_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, const AudioEffectCreateInfoAudio3D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
 	if (pEffect == NULL)
 	{
 
@@ -1610,46 +1569,29 @@ TEXRESULT Create_Audio3D(ElementAudio* pElement, AudioEffectAudio3D* pEffect, co
 //main 3 funcs
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Update_Audio()
-{
+TEXRESULT Update_Audio() {
 	soundio_flush_events(Utils.AudioHandle);
 	for (size_t i = 0; i < Utils.AudioEffectSignaturesSize; i++)
 	{
 		if (Utils.AudioEffectSignatures[i]->UpdateSignature != NULL)
-			Utils.AudioEffectSignatures[i]->UpdateSignature(Utils.AudioEffectSignatures[i]);
+			Utils.AudioEffectSignatures[i]->UpdateSignature(Utils.AudioEffectSignatures[i], 0);
 	}
+
 	return (Success);
 }
 
-TEXRESULT Initialise_Audio()
-{
+TEXRESULT Initialise_Audio() {
 	memset(&Utils, 0, sizeof(Utils));
-	memset(&Config, 0, sizeof(Config));
 
-	Config.InitialElementsMax = 1024;
-	Config.InitialHeadersMax = 1024;
-
-
-
-	Engine_Ref_Create_Mutex(Utils.ConvertersToTEXAMutex, MutexType_Plain);
-	Engine_Ref_Create_Mutex(Utils.ConvertersFromTEXAMutex, MutexType_Plain);
-	Engine_Ref_Create_Mutex(Utils.AudioEffectSignaturesMutex, MutexType_Plain);
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//buffer
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	Utils.RHeaderAudioSourceSig.Buffer = &Utils.RHeaderAudioSourceBuffer;
-
-	Utils.ElementAudioSig.Buffer = &Utils.ElementAudioBuffer;
+	Engine_Ref_Create_Mutex(&Utils.ConvertersToTEXAMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.ConvertersFromTEXAMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.AudioEffectSignaturesMutex, MutexType_Plain);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//bytelength
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Utils.RHeaderAudioSourceSig.ByteLength = sizeof(RHeaderAudioSource);
-
 	Utils.ElementAudioSig.ByteLength = sizeof(ElementAudio);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1657,16 +1599,13 @@ TEXRESULT Initialise_Audio()
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Utils.RHeaderAudioSourceSig.Identifier = (uint32_t)AudioHeader_AudioSource;
-
 	Utils.ElementAudioSig.Identifier = (uint32_t)AudioElement_ElementAudio;
-
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//constructors
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Utils.RHeaderAudioSourceSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_AudioSourceHeader;
-
 	Utils.ElementAudioSig.Constructor = (Create_ElementTemplate*)&Create_ElementAudio;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1674,7 +1613,6 @@ TEXRESULT Initialise_Audio()
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Utils.RHeaderAudioSourceSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_AudioSourceHeader;
-
 	Utils.ElementAudioSig.Packer = (Pack_ElementTemplate*)&Pack_ElementAudio;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1682,7 +1620,6 @@ TEXRESULT Initialise_Audio()
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Utils.RHeaderAudioSourceSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_AudioSourceHeader;
-
 	Utils.ElementAudioSig.UnPacker = (UnPack_ElementTemplate*)&UnPack_ElementAudio;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1690,7 +1627,6 @@ TEXRESULT Initialise_Audio()
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Utils.RHeaderAudioSourceSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_AudioSourceHeader;
-
 	Utils.ElementAudioSig.Destructor = (Destroy_ElementTemplate*)&Destroy_ElementAudio;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1698,16 +1634,7 @@ TEXRESULT Initialise_Audio()
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	//Utils.RHeaderAudioSourceSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_AudioSourceHeader;
-
 	Utils.ElementAudioSig.ReConstructor = (ReCreate_ElementTemplate*)&ReCreate_ElementAudio;
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//create buffer
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderAudioSourceBuffer, Config.InitialHeadersMax);
-
-	Object_Ref_Create_ElementBuffer(&Utils.ElementAudioBuffer, Config.InitialElementsMax);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//registration
@@ -1781,8 +1708,8 @@ TEXRESULT Initialise_Audio()
 	//Update Effect Signature
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Utils.VolumeSig.UpdateSignature = &UpdateSignature_Volume;
-	Utils.Audio3DSig.UpdateSignature = &UpdateSignature_Audio3D;
+	Utils.VolumeSig.UpdateSignature = (UpdateSignature_AudioEffectTemplate*)&UpdateSignature_Volume;
+	Utils.Audio3DSig.UpdateSignature = (UpdateSignature_AudioEffectTemplate*)&UpdateSignature_Audio3D;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//effects registration
@@ -1804,14 +1731,10 @@ TEXRESULT Initialise_Audio()
 		return (Failure);
 	}
 	soundio_flush_events(Utils.AudioHandle);
-	return ((Success));
+	return (Success);
 }
 
-TEXRESULT Destroy_Audio()
-{
-	Object_Ref_Destroy_ElementBuffer(&Utils.ElementAudioBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderAudioSourceBuffer);
-
+TEXRESULT Destroy_Audio() {
 	Object_Ref_DeRegister_ElementSignature(&Utils.ElementAudioSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderAudioSourceSig);
 
@@ -1833,47 +1756,37 @@ TEXRESULT Destroy_Audio()
 	Utils.ConvertersFromTEXA = NULL;
 	Utils.ConvertersFromTEXASize = NULL;
 
-	Engine_Ref_Destroy_Mutex(Utils.ConvertersToTEXAMutex, MutexType_Plain);
-	Engine_Ref_Destroy_Mutex(Utils.ConvertersFromTEXAMutex, MutexType_Plain);
-	Engine_Ref_Destroy_Mutex(Utils.AudioEffectSignaturesMutex, MutexType_Plain);
+	Engine_Ref_Destroy_Mutex(&Utils.ConvertersToTEXAMutex, MutexType_Plain);
+	Engine_Ref_Destroy_Mutex(&Utils.ConvertersFromTEXAMutex, MutexType_Plain);
+	Engine_Ref_Destroy_Mutex(&Utils.AudioEffectSignaturesMutex, MutexType_Plain);
 
 	soundio_destroy(Utils.AudioHandle);
 
 	memset(&Utils, 0, sizeof(Utils));
-	memset(&Config, 0, sizeof(Config));
-
 	return (Success);
 }
 
 
 //entry point to the extension
 //this functions purpose is to register everything with the application. One time only.
-__declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
-{
+__declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo) {
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
 	ReturnInfo->BinType = Debug;
 #endif
-
 	MakeVersion(ReturnInfo->ExtensionVersion, 1, 0, 0);
 	MakeVersion(ReturnInfo->MinRequiredVersion, 1, 0, 0);
 	MakeVersion(ReturnInfo->MaxRequiredVersion, UINT32_MAX, UINT32_MAX, UINT32_MAX);
 
-
 	Engine_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 	Object_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
-
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData("Audio::InitialHeadersMax"), &Config.InitialHeadersMax, 1, sizeof(Config.InitialHeadersMax));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData("Audio::InitialElementsMax"), &Config.InitialElementsMax, 1, sizeof(Config.InitialElementsMax));
-
 
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData("Audio::Utils"), &AudioRes.pUtils, &Utils);
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Initialise_Audio"), &AudioRes.pInitialise_Audio, &Initialise_Audio, Construct, 0.1f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Destroy_Audio"), &AudioRes.pDestroy_Audio, &Destroy_Audio, Destruct, 100.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Update_Audio"), &AudioRes.pUpdate_Audio, &Update_Audio, EveryFrame, 100.00f, 0, NULL);
-
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Add_XtoTEXAconverter"), &AudioRes.pAdd_XtoTEXAconverter, &Add_XtoTEXAconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert::Add_TEXAtoXconverter"), &AudioRes.pAdd_TEXAtoXconverter, &Add_TEXAtoXconverter, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -1892,7 +1805,6 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Start_OutputStream"), &AudioRes.pStart_OutputStream, &Start_OutputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Pause_InputStream"), &AudioRes.pPause_InputStream, &Pause_InputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Pause_OutputStream"), &AudioRes.pPause_OutputStream, &Pause_OutputStream, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Convert_AudioData"), &AudioRes.pConvert_AudioData, &Convert_AudioData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Audio::Create_DummyTEXA"), &AudioRes.pCreate_DummyTEXA, &Create_DummyTEXA, (CallFlagBits)NULL, 0.0f, NULL, NULL);

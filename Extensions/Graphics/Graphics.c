@@ -20,30 +20,6 @@
 #include "Graphics.h"
 #include "GraphicsShaders.h"
 
-
-volatile struct
-{
-	uint64_t ExtensionsEnabledSize;
-	char* ExtensionsEnabled[3];
-
-	uint64_t ValidationLayersEnabledSize;
-	char* ValidationLayersEnabled[1];
-
-	uint64_t InitialElementsMax;
-	uint64_t InitialHeadersMax;
-
-	uint64_t InitialNativeGPUBufferSize;
-	uint64_t InitialStagingGPUBufferSize;
-
-	VkSampleCountFlagBits Samples;
-
-	uint32_t MaxAnisotropy;
-	bool AnisotropicFiltering;
-
-
-	bool Active_GPU_MemoryResizing; //set to true for gpu buffers to be automatically managed.
-}Config;
-
 volatile GraphicsUtils Utils;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +107,7 @@ FormatDetails Get_FormatDetails(GraphicsFormat format)
 * @param Parent is the allocation of the target parent of pPosition header to calculate the matrix from.
 * @param pMatrix is a pointer to the resulting computed matrix.
 */
-void Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent)
+void Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
 	if (pMatrix == NULL)
@@ -139,258 +115,258 @@ void Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent)
 		Engine_Ref_ArgsError("Calculate_TotalMatrix()", "pMatrix == NULLPTR");
 		return;
 	}
-	if (Object_Ref_Get_ObjectAllocationValidity(Parent) != Success)
+	if (Object_Ref_Get_ObjectAllocationData(Parent) == NULL)
 	{
 		Engine_Ref_ArgsError("Calculate_TotalMatrix()", "Parent Invalid.");
 		return;
 	}
 #endif
-	Object* pObject = Object_Ref_Get_ObjectPointer(Parent);
-
+	Object* pObject = Object_Ref_Get_ObjectPointer(Parent, false, false, ThreadIndex);
 	for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
 	{
-		if (pObject->Header.iResourceHeaders[i].Identifier == GraphicsHeader_Position)
+		RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], false, false, ThreadIndex);
+		if (pPositionHeader->Header.Allocation.Identifier == GraphicsHeader_Position)
 		{
-			RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i]);
 			mat4 temp;
 			glm_mat4_copy(pPositionHeader->Matrix, temp);
-
 			for (size_t i1 = 0; i1 < pObject->Header.iResourceHeadersSize; i1++)
 			{
-				if (pObject->Header.iResourceHeaders[i1].Identifier == GraphicsHeader_AnimationChannel)
-				{
-					RHeaderAnimationChannel* pAnimationChannelHeader = (RHeaderAnimationChannel*)Object_Ref_Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i1]);
-					if (pAnimationChannelHeader != NULL &&
-						((pAnimationChannelHeader->Target == AnimationTargetType_Rotation) || (pAnimationChannelHeader->Target == AnimationTargetType_Translation) || (pAnimationChannelHeader->Target == AnimationTargetType_Scale)))
+				RHeaderAnimationChannel* pAnimationChannelHeader = Object_Ref_Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i1], false, false, ThreadIndex);
+				if (pAnimationChannelHeader->Header.Allocation.Identifier == GraphicsHeader_AnimationChannel && ((pAnimationChannelHeader->Target == AnimationTargetType_Rotation) || (pAnimationChannelHeader->Target == AnimationTargetType_Translation) || (pAnimationChannelHeader->Target == AnimationTargetType_Scale)))
+				{				
+					RHeaderAnimation* pAnimation = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->iAnimation, false, false, ThreadIndex);
+					RHeaderBuffer* pInputBuffer = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer, false, false, ThreadIndex);
+					RHeaderBuffer* pOutputBuffer = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer, false, false, ThreadIndex);
+					RHeaderBufferSource* pInputBufferSource = Object_Ref_Get_ResourceHeaderPointer(pInputBuffer->iBufferSource, false, false, ThreadIndex);
+					RHeaderBufferSource* pOutputBufferSource = Object_Ref_Get_ResourceHeaderPointer(pOutputBuffer->iBufferSource, false, false, ThreadIndex);
+
+					void* inputpointer = (void*)((uint64_t)pInputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Input.ByteOffset);
+					void* outputpointer = (void*)((uint64_t)pOutputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Output.ByteOffset);
+
+					float barrier = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame];
+					float barrier1 = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame + 1];
+
+					//every interpolation must start with 0 and end with 1
+					double frametime = normalize_d(pAnimation->Time - barrier, barrier1 - barrier, 0.0);
+					frametime = glm_clamp(frametime, 0.0f, 1.0f);
+
+					float input[48];
+					float input1[48];
+
+					uint64_t size = pAnimationChannelHeader->Sampler.Output.Type;
+					if (pAnimationChannelHeader->Sampler.Interpolation == InterpolationType_Cubicspline)
 					{
-
-						RHeaderAnimation* pAnimation = (RHeaderAnimation*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->iAnimation);
-
-						RHeaderBuffer* pInputBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer);
-						RHeaderBuffer* pOutputBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer);
-
-						RHeaderBufferSource* pInputBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pInputBuffer->iBufferSource);
-						RHeaderBufferSource* pOutputBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pOutputBuffer->iBufferSource);
-
-						void* inputpointer = (void*)((uint64_t)pInputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Input.ByteOffset);
-						void* outputpointer = (void*)((uint64_t)pOutputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Output.ByteOffset);
-
-						float barrier = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame];
-						float barrier1 = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame + 1];
-
-						//every interpolation must start with 0 and end with 1
-						double frametime = normalize_d(pAnimation->Time - barrier, barrier1 - barrier, 0.0);
-						frametime = glm_clamp(frametime, 0.0f, 1.0f);
-
-						float input[48];
-						float input1[48];
-
-						uint64_t size = pAnimationChannelHeader->Sampler.Output.Type;
-						if (pAnimationChannelHeader->Sampler.Interpolation == InterpolationType_Cubicspline)
-						{
-							size = (uint64_t)(pAnimationChannelHeader->Sampler.Output.Type * 3);
-						}
-
-						//convert pData from datatypes
-						switch (pAnimationChannelHeader->Sampler.Output.Format)
-						{
-						case GraphicsFormat_R8G8B8_SINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = max(((int8_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame) * size) + i2] / (double)INT8_MAX, -1.0);
-								input1[i2] = max(((int8_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT8_MAX, -1.0);
-							}
-							break;
-						case GraphicsFormat_R8G8B8_UINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = ((uint8_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT8_MAX;
-								input1[i2] = ((uint8_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT8_MAX;
-							}
-							break;
-						case GraphicsFormat_R16G16B16_SINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = max(((int16_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)INT16_MAX, -1.0);
-								input1[i2] = max(((int16_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT16_MAX, -1.0);
-							}
-							break;
-						case GraphicsFormat_R16G16B16_UINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = ((uint16_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT16_MAX;
-								input1[i2] = ((uint16_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT16_MAX;
-							}
-							break;
-						case GraphicsFormat_R32G32B32_SINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = max(((int32_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)INT32_MAX, -1.0);
-								input1[i2] = max(((int32_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT32_MAX, -1.0);
-							}
-							break;
-						case GraphicsFormat_R32G32B32_UINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = ((uint32_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT32_MAX;
-								input1[i2] = ((uint32_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT32_MAX;
-							}
-							break;
-						case GraphicsFormat_R64G64B64_SINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = max(((int64_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)INT64_MAX, -1.0);
-								input1[i2] = max(((int64_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT64_MAX, -1.0);
-							}
-							break;
-						case GraphicsFormat_R64G64B64_UINT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = ((uint64_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT64_MAX;
-								input1[i2] = ((uint32_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT32_MAX;
-							}
-							break;
-						case GraphicsFormat_R32G32B32_SFLOAT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = ((float*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2];
-								input1[i2] = ((float*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2];
-							}
-							break;
-						case GraphicsFormat_R64G64B64_SFLOAT:
-							for (size_t i2 = 0; i2 < size; i2++)
-							{
-								input[i2] = ((double*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2];
-								input1[i2] = ((double*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2];
-							}
-							break;
-						}
-
-						/*
-						Implementation Note: The first in-tangent a1 and last out-tangent bn should be zeros as they are not used in the spline calculations.
-
-						Implementation Note: When writing out rotation output values, exporters should take care to not write out values which can result in an invalid quaternion with all zero values.
-						This can be achieved by ensuring the output values never have both -q and q in the same spline.
-						*/
-						vec4 translation;
-						glm_vec4_zero(translation);
-						mat4 rotationmt;
-						glm_mat4_zero(rotationmt);
-						vec3 scale;
-						glm_vec3_zero(scale);
-						glm_decompose(temp, translation, rotationmt, scale);
-						//vec4
-						vec4 rotation;
-						glm_vec4_zero(rotation);
-						glm_mat4_quat(rotationmt, rotation);
-
-						switch (pAnimationChannelHeader->Target)
-						{
-						case AnimationTargetType_Translation:
-							switch (pAnimationChannelHeader->Sampler.Interpolation)
-							{
-							case InterpolationType_Linear:
-								for (size_t i2 = 0; i2 < 3; i2++)
-									translation[i2] = glm_lerp(input[i2], input1[i2], frametime);
-								break;
-							case InterpolationType_Step:
-								for (size_t i2 = 0; i2 < 3; i2++)
-									translation[i2] = input[i2];
-								break;
-							case InterpolationType_Cubicspline:
-								
-								float deltaTime = barrier1 - barrier;
-								vec3 previousTangent;
-								glm_vec3_zero(previousTangent);
-								glm_vec3_scale(previousTangent, deltaTime, &input[3 * 2]);
-								vec3 nextTangent;
-								glm_vec3_zero(nextTangent);
-								glm_vec3_scale(nextTangent, deltaTime, &input1[0]);
-
-								for (size_t i2 = 0; i2 < 3; i2++)
-									translation[i2] = CubicSplineInterpolation(input[(3 * 1) + i2], previousTangent[i2], input1[(3 * 1) + i2], nextTangent[i2], frametime);
-								break;
-							}
-							break;
-						case AnimationTargetType_Rotation:
-							switch (pAnimationChannelHeader->Sampler.Interpolation)
-							{
-							case InterpolationType_Linear:
-								glm_quat_slerp(input, input1, frametime, rotation);
-								break;
-							case InterpolationType_Step:
-								for (size_t i2 = 0; i2 < 4; i2++)
-									rotation[i2] = input[i2];
-								break;
-							case InterpolationType_Cubicspline:
-								
-								float deltaTime = barrier1 - barrier;
-								vec4 previousTangent;
-								glm_vec4_zero(previousTangent);
-								glm_vec4_scale(previousTangent, deltaTime, &input[4 * 2]);
-								vec4 nextTangent;
-								glm_vec4_zero(nextTangent);
-								glm_vec4_scale(nextTangent, deltaTime, &input1[0]);
-
-								for (size_t i2 = 0; i2 < 4; i2++)
-									rotation[i2] = CubicSplineInterpolation(input[(4 * 1) + i2], previousTangent[i2], input1[(4 * 1) + i2], nextTangent[i2], frametime);					
-								glm_vec4_normalize(rotation);
-								break;
-							}
-							break;
-						case AnimationTargetType_Scale:
-							switch (pAnimationChannelHeader->Sampler.Interpolation)
-							{
-							case InterpolationType_Linear:
-								for (size_t i2 = 0; i2 < 3; i2++)
-									scale[i2] = glm_lerp(input[i2], input1[i2], frametime);
-								break;
-							case InterpolationType_Step:
-								for (size_t i2 = 0; i2 < 3; i2++)
-									scale[i2] = input[i2];
-								break;
-							case InterpolationType_Cubicspline:
-
-								float deltaTime = barrier1 - barrier;
-								vec3 previousTangent;
-								glm_vec3_zero(previousTangent);
-								glm_vec3_scale(previousTangent, deltaTime, &input[3 * 2]);
-								vec3 nextTangent;
-								glm_vec3_zero(nextTangent);
-								glm_vec3_scale(nextTangent, deltaTime, &input1[0]);
-
-								for (size_t i2 = 0; i2 < 3; i2++)
-									scale[i2] = CubicSplineInterpolation(input[(3 * 1) + i2], previousTangent[i2], input1[(3 * 1) + i2], nextTangent[i2], frametime);
-								break;
-							}
-							break;
-						}
-
-						mat4 identitym;
-						glm_mat4_identity(identitym);
-						mat4 translationm;
-						glm_mat4_identity(translationm);
-						glm_translate(translationm, translation);
-						mat4 rotationm;
-						glm_mat4_identity(rotationm);
-						glm_quat_rotate(identitym, rotation, rotationm);
-						mat4 scalem;
-						glm_mat4_identity(scalem);
-						glm_scale(scalem, scale);
-
-						glm_mul_sse2(translationm, rotationm, temp);
-						glm_mul_sse2(temp, scalem, temp);
-						glm_mul_sse2(temp, identitym, temp);
+						size = (uint64_t)(pAnimationChannelHeader->Sampler.Output.Type * 3);
 					}
+
+					//convert pData from datatypes
+					switch (pAnimationChannelHeader->Sampler.Output.Format)
+					{
+					case GraphicsFormat_R8G8B8_SINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = max(((int8_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame) * size) + i2] / (double)INT8_MAX, -1.0);
+							input1[i2] = max(((int8_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT8_MAX, -1.0);
+						}
+						break;
+					case GraphicsFormat_R8G8B8_UINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = ((uint8_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT8_MAX;
+							input1[i2] = ((uint8_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT8_MAX;
+						}
+						break;
+					case GraphicsFormat_R16G16B16_SINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = max(((int16_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)INT16_MAX, -1.0);
+							input1[i2] = max(((int16_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT16_MAX, -1.0);
+						}
+						break;
+					case GraphicsFormat_R16G16B16_UINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = ((uint16_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT16_MAX;
+							input1[i2] = ((uint16_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT16_MAX;
+						}
+						break;
+					case GraphicsFormat_R32G32B32_SINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = max(((int32_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)INT32_MAX, -1.0);
+							input1[i2] = max(((int32_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT32_MAX, -1.0);
+						}
+						break;
+					case GraphicsFormat_R32G32B32_UINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = ((uint32_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT32_MAX;
+							input1[i2] = ((uint32_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT32_MAX;
+						}
+						break;
+					case GraphicsFormat_R64G64B64_SINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = max(((int64_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)INT64_MAX, -1.0);
+							input1[i2] = max(((int64_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)INT64_MAX, -1.0);
+						}
+						break;
+					case GraphicsFormat_R64G64B64_UINT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = ((uint64_t*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2] / (double)UINT64_MAX;
+							input1[i2] = ((uint32_t*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2] / (double)UINT32_MAX;
+						}
+						break;
+					case GraphicsFormat_R32G32B32_SFLOAT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = ((float*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2];
+							input1[i2] = ((float*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2];
+						}
+						break;
+					case GraphicsFormat_R64G64B64_SFLOAT:
+						for (size_t i2 = 0; i2 < size; i2++)
+						{
+							input[i2] = ((double*)outputpointer)[(pAnimationChannelHeader->KeyFrame * size) + i2];
+							input1[i2] = ((double*)outputpointer)[((pAnimationChannelHeader->KeyFrame + 1) * size) + i2];
+						}
+						break;
+					}
+
+					/*
+					Implementation Note: The first in-tangent a1 and last out-tangent bn should be zeros as they are not used in the spline calculations.
+
+					Implementation Note: When writing out rotation output values, exporters should take care to not write out values which can result in an invalid quaternion with all zero values.
+					This can be achieved by ensuring the output values never have both -q and q in the same spline.
+					*/
+					vec4 translation;
+					glm_vec4_zero(translation);
+					mat4 rotationmt;
+					glm_mat4_zero(rotationmt);
+					vec3 scale;
+					glm_vec3_zero(scale);
+					glm_decompose(temp, translation, rotationmt, scale);
+					//vec4
+					vec4 rotation;
+					glm_vec4_zero(rotation);
+					glm_mat4_quat(rotationmt, rotation);
+
+					switch (pAnimationChannelHeader->Target)
+					{
+					case AnimationTargetType_Translation:
+						switch (pAnimationChannelHeader->Sampler.Interpolation)
+						{
+						case InterpolationType_Linear:
+							for (size_t i2 = 0; i2 < 3; i2++)
+								translation[i2] = glm_lerp(input[i2], input1[i2], frametime);
+							break;
+						case InterpolationType_Step:
+							for (size_t i2 = 0; i2 < 3; i2++)
+								translation[i2] = input[i2];
+							break;
+						case InterpolationType_Cubicspline:
+
+							float deltaTime = barrier1 - barrier;
+							vec3 previousTangent;
+							glm_vec3_zero(previousTangent);
+							glm_vec3_scale(previousTangent, deltaTime, &input[3 * 2]);
+							vec3 nextTangent;
+							glm_vec3_zero(nextTangent);
+							glm_vec3_scale(nextTangent, deltaTime, &input1[0]);
+
+							for (size_t i2 = 0; i2 < 3; i2++)
+								translation[i2] = CubicSplineInterpolation(input[(3 * 1) + i2], previousTangent[i2], input1[(3 * 1) + i2], nextTangent[i2], frametime);
+							break;
+						}
+						break;
+					case AnimationTargetType_Rotation:
+						switch (pAnimationChannelHeader->Sampler.Interpolation)
+						{
+						case InterpolationType_Linear:
+							glm_quat_slerp(input, input1, frametime, rotation);
+							break;
+						case InterpolationType_Step:
+							for (size_t i2 = 0; i2 < 4; i2++)
+								rotation[i2] = input[i2];
+							break;
+						case InterpolationType_Cubicspline:
+
+							float deltaTime = barrier1 - barrier;
+							vec4 previousTangent;
+							glm_vec4_zero(previousTangent);
+							glm_vec4_scale(previousTangent, deltaTime, &input[4 * 2]);
+							vec4 nextTangent;
+							glm_vec4_zero(nextTangent);
+							glm_vec4_scale(nextTangent, deltaTime, &input1[0]);
+
+							for (size_t i2 = 0; i2 < 4; i2++)
+								rotation[i2] = CubicSplineInterpolation(input[(4 * 1) + i2], previousTangent[i2], input1[(4 * 1) + i2], nextTangent[i2], frametime);
+							glm_vec4_normalize(rotation);
+							break;
+						}
+						break;
+					case AnimationTargetType_Scale:
+						switch (pAnimationChannelHeader->Sampler.Interpolation)
+						{
+						case InterpolationType_Linear:
+							for (size_t i2 = 0; i2 < 3; i2++)
+								scale[i2] = glm_lerp(input[i2], input1[i2], frametime);
+							break;
+						case InterpolationType_Step:
+							for (size_t i2 = 0; i2 < 3; i2++)
+								scale[i2] = input[i2];
+							break;
+						case InterpolationType_Cubicspline:
+
+							float deltaTime = barrier1 - barrier;
+							vec3 previousTangent;
+							glm_vec3_zero(previousTangent);
+							glm_vec3_scale(previousTangent, deltaTime, &input[3 * 2]);
+							vec3 nextTangent;
+							glm_vec3_zero(nextTangent);
+							glm_vec3_scale(nextTangent, deltaTime, &input1[0]);
+
+							for (size_t i2 = 0; i2 < 3; i2++)
+								scale[i2] = CubicSplineInterpolation(input[(3 * 1) + i2], previousTangent[i2], input1[(3 * 1) + i2], nextTangent[i2], frametime);
+							break;
+						}
+						break;
+					}
+
+					mat4 identitym;
+					glm_mat4_identity(identitym);
+					mat4 translationm;
+					glm_mat4_identity(translationm);
+					glm_translate(translationm, translation);
+					mat4 rotationm;
+					glm_mat4_identity(rotationm);
+					glm_quat_rotate(identitym, rotation, rotationm);
+					mat4 scalem;
+					glm_mat4_identity(scalem);
+					glm_scale(scalem, scale);
+
+					glm_mul_sse2(translationm, rotationm, temp);
+					glm_mul_sse2(temp, scalem, temp);
+					glm_mul_sse2(temp, identitym, temp);
+
+					Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->iAnimation, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pInputBuffer->iBufferSource, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pOutputBuffer->iBufferSource, false, false, ThreadIndex);
 				}
+				Object_Ref_End_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i1], false, false, ThreadIndex);
 			}
 			glm_mat4_mul_sse2(temp, *pMatrix, *pMatrix);
 		}
-	}
-	if (Object_Ref_Get_ObjectAllocationValidity(pObject->Header.iParent) == Success)
+		Object_Ref_End_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], false, false, ThreadIndex);
+	}	
+	if (Object_Ref_Get_ObjectAllocationData(pObject->Header.iParent) != NULL)
 	{
-		Calculate_TotalMatrix(pMatrix, pObject->Header.iParent);
+		Calculate_TotalMatrix(pMatrix, pObject->Header.iParent, ThreadIndex);
 	}
+	Object_Ref_End_ObjectPointer(Parent, false, false, ThreadIndex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -437,7 +413,7 @@ TEXRESULT Create_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllo
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Create_Mutex(pAllocater->mutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&pAllocater->mutex, MutexType_Plain);
 
 	Resize_Array((void**)&pAllocater->Allocations, pAllocater->AllocationsSize, pAllocater->AllocationsSize + 2, sizeof(*pAllocater->Allocations));
 	pAllocater->AllocationsSize += 2;
@@ -547,7 +523,7 @@ void Destroy_GPU_ArenaAllocater(LogicalDevice* pLogicalDevice, GPU_ArenaAllocate
 	pAllocater->Size = NULL;
 	pAllocater->Alignment = NULL;
 
-	Engine_Ref_Destroy_Mutex(pAllocater->mutex);
+	Engine_Ref_Destroy_Mutex(&pAllocater->mutex);
 
 	if (pAllocater->Allocations != NULL)
 		free(pAllocater->Allocations);
@@ -587,17 +563,6 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-
-	pAllocater->Allocations[pAllocater->AllocationsSize - 1].Pointer = NewSize;
-
-	if (pAllocater->VkBuffer != NULL)
-		vkDestroyBuffer(pLogicalDevice->VkLogicalDevice, pAllocater->VkBuffer, NULL);
-
-	if (pAllocater->MappedMemory != NULL)
-		vkUnmapMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory);
-
-	if (pAllocater->VkMemory != NULL)
-		vkFreeMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory, NULL);
 
 	if (NewSize != NULL)
 	{
@@ -728,7 +693,7 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 				{
 					for (size_t i = 0; i < pLogicalDevice->MemoryQueueFamilySize; i++)
 					{
-						if (Engine_Ref_TryLock_Mutex(pLogicalDevice->MemoryQueueMutexes[i]) == Success)
+						if (Engine_Ref_TryLock_Mutex(&pLogicalDevice->MemoryQueueMutexes[i]) == Success)
 						{
 							QueueIndex = i;
 							found = true;
@@ -753,65 +718,34 @@ TEXRESULT ReCreate_GPU_ArenaAllocater(LogicalDevice * pLogicalDevice, GPU_ArenaA
 			}
 
 			vkQueueWaitIdle(Queue);
-			Engine_Ref_Unlock_Mutex(pLogicalDevice->MemoryQueueMutexes[QueueIndex]);
+			Engine_Ref_Unlock_Mutex(&pLogicalDevice->MemoryQueueMutexes[QueueIndex]);
 
 			vkFreeCommandBuffers(pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 			vkDestroyCommandPool(pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
 		}
 
+
+		if (pAllocater->VkBuffer != NULL)
+			vkDestroyBuffer(pLogicalDevice->VkLogicalDevice, pAllocater->VkBuffer, NULL);
+
+		if (pAllocater->MappedMemory != NULL)
+			vkUnmapMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory);
+
+		if (pAllocater->VkMemory != NULL)
+			vkFreeMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory, NULL);
+
+		pAllocater->Allocations[pAllocater->AllocationsSize - 1].Pointer = NewSize;
+
+		pAllocater->Size = NewSize;
+
 		pAllocater->VkBuffer = NewVkBuffer;
 		pAllocater->VkMemory = NewVkMemory;
 		pAllocater->Alignment = memRequirements.alignment;
-		pAllocater->Size = NewSize;
 
 		if (Type == TargetMemory_Src)
 			vkMapMemory(pLogicalDevice->VkLogicalDevice, pAllocater->VkMemory, 0, pAllocater->Size, 0, &pAllocater->MappedMemory);
 	}
-	pAllocater->Size = NewSize;
 	return (Success);
-}
-/*
-* Added in 1.0.0
-* destroys fully.
-* @param pBuffer pointer to the GPU_MemoryBuffer to destroy.
-* @param pLogicalDevice pointer to the LogicalDevice the GPU_MemoryBuffer was created on.
-* @note Thread Safe.
-* @note Internally Synchronized.
-*/
-void Destroy_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice)
-{
-#ifndef NDEBUG
-	if (pBuffer == NULL)
-	{
-		Engine_Ref_ArgsError("Destroy_GPU_MemoryBuffer()", "pBuffer == NULLPTR");
-		return;
-	}
-	if (pLogicalDevice == NULL)
-	{
-		Engine_Ref_ArgsError("Destroy_GPU_MemoryBuffer()", "pLogicalDevice == NULLPTR");
-		return;
-	}
-#endif
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-		}
-	}
-
-	if (pBuffer->Indexes != NULL)
-		free(pBuffer->Indexes);
-	pBuffer->Indexes = NULL;
-
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-			Destroy_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i]);
-		free(pBuffer->ArenaAllocaters);
-	}
-	pBuffer->ArenaAllocaters = NULL;
-
 }
 /*
 * Added in 1.0.0
@@ -841,21 +775,63 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	pBuffer->ArenaAllocaters = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));
-	pBuffer->Indexes = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->Indexes));
+	pBuffer->ArenaAllocaters = calloc(EngineRes.pUtils->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));
+	pBuffer->Indexes = calloc(EngineRes.pUtils->CPU.MaxThreads, sizeof(*pBuffer->Indexes));
 	if (pBuffer->ArenaAllocaters == NULL || pBuffer->Indexes == NULL)
 	{
 		Engine_Ref_FunctionError("Create_GPU_MemoryBuffer()", "Out Of Memory.", pBuffer->ArenaAllocaters);
-		return (Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 	}
-	
-	Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
-	for (size_t i = 1; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
+	//Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[0], Size, Type);
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
 		Create_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], 0, Type);
 
 	pBuffer->Size = Size;
-	pBuffer->Alignment = pBuffer->ArenaAllocaters[0].Alignment;
+	pBuffer->Type = Type;
 	return (Success);
+}
+/*
+* Added in 1.0.0
+* destroys fully.
+* @param pBuffer pointer to the GPU_MemoryBuffer to destroy.
+* @param pLogicalDevice pointer to the LogicalDevice the GPU_MemoryBuffer was created on.
+* @note Thread Safe.
+* @note Internally Synchronized.
+*/
+void Destroy_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice)
+{
+#ifndef NDEBUG
+	if (pBuffer == NULL)
+	{
+		Engine_Ref_ArgsError("Destroy_GPU_MemoryBuffer()", "pBuffer == NULLPTR");
+		return;
+	}
+	if (pLogicalDevice == NULL)
+	{
+		Engine_Ref_ArgsError("Destroy_GPU_MemoryBuffer()", "pLogicalDevice == NULLPTR");
+		return;
+	}
+#endif
+	if (pBuffer->ArenaAllocaters != NULL)
+	{
+		for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+		{
+			Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].mutex);
+		}
+	}
+
+	if (pBuffer->Indexes != NULL)
+		free(pBuffer->Indexes);
+	pBuffer->Indexes = NULL;
+
+	if (pBuffer->ArenaAllocaters != NULL)
+	{
+		for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+			Destroy_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i]);
+		free(pBuffer->ArenaAllocaters);
+	}
+	pBuffer->ArenaAllocaters = NULL;
+
 }
 /*
 * Added in 1.0.0
@@ -867,7 +843,7 @@ TEXRESULT Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLog
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize, TargetMemoryType Type)
+TEXRESULT ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize)
 {
 #ifndef NDEBUG
 	if (pBuffer == NULL)
@@ -885,8 +861,23 @@ TEXRESULT ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pL
 		Engine_Ref_ArgsError("ReCreate_GPU_MemoryBuffer()", "NewSize == NULL");
 		return (Invalid_Parameter | Failure);
 	}
+	if (pBuffer->ArenaAllocaters == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_GPU_MemoryBuffer()", "pBuffer->ArenaAllocaters == NULLPTR");
+		return (Invalid_Parameter | Failure);
+	}
 #endif
-	Engine_Ref_FunctionError("Resize_GPU_MemoryBuffer()", "doesnt work.", 0);
+
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].mutex);
+
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+		ReCreate_GPU_ArenaAllocater(pLogicalDevice, &pBuffer->ArenaAllocaters[i], 0, pBuffer->Type);
+
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].mutex);
+
+	pBuffer->Size = NewSize;
 	return (Success);
 }
 /*
@@ -915,7 +906,6 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		return newalloc;
 	}
 #endif
-	uint64_t AlignedSize = AlignNumber(MemoryRequirements.size, MemoryRequirements.alignment);
 	if (Type == AllocationType_Linear)
 	{
 		GPU_MemoryBuffer* TargetBuffer = NULL;
@@ -934,82 +924,81 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 			memset(&newalloc, 0, sizeof(GPU_Allocation));
 			return newalloc;
 		}
-		GPU_ArenaAllocater* pArenaAllocater = NULL;		
-		if (Engine_Ref_TryLock_Mutex(TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]].mutex) != Success)
-		{
-			for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-			{
-				if (Engine_Ref_TryLock_Mutex(TargetBuffer->ArenaAllocaters[i].mutex) == Success)
-				{
-					pArenaAllocater = &TargetBuffer->ArenaAllocaters[i];
-					TargetBuffer->Indexes[ThreadIndex] = i;
-					break;
-				}
-			}
-		}
-		else
-		{
-			pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
-		}
-		if (pArenaAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("GPUmalloc()", "Arena Allocater could not be found. ", pArenaAllocater);
-			memset(&newalloc, 0, sizeof(GPU_Allocation));
-			return newalloc;
-		}
+		GPU_ArenaAllocater* pArenaAllocater = NULL;
 		uint64_t Pointer = 0;
-		uint64_t sizeofblock = 0;
-		uint64_t it = 0;
-		uint64_t i11 = 0;
+		uint64_t SizeOfBlock = 0;
+		uint64_t ResetCount = 0;
+		uint64_t i = 0;
 		while (true)
 		{
-			for (it = 0; it < pArenaAllocater->AllocationsSize - 1; it++)
+			if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
 			{
-				sizeofblock = (pArenaAllocater->Allocations[it + 1].Pointer - pArenaAllocater->Allocations[it].Pointer) - pArenaAllocater->Allocations[it].SizeBytes;
-				Pointer = pArenaAllocater->Allocations[it].Pointer + pArenaAllocater->Allocations[it].SizeBytes;
-				if (sizeofblock >= AlignedSize)
-					break;
-			}
-			if (sizeofblock < AlignedSize)
-			{
-				Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
-				TargetBuffer->Indexes[ThreadIndex] = (TargetBuffer->Indexes[ThreadIndex] + 1) % ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads;
-				if (i11 < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads)
+				if (Engine_Ref_TryLock_Mutex(&TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]].mutex) == Success)
 				{
+					
 					pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
-					Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
+					//if (pArenaAllocater->Size == 0)
+					//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
 					if (pArenaAllocater->Size == 0)
-						ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
-					i11++;
+						ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+					uint64_t AlignedSize = AlignNumber(MemoryRequirements.size, ((MemoryRequirements.alignment == 0) ? pArenaAllocater->Alignment : MemoryRequirements.alignment));
+					//Engine_Ref_FunctionError("GPUmalloc()", "REQSIZE", AlignedSize);
+					for (i = 0; i < pArenaAllocater->AllocationsSize - 1; i++)
+					{
+						SizeOfBlock = (pArenaAllocater->Allocations[i + 1].Pointer - pArenaAllocater->Allocations[i].Pointer) - pArenaAllocater->Allocations[i].SizeBytes;
+						Pointer = pArenaAllocater->Allocations[i].Pointer + pArenaAllocater->Allocations[i].SizeBytes;
+						if (!(SizeOfBlock < AlignedSize)) //if is large enough break out of loop
+							break;
+					}
+					if (!(SizeOfBlock < AlignedSize)) //if is large enough break out of loop
+						break;
+					else
+						Engine_Ref_Unlock_Mutex(&pArenaAllocater->mutex);
+				}
+				TargetBuffer->Indexes[ThreadIndex] = (TargetBuffer->Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+				ResetCount++;
+			}
+			else
+			{
+				if (Utils.Config.ActiveGPUMemoryResizing == true)
+				{
+					Engine_Ref_FunctionError("GPUmalloc()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+					//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+					//ResetCount = 0;
 				}
 				else
 				{
-					Engine_Ref_FunctionError("GPUmalloc()", "Not Enough Space In GPU Memory!, Resize buffer!, Blocksize == ", sizeofblock);
+					Engine_Ref_FunctionError("GPUmalloc()", "Not Enough Space In GPU Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
 					memset(&newalloc, 0, sizeof(GPU_Allocation));
 					return newalloc;
 				}
 			}
-			else
-			{
-				break;
-			}
 		}
+
 		newalloc.Allocater.pArenaAllocater = pArenaAllocater;
 		newalloc.Allocater.VkMemory = pArenaAllocater->VkMemory;
 		newalloc.TargetMemory = TargetMemory;
 		newalloc.AllocationType = AllocationType_Linear;
-		newalloc.Pointer = AlignNumber(Pointer, MemoryRequirements.alignment);
-		newalloc.SizeBytes = AlignedSize;
-		InsertMember_Array((void**)&pArenaAllocater->Allocations, pArenaAllocater->AllocationsSize, it + 1, sizeof(*pArenaAllocater->Allocations), &newalloc, 1);
+		newalloc.Pointer = AlignNumber(Pointer, ((MemoryRequirements.alignment == 0 ) ? pArenaAllocater->Alignment : MemoryRequirements.alignment));
+		newalloc.SizeBytes = AlignNumber(MemoryRequirements.size, ((MemoryRequirements.alignment == 0) ? pArenaAllocater->Alignment : MemoryRequirements.alignment));
+
+		InsertMember_Array((void**)&pArenaAllocater->Allocations, pArenaAllocater->AllocationsSize, i + 1, sizeof(*pArenaAllocater->Allocations), &newalloc, 1);
 		pArenaAllocater->AllocationsSize += 1;
-		Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
+		Engine_Ref_Unlock_Mutex(&pArenaAllocater->mutex);
 		return newalloc;
 	}
 	else if (Type == AllocationType_Discrite)
 	{
+		if (MemoryRequirements.alignment == NULL)
+		{
+			Engine_Ref_ObjectError("GPUmalloc()", "MemoryRequirements.alignment", &MemoryRequirements, "MemoryRequirements.alignment == NULL");
+			return newalloc;
+		}
+
 		VkMemoryAllocateInfo AllocateInfo = { sizeof(AllocateInfo) };
 		AllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		AllocateInfo.allocationSize = AlignedSize;
+		AllocateInfo.allocationSize = AlignNumber(MemoryRequirements.size, MemoryRequirements.alignment);
 		AllocateInfo.pNext = NULL;
 		switch (TargetMemory)
 		{
@@ -1028,12 +1017,17 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 		}
 		vkAllocateMemory(pLogicalDevice->VkLogicalDevice, &AllocateInfo, NULL, &newalloc.Allocater.VkMemory);
 		newalloc.Pointer = 0;
-		newalloc.SizeBytes = AlignedSize;
+		newalloc.SizeBytes = AlignNumber(MemoryRequirements.size, MemoryRequirements.alignment);
 		newalloc.TargetMemory = TargetMemory;
 		newalloc.AllocationType = AllocationType_Discrite;
 		return newalloc;
 	}
-	return newalloc;
+	else
+	{
+		Engine_Ref_FunctionError("GPUmalloc()", "Invalid Allocation Type == ", Type);
+		memset(&newalloc, 0, sizeof(GPU_Allocation));
+		return newalloc;
+	}
 }
 /*
 * Added in 1.0.0
@@ -1077,7 +1071,7 @@ void GPUfree(LogicalDevice* pLogicalDevice, GPU_Allocation* pAllocation)
 			return;
 		}
 		GPU_ArenaAllocater* pArenaAllocater = pAllocation->Allocater.pArenaAllocater;
-		Engine_Ref_Lock_Mutex(pArenaAllocater->mutex);
+		Engine_Ref_Lock_Mutex(&pArenaAllocater->mutex);
 		for (size_t i = 0; i < pArenaAllocater->AllocationsSize; i++)
 		{
 			if (pAllocation->Pointer == pArenaAllocater->Allocations[i].Pointer && pAllocation->SizeBytes == pArenaAllocater->Allocations[i].SizeBytes)
@@ -1085,19 +1079,24 @@ void GPUfree(LogicalDevice* pLogicalDevice, GPU_Allocation* pAllocation)
 				RemoveMember_Array((void**)&pArenaAllocater->Allocations, pArenaAllocater->AllocationsSize, i, sizeof(*pArenaAllocater->Allocations), 1);
 				pArenaAllocater->AllocationsSize -= 1;
 				memset(pAllocation, 0, sizeof(*pAllocation));
-				Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
+				Engine_Ref_Unlock_Mutex(&pArenaAllocater->mutex);
 				return;
 			}
 		}
-		Engine_Ref_FunctionError("GPUfree()", "Allocation Is Invalid.", NULL);
+		Engine_Ref_FunctionError("GPUfree()", "Allocation Is Invalid. ", NULL);
 		memset(pAllocation, 0, sizeof(*pAllocation));
-		Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
+		Engine_Ref_Unlock_Mutex(&pArenaAllocater->mutex);
 		return;
 	}
 	else if (pAllocation->AllocationType == AllocationType_Discrite)
 	{
 		vkFreeMemory(pLogicalDevice->VkLogicalDevice, pAllocation->Allocater.VkMemory, NULL);
 		memset(pAllocation, 0, sizeof(*pAllocation));
+		return;
+	}
+	else
+	{
+		Engine_Ref_FunctionError("GPUfree()", "Invalid Allocation Type == ", pAllocation->AllocationType);
 		return;
 	}
 }
@@ -1120,12 +1119,12 @@ TEXRESULT Add_XtoTEXIconverter(ConvertXtoTEXI* Converter, uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersToTEXIMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersToTEXIMutex);
 	Resize_Array((void**)&Utils.ConvertersToTEXI, Utils.ConvertersToTEXISize, Utils.ConvertersToTEXISize + 1, sizeof(*Utils.ConvertersToTEXI));
 	Utils.ConvertersToTEXI[Utils.ConvertersToTEXISize].pFunction = Converter;
 	Utils.ConvertersToTEXI[Utils.ConvertersToTEXISize].Identifier = Identifier;
 	Utils.ConvertersToTEXISize++;
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXIMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersToTEXIMutex);
 	return (Success);
 }
 
@@ -1143,12 +1142,12 @@ TEXRESULT Add_TEXItoXconverter(ConvertTEXItoX* Converter, uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersFromTEXIMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersFromTEXIMutex);
 	Resize_Array((void**)&Utils.ConvertersFromTEXI, Utils.ConvertersFromTEXISize, Utils.ConvertersFromTEXISize + 1, sizeof(*Utils.ConvertersFromTEXI));
 	Utils.ConvertersFromTEXI[Utils.ConvertersFromTEXISize].pFunction = Converter;
 	Utils.ConvertersFromTEXI[Utils.ConvertersFromTEXISize].Identifier = Identifier;
 	Utils.ConvertersFromTEXISize++;
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXIMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersFromTEXIMutex);
 	return (Success);
 }
 
@@ -1161,19 +1160,19 @@ TEXRESULT Remove_XtoTEXIconverter(uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersToTEXIMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersToTEXIMutex);
 	for (size_t i = 0; i < Utils.ConvertersToTEXISize; i++)
 	{
 		if (Identifier == Utils.ConvertersToTEXI[i].Identifier)
 		{
 			RemoveMember_Array((void**)&Utils.ConvertersToTEXI, Utils.ConvertersToTEXISize, i, sizeof(*Utils.ConvertersToTEXI), 1);
 			Utils.ConvertersToTEXISize--;
-			Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXIMutex);
+			Engine_Ref_Unlock_Mutex(&Utils.ConvertersToTEXIMutex);
 			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Remove_XtoTEXIconverter()", "Identifier Invalid.");
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersToTEXIMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersToTEXIMutex);
 	return (Invalid_Parameter | Failure);
 }
 
@@ -1186,19 +1185,19 @@ TEXRESULT Remove_TEXItoXconverter(uint32_t Identifier)
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ConvertersFromTEXIMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ConvertersFromTEXIMutex);
 	for (size_t i = 0; i < Utils.ConvertersFromTEXISize; i++)
 	{
 		if (Identifier == Utils.ConvertersFromTEXI[i].Identifier)
 		{
 			RemoveMember_Array((void**)&Utils.ConvertersFromTEXI, Utils.ConvertersFromTEXISize, i, sizeof(*Utils.ConvertersFromTEXI), 1);
 			Utils.ConvertersFromTEXISize--;
-			Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXIMutex);
+			Engine_Ref_Unlock_Mutex(&Utils.ConvertersFromTEXIMutex);
 			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("Remove_TEXItoXconverter()", "Identifier Invalid.");
-	Engine_Ref_Unlock_Mutex(Utils.ConvertersFromTEXIMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.ConvertersFromTEXIMutex);
 	return (Invalid_Parameter | Failure);
 }
 
@@ -1277,13 +1276,13 @@ TEXRESULT Register_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
 		return (Invalid_Parameter | Failure);
 	}
 #endif 
-	Engine_Ref_Lock_Mutex(Utils.GraphicsEffectSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.GraphicsEffectSignaturesMutex);
 	for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
 	{
 		if (Utils.GraphicsEffectSignatures[i]->Identifier == pSignature->Identifier)
 		{
 			Engine_Ref_ArgsError("Register_GraphicsEffectSignature()", "Signature->Identifier Already Used.");
-			Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
+			Engine_Ref_Unlock_Mutex(&Utils.GraphicsEffectSignaturesMutex);
 			return (Invalid_Parameter | Failure);
 		}
 	}
@@ -1291,7 +1290,7 @@ TEXRESULT Register_GraphicsEffectSignature(GraphicsEffectSignature* pSignature)
 	Resize_Array((void**)&Utils.GraphicsEffectSignatures, Utils.GraphicsEffectSignaturesSize, Utils.GraphicsEffectSignaturesSize + 1, sizeof(*Utils.GraphicsEffectSignatures));
 	Utils.GraphicsEffectSignatures[Utils.GraphicsEffectSignaturesSize] = pSignature;
 	Utils.GraphicsEffectSignaturesSize += 1;
-	Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.GraphicsEffectSignaturesMutex);
 	return (Success);
 }
 
@@ -1304,19 +1303,19 @@ TEXRESULT DeRegister_GraphicsEffectSignature(GraphicsEffectSignature* pSignature
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.GraphicsEffectSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.GraphicsEffectSignaturesMutex);
 	for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
 	{
 		if ((uint64_t)Utils.GraphicsEffectSignatures[i]->Identifier == (uint64_t)pSignature->Identifier)
 		{
 			RemoveMember_Array((void**)&Utils.GraphicsEffectSignatures, Utils.GraphicsEffectSignaturesSize, i, sizeof(*Utils.GraphicsEffectSignatures), 1);
 			Utils.GraphicsEffectSignaturesSize -= 1;
-			Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
+			Engine_Ref_Unlock_Mutex(&Utils.GraphicsEffectSignaturesMutex);
 			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("DeRegister_GraphicsEffectSignature()", "pSignature Not Found.");
-	Engine_Ref_Unlock_Mutex(Utils.GraphicsEffectSignaturesMutex);
+	Engine_Ref_Unlock_Mutex(&Utils.GraphicsEffectSignaturesMutex);
 	return (Invalid_Parameter | Failure);
 }
 
@@ -1389,16 +1388,25 @@ TEXRESULT Get_GraphicsEffect(ElementGraphics* pElement, GraphicsEffectIdentifier
 TEXRESULT Create_DummyTEXI(TEXI_HEADER** pDst, GraphicsFormat Format, uint64_t Width, uint64_t Height, uint64_t Depth, uint64_t MipmapCount, uint64_t InitialSize, uint64_t ImageSize)
 {
 	TEXI_HEADER* tempdstheader = (TEXI_HEADER*)malloc(sizeof(TEXI_HEADER) + InitialSize);
-	memset(tempdstheader, 0, sizeof(TEXI_HEADER) + InitialSize);
-	tempdstheader->Format = Format;
-	tempdstheader->Width = Width;
-	tempdstheader->Height = Height;
-	tempdstheader->Depth = Depth;
-	tempdstheader->MipmapCount = MipmapCount;
-	tempdstheader->ImageSize = ImageSize;
-	tempdstheader->LinearSize = InitialSize;
-	*pDst = tempdstheader;
-	return (Success);
+	if (tempdstheader == NULL)
+	{
+		Engine_Ref_FunctionError("Create_DummyTEXI()", "Out Of Memory.", tempdstheader);
+		*pDst = NULL;
+		return (Out_Of_Memory_Result | Failure);
+	}
+	else
+	{
+		memset(tempdstheader, 0, sizeof(TEXI_HEADER) + InitialSize);
+		tempdstheader->Format = Format;
+		tempdstheader->Width = Width;
+		tempdstheader->Height = Height;
+		tempdstheader->Depth = Depth;
+		tempdstheader->MipmapCount = MipmapCount;
+		tempdstheader->ImageSize = ImageSize;
+		tempdstheader->LinearSize = InitialSize;
+		*pDst = tempdstheader;
+		return (Success);
+	}
 }
 /*
 * Added in 1.0.0
@@ -1567,10 +1575,7 @@ TEXRESULT Update_Descriptor(LogicalDevice* pLogicalDevice, VkDescriptorSet Set, 
 /*
 * Added in 1.0.0
 */
-void Destroy_GPU_Texture(LogicalDevice* pLogicalDevice, GPU_Texture* pGPU_Texture)
-{
-	//if (pGPU_Texture->SrcAllocation.SizeBytes != NULL)
-	//	GPUfree(pLogicalDevice, &pGPU_Texture->SrcAllocation);
+void Destroy_GPU_Texture(LogicalDevice* pLogicalDevice, GPU_Texture* pGPU_Texture) {
 	if (pGPU_Texture->Allocation.SizeBytes != NULL)
 		GPUfree(pLogicalDevice, &pGPU_Texture->Allocation);
 
@@ -1585,10 +1590,7 @@ void Destroy_GPU_Texture(LogicalDevice* pLogicalDevice, GPU_Texture* pGPU_Textur
 /*
 * Added in 1.0.0
 */
-void Destroy_GPU_Buffer(LogicalDevice* pLogicalDevice, GPU_Buffer* pGPU_Buffer)
-{
-	//if (pGPU_Buffer->SrcAllocation.SizeBytes != NULL)
-	//	GPUfree(pLogicalDevice, &pGPU_Buffer->SrcAllocation);
+void Destroy_GPU_Buffer(LogicalDevice* pLogicalDevice, GPU_Buffer* pGPU_Buffer) {
 	if (pGPU_Buffer->Allocation.SizeBytes != NULL)
 		GPUfree(pLogicalDevice, &pGPU_Buffer->Allocation);
 
@@ -1641,43 +1643,48 @@ void Get_PhysicalDevices(PhysicalDevice** pPhysicalDevices, uint32_t* pPhysicalD
 		return;
 	}
 #endif
-
 	PhysicalDevice* PhysicalDevices = NULL;
 	uint32_t PhysicalDevicesSize = NULL;
-
 
 	vkEnumeratePhysicalDevices(Utils.Instance, &PhysicalDevicesSize, NULL);
 	VkPhysicalDevice* VkPhysicalDevices = (VkPhysicalDevice*)calloc(PhysicalDevicesSize, sizeof(VkPhysicalDevice));
 	vkEnumeratePhysicalDevices(Utils.Instance, &PhysicalDevicesSize, VkPhysicalDevices);
 
-
 	PhysicalDevices = (PhysicalDevice*)calloc(PhysicalDevicesSize, sizeof(PhysicalDevice));
-
-	for (size_t i = 0; i < PhysicalDevicesSize; i++)
+	if (PhysicalDevices == NULL || VkPhysicalDevices == NULL)
 	{
-		PhysicalDevices[i].VkPhysicalDevice = VkPhysicalDevices[i];
-
-		//capabilities
-		vkGetPhysicalDeviceProperties(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].Properties);
-		vkGetPhysicalDeviceFeatures(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].Features);
-
-		vkEnumerateDeviceExtensionProperties(PhysicalDevices[i].VkPhysicalDevice, NULL, (uint32_t*)&PhysicalDevices[i].ExtensionsAvailableSize, NULL);
-		if (PhysicalDevices[i].ExtensionsAvailableSize != NULL)
+		Engine_Ref_FunctionError("Get_PhysicalDevices()", "Out Of Memory.", PhysicalDevices);
+		*pPhysicalDevices = NULL;
+		*pPhysicalDevicesSize = NULL;
+		return (Failure | Out_Of_Memory_Result);
+	}
+	else
+	{
+		for (size_t i = 0; i < PhysicalDevicesSize; i++)
 		{
-			PhysicalDevices[i].ExtensionsAvailable = (VkExtensionProperties*)calloc(PhysicalDevices[i].ExtensionsAvailableSize, sizeof(VkExtensionProperties));
-			vkEnumerateDeviceExtensionProperties(PhysicalDevices[i].VkPhysicalDevice, NULL, (uint32_t*)&PhysicalDevices[i].ExtensionsAvailableSize,
-				(VkExtensionProperties*)PhysicalDevices[i].ExtensionsAvailable);
-		}
+			PhysicalDevices[i].VkPhysicalDevice = VkPhysicalDevices[i];
 
-		vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].QueueFamilyPropertiesSize, NULL);
-		if (PhysicalDevices[i].QueueFamilyPropertiesSize != 0)
-		{
-			PhysicalDevices[i].QueueFamilyProperties = (VkQueueFamilyProperties*)calloc(PhysicalDevices[i].QueueFamilyPropertiesSize, sizeof(VkQueueFamilyProperties));
-			vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].QueueFamilyPropertiesSize,
-				PhysicalDevices[i].QueueFamilyProperties);
+			//capabilities
+			vkGetPhysicalDeviceProperties(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].Properties);
+			vkGetPhysicalDeviceFeatures(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].Features);
+
+			vkEnumerateDeviceExtensionProperties(PhysicalDevices[i].VkPhysicalDevice, NULL, (uint32_t*)&PhysicalDevices[i].ExtensionsAvailableSize, NULL);
+			if (PhysicalDevices[i].ExtensionsAvailableSize != NULL)
+			{
+				PhysicalDevices[i].ExtensionsAvailable = (VkExtensionProperties*)calloc(PhysicalDevices[i].ExtensionsAvailableSize, sizeof(VkExtensionProperties));
+				vkEnumerateDeviceExtensionProperties(PhysicalDevices[i].VkPhysicalDevice, NULL, (uint32_t*)&PhysicalDevices[i].ExtensionsAvailableSize,
+					(VkExtensionProperties*)PhysicalDevices[i].ExtensionsAvailable);
+			}
+
+			vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].QueueFamilyPropertiesSize, NULL);
+			if (PhysicalDevices[i].QueueFamilyPropertiesSize != 0)
+			{
+				PhysicalDevices[i].QueueFamilyProperties = (VkQueueFamilyProperties*)calloc(PhysicalDevices[i].QueueFamilyPropertiesSize, sizeof(VkQueueFamilyProperties));
+				vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevices[i].VkPhysicalDevice, &PhysicalDevices[i].QueueFamilyPropertiesSize,
+					PhysicalDevices[i].QueueFamilyProperties);
+			}
 		}
 	}
-
 	free(VkPhysicalDevices);
 
 	*pPhysicalDevices = PhysicalDevices;
@@ -1718,11 +1725,11 @@ void Destroy_LogicalDevice(LogicalDevice* pLogicalDevice)
 #endif
 
 	for (size_t i = 0; i < pLogicalDevice->GraphicsQueueFamilySize; i++)
-		Engine_Ref_Destroy_Mutex(pLogicalDevice->GraphicsQueueMutexes[i]);
+		Engine_Ref_Destroy_Mutex(&pLogicalDevice->GraphicsQueueMutexes[i]);
 	for (size_t i = 0; i < pLogicalDevice->MemoryQueueFamilySize; i++)
-		Engine_Ref_Destroy_Mutex(pLogicalDevice->MemoryQueueMutexes[i]);
+		Engine_Ref_Destroy_Mutex(&pLogicalDevice->MemoryQueueMutexes[i]);
 	for (size_t i = 0; i < pLogicalDevice->ComputeQueueFamilySize; i++)
-		Engine_Ref_Destroy_Mutex(pLogicalDevice->ComputeQueueMutexes[i]);
+		Engine_Ref_Destroy_Mutex(&pLogicalDevice->ComputeQueueMutexes[i]);
 
 	free(pLogicalDevice->GraphicsQueueMutexes);
 	free(pLogicalDevice->MemoryQueueMutexes);
@@ -1760,8 +1767,8 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	pLogicalDevice->pPhysicalDevice = pPhysicalDevice;
 
 	uint32_t DeviceQueueCreateInfosSize = 3;
-	VkDeviceQueueCreateInfo DeviceQueueCreateInfos[3];
-	memset(DeviceQueueCreateInfos, 0, sizeof(*DeviceQueueCreateInfos) * DeviceQueueCreateInfosSize);
+	VkDeviceQueueCreateInfo DeviceQueueCreateInfos[3] = { sizeof(*DeviceQueueCreateInfos) * DeviceQueueCreateInfosSize };
+
 	bool GraphicsQueueFamily_Found = false;
 	bool MemoryQueueFamily_Found = false;
 	bool ComputeQueueFamily_Found = false;
@@ -1845,7 +1852,7 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	if (DeviceQueueCreateInfos[0].pQueuePriorities == NULL || DeviceQueueCreateInfos[1].pQueuePriorities == NULL || DeviceQueueCreateInfos[2].pQueuePriorities == NULL)
 	{
 		Engine_Ref_FunctionError("Create_LogicalDevice()", "Out Of Memory. ", NULL);
-		return (Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 	}
 
 	pLogicalDevice->GraphicsQueueMutexes = calloc(DeviceQueueCreateInfos[0].queueCount, sizeof(*pLogicalDevice->GraphicsQueueMutexes));
@@ -1854,15 +1861,15 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 	if (pLogicalDevice->GraphicsQueueMutexes == NULL || pLogicalDevice->MemoryQueueMutexes == NULL || pLogicalDevice->ComputeQueueMutexes == NULL)
 	{
 		Engine_Ref_FunctionError("Create_LogicalDevice()", "Out Of Memory. ", NULL);
-		return (Out_Of_Memory_Result);
+		return (Out_Of_Memory_Result | Failure);
 	}
 
 	for (size_t i = 0; i < pLogicalDevice->GraphicsQueueFamilySize; i++)
-		Engine_Ref_Create_Mutex(pLogicalDevice->GraphicsQueueMutexes[i], MutexType_Plain);
+		Engine_Ref_Create_Mutex(&pLogicalDevice->GraphicsQueueMutexes[i], MutexType_Plain);
 	for (size_t i = 0; i < pLogicalDevice->MemoryQueueFamilySize; i++)
-		Engine_Ref_Create_Mutex(pLogicalDevice->MemoryQueueMutexes[i], MutexType_Plain);
+		Engine_Ref_Create_Mutex(&pLogicalDevice->MemoryQueueMutexes[i], MutexType_Plain);
 	for (size_t i = 0; i < pLogicalDevice->ComputeQueueFamilySize; i++)
-		Engine_Ref_Create_Mutex(pLogicalDevice->ComputeQueueMutexes[i], MutexType_Plain);
+		Engine_Ref_Create_Mutex(&pLogicalDevice->ComputeQueueMutexes[i], MutexType_Plain);
 
 	vkGetPhysicalDeviceMemoryProperties(pLogicalDevice->pPhysicalDevice->VkPhysicalDevice, (VkPhysicalDeviceMemoryProperties*)&pLogicalDevice->pPhysicalDevice->MemoryProperties);
 	{
@@ -1909,35 +1916,34 @@ TEXRESULT Create_LogicalDevice(LogicalDevice* pLogicalDevice, const PhysicalDevi
 
 /*
 * Added in 1.0.0
-* FullDestruct destroys everything.
+* Full destroys everything.
 */
-void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct)
-{
+void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool Full) {
 #ifndef NDEBUG
-	if (pGraphicsWindow == NULL)
-	{
+	if (pGraphicsWindow == NULL) {
 		Engine_Ref_ArgsError("Destroy_SwapChain()", "pGraphicsWindow == NULLPTR");
 		return;
 	}
 #endif
+	/*
+	redesign entire swapchain system bcuz needs to be multithread compatible aaaaaaaa;
+	
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkSurface != pResourceHeaderOverlay->VkSurface) : true) && pResourceHeader->VkSurface != NULL) {
+		vkDestroySurfaceKHR(Utils.Instance, pResourceHeader->VkSurface, NULL);
+		pResourceHeader->VkSurface = NULL;
+	}*/
 
-	if (pGraphicsWindow->SwapChain.FrameBuffers != NULL && pGraphicsWindow->CurrentFrameBuffersSize != NULL)
-	{
+	if (pGraphicsWindow->SwapChain.FrameBuffers != NULL && pGraphicsWindow->CurrentFrameBuffersSize != NULL) {
 		c89atomic_flag_test_and_set(&pGraphicsWindow->CloseFlag);
-		//pGraphicsWindow->Close_Flag = true;
-		for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
-		{
-			while (pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag == true)
-			{
+		for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++) {
+			while (pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag == true) {
 				struct timespec dur;
 				memset(&dur, 0, sizeof(dur));
 				dur.tv_nsec = 1;
 				Engine_Ref_Sleep_Thread(&dur, NULL);
 			}
 		}
-		//pGraphicsWindow->Close_Flag = false;
 		c89atomic_flag_clear(&pGraphicsWindow->CloseFlag);
-
 
 		for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
 		{
@@ -1959,35 +1965,21 @@ void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct
 
 			for (size_t i1 = 0; i1 < DeferredImageCount; i1++)
 			{
-				if (pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView != NULL)
-					vkDestroyImageView(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView, NULL);
-				pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView = NULL;
-				if (pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image != NULL)
-					vkDestroyImage(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image, NULL);
-				pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image = NULL;
-				if (pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Memory != NULL)
-					vkFreeMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Memory, NULL);
-				pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Memory = NULL;
+				Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1]);
 			}
+
 			if (pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderCommandPool != NULL)
 				vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderCommandPool, NULL);
 			pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderCommandPool = NULL;
 		}
-	}
 
-
-	if (FullDestruct == true)
-	{
 		free(pGraphicsWindow->SwapChain.FrameBuffers);
-		pGraphicsWindow->SwapChain.FrameBuffers = NULL;
-		pGraphicsWindow->CurrentFrameBuffersSize = NULL;
-		//memset(&pGraphicsWindow->CurrentSurfaceColourSpace, 0, sizeof(pGraphicsWindow->CurrentSurfaceColourSpace));
-		//memset(&pGraphicsWindow->CurrentSurfaceFormat, 0, sizeof(pGraphicsWindow->CurrentSurfaceFormat));
-		//memset(&pGraphicsWindow->CurrentSurfacePresentMode, 0, sizeof(pGraphicsWindow->CurrentSurfacePresentMode));
-		//memset(&pGraphicsWindow->CurrentExtentHeight, 0, sizeof(pGraphicsWindow->CurrentExtentHeight));
-		//memset(&pGraphicsWindow->CurrentExtentWidth, 0, sizeof(pGraphicsWindow->CurrentExtentWidth));
+	}	
+	pGraphicsWindow->SwapChain.FrameBuffers = NULL;
+	pGraphicsWindow->CurrentFrameBuffersSize = NULL;
 
-
+	if (Full == true)
+	{				
 		if (pGraphicsWindow->SwapChain.VkSwapChain != NULL)
 			vkDestroySwapchainKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain, NULL);
 		pGraphicsWindow->SwapChain.VkSwapChain = NULL;
@@ -1998,9 +1990,8 @@ void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct
 * Added in 1.0.0
 * FullDestruct when creating for first time.
 */
-TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct)
+TEXRESULT Create_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, uint64_t ThreadIndex)
 {
-
 #ifndef NDEBUG
 	if (pGraphicsWindow == NULL)
 	{
@@ -2009,11 +2000,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 	}
 #endif
 	VkResult res = VK_SUCCESS;
-
 	const PhysicalDevice* pPhysicalDevice = pGraphicsWindow->pLogicalDevice->pPhysicalDevice;
-
-	//destroy prev
-	Destroy_SwapChain(pGraphicsWindow, FullDestruct);
 
 	//creation
 	{
@@ -2034,9 +2021,8 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 
 		if ((Capabilities.currentExtent.width = NULL) || (Capabilities.currentExtent.height == NULL))
 		{
-			return (Invalid_Parameter);
+			return (Invalid_Parameter | Failure);
 		}
-
 
 		VkSwapchainCreateInfoKHR Info;
 		memset(&Info, 0, sizeof(Info));
@@ -2058,11 +2044,8 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 		Info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 		Info.presentMode = pGraphicsWindow->CurrentSurfacePresentMode;
 		Info.clipped = VK_TRUE;
+		Info.oldSwapchain = (pGraphicsWindow->SwapChain.VkSwapChain != NULL) ? pGraphicsWindow->SwapChain.VkSwapChain : NULL;
 
-		if (pGraphicsWindow->SwapChain.VkSwapChain != NULL)
-			Info.oldSwapchain = pGraphicsWindow->SwapChain.VkSwapChain;
-		else
-			Info.oldSwapchain = NULL;
 		if ((res = vkCreateSwapchainKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.VkSwapChain)) != VK_SUCCESS)
 		{
 			Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateSwapchainKHR Failed, VkResult == ", res);
@@ -2074,8 +2057,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 	{//moving swapchain images to framebuffers
 		vkGetSwapchainImagesKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain, &pGraphicsWindow->CurrentFrameBuffersSize, NULL);
 
-		if (FullDestruct == true)
-			pGraphicsWindow->SwapChain.FrameBuffers = (SwapChainFrameBuffer*)calloc(pGraphicsWindow->CurrentFrameBuffersSize, sizeof(SwapChainFrameBuffer));
+		pGraphicsWindow->SwapChain.FrameBuffers = (SwapChainFrameBuffer*)calloc(pGraphicsWindow->CurrentFrameBuffersSize, sizeof(SwapChainFrameBuffer));
 
 		VkImage* TempSwapchainImages = (VkImage*)calloc(pGraphicsWindow->CurrentFrameBuffersSize, sizeof(VkImage));
 		vkGetSwapchainImagesKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain, &pGraphicsWindow->CurrentFrameBuffersSize, TempSwapchainImages);
@@ -2130,51 +2112,41 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 				Info.extent.depth = 1; //cubemap?
 				Info.mipLevels = 1; //mipmap
 				Info.arrayLayers = 1; //cubemap?
-				Info.format = DeferredFormats[i1];
+				Info.format = pGraphicsWindow->CurrentDeferredFormats[i1];
 				Info.tiling = VK_IMAGE_TILING_OPTIMAL;
 				Info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 				Info.usage = DeferredImageUsages[i1] | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 				Info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 				Info.samples = VK_SAMPLE_COUNT_1_BIT;
 				Info.flags = NULL;
-				if ((res = vkCreateImage(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image)) != VK_SUCCESS)
+				if ((res = vkCreateImage(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].VkImage)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateImage Failed, VkResult == ", res);
 					return (Failure);
 				}
 			}
 			{//allocating memory
-				VkMemoryRequirements memRequirements;
-				vkGetImageMemoryRequirements(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image, &memRequirements);
-
-				VkMemoryAllocateInfo AllocationInfo = { sizeof(AllocationInfo) };
-				AllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-				AllocationInfo.allocationSize = memRequirements.size;
-				AllocationInfo.memoryTypeIndex = Check_Memory(pGraphicsWindow->pLogicalDevice->pPhysicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-				AllocationInfo.pNext = NULL;
-				if (AllocationInfo.memoryTypeIndex == UINT32_MAX)
+				VkMemoryRequirements memRequirements = { sizeof(memRequirements) };
+				vkGetImageMemoryRequirements(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].VkImage, &memRequirements);
+				pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Allocation = GPUmalloc(pGraphicsWindow->pLogicalDevice, memRequirements, TargetMemory_Dst, AllocationType_Discrite, ThreadIndex);
+				if (pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Allocation.SizeBytes == NULL)
 				{
-					Engine_Ref_FunctionError("ReCreate_SwapChain()", "Suitable Memory Not Found. ", NULL);
+					Engine_Ref_FunctionError("ReCreate_SwapChain()", "Not Enough Space In GPU Memory!", NULL);
+					return (Out_Of_Memory_Result | Failure);
+				}
+				if ((res = vkBindImageMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].VkImage, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Allocation.Allocater.VkMemory, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Allocation.Pointer)) != VK_SUCCESS)
+				{
+					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkBindImageMemory Failed, VkResult == ", res);
 					return (Failure);
 				}
-
-				if ((res = vkAllocateMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &AllocationInfo, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Memory)) != VK_SUCCESS)
-				{
-					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkAllocateMemory Failed, VkResult == ", res);
-					return (Failure);
-				}
-
-
-				vkBindImageMemory(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image, pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Memory, 0);
-
 			}
 			{//image view
 				VkImageViewCreateInfo Info;
 				memset(&Info, 0, sizeof(Info));
 				Info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-				Info.image = pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].Image;
+				Info.image = pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].VkImage;
 				Info.viewType = VK_IMAGE_VIEW_TYPE_2D; //cubemap?
-				Info.format = DeferredFormats[i1];
+				Info.format = pGraphicsWindow->CurrentDeferredFormats[i1];
 
 				Info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 				Info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -2187,7 +2159,7 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 				Info.subresourceRange.baseArrayLayer = 0;
 				Info.subresourceRange.layerCount = 1;
 
-				if ((res = vkCreateImageView(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView)) != VK_SUCCESS)
+				if ((res = vkCreateImageView(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, NULL, &pGraphicsWindow->SwapChain.FrameBuffers[i].DeferredImages[i1].VkImageView)) != VK_SUCCESS)
 				{
 					Engine_Ref_FunctionError("ReCreate_SwapChain()", "vkCreateImageView Failed, VkResult == ", res);
 					return (Failure);
@@ -2261,227 +2233,178 @@ TEXRESULT ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDe
 //Object Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Destroy_WeightsHeader(RHeaderWeights* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
+TEXRESULT Destroy_WeightsHeader(RHeaderWeights* pResourceHeader, RHeaderWeights* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	return (Success);
+}
 
+TEXRESULT Destroy_ImageSourceHeader(RHeaderImageSource* pResourceHeader, RHeaderImageSource* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {	
+	//for full destruct items.
+	if ((((pResourceHeaderOverlay != NULL) ? (pResourceHeader->ImageData != pResourceHeaderOverlay->ImageData) : false) || Full == true) && pResourceHeader->ImageData != NULL) {
+		free(pResourceHeader->ImageData);
+		pResourceHeader->ImageData = NULL;
 	}
 	return (Success);
 }
 
-TEXRESULT Destroy_ImageSourceHeader(RHeaderImageSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-		if (pResourceHeader->ImageData != NULL)
-			free(pResourceHeader->ImageData);
+TEXRESULT Destroy_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, RHeaderBufferSource* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	//for full destruct items.
+	if ((((pResourceHeaderOverlay != NULL) ? (pResourceHeader->Data.pData != pResourceHeaderOverlay->Data.pData) : false) || Full == true) && pResourceHeader->Data.pData != NULL) {
+		free(pResourceHeader->Data.pData);
+		pResourceHeader->Data.pData = NULL;
+		pResourceHeader->Data.LinearSize = NULL;
 	}
 	return (Success);
 }
 
-TEXRESULT Destroy_BufferSourceHeader(RHeaderBufferSource* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-		if (pResourceHeader->Data.pData != NULL)
-			free(pResourceHeader->Data.pData);
-	}
-	return (Success);
-}
-
-TEXRESULT Destroy_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (pResourceHeader->VkPipelineDeferred != NULL)
+TEXRESULT Destroy_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindow* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineDeferred != pResourceHeaderOverlay->VkPipelineDeferred) : true) && pResourceHeader->VkPipelineDeferred != NULL) {
 		vkDestroyPipeline(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineDeferred, NULL);
-	if (pResourceHeader->VkRenderPassDeferred != NULL)
+		pResourceHeader->VkPipelineDeferred = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkRenderPassDeferred != pResourceHeaderOverlay->VkRenderPassDeferred) : true) && pResourceHeader->VkRenderPassDeferred != NULL) {
 		vkDestroyRenderPass(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkRenderPassDeferred, NULL);
-
-	if (pResourceHeader->VkPipelineLayoutDeferred != NULL)
+		pResourceHeader->VkRenderPassDeferred = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineLayoutDeferred != pResourceHeaderOverlay->VkPipelineLayoutDeferred) : true) && pResourceHeader->VkPipelineLayoutDeferred != NULL) {
 		vkDestroyPipelineLayout(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutDeferred, NULL);
-
-
-	if (pResourceHeader->VkDescriptorSetLayoutInputAttachment != NULL)
+		pResourceHeader->VkPipelineLayoutDeferred = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetLayoutInputAttachment != pResourceHeaderOverlay->VkDescriptorSetLayoutInputAttachment) : true) && pResourceHeader->VkDescriptorSetLayoutInputAttachment != NULL) {
 		vkDestroyDescriptorSetLayout(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutInputAttachment, NULL);
-
-	if (pResourceHeader->VkShaderVertexDeferred != NULL)
+		pResourceHeader->VkDescriptorSetLayoutInputAttachment = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderVertexDeferred != pResourceHeaderOverlay->VkShaderVertexDeferred) : true) && pResourceHeader->VkShaderVertexDeferred != NULL) {
 		vkDestroyShaderModule(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderVertexDeferred, NULL);
-	if (pResourceHeader->VkShaderFragmentDeferred != NULL)
+		pResourceHeader->VkShaderVertexDeferred = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderFragmentDeferred != pResourceHeaderOverlay->VkShaderFragmentDeferred) : true) && pResourceHeader->VkShaderFragmentDeferred != NULL) {
 		vkDestroyShaderModule(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderFragmentDeferred, NULL);
-
-	if (pResourceHeader->VkDescriptorSetsInputAttachment != NULL)
-	{
-		//vkFreeDescriptorSets(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkWindowDescriptorPool, pResourceHeader->CurrentFrameBuffersSize, pResourceHeader->VkDescriptorSetsInputAttachment);
+		pResourceHeader->VkShaderFragmentDeferred = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetsInputAttachment != pResourceHeaderOverlay->VkDescriptorSetsInputAttachment) : true) && pResourceHeader->VkDescriptorSetsInputAttachment != NULL) {
 		free(pResourceHeader->VkDescriptorSetsInputAttachment);
+		pResourceHeader->VkDescriptorSetsInputAttachment = NULL;
 	}
-	if (pResourceHeader->VkDescriptorPoolDeferred != NULL)
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorPoolDeferred != pResourceHeaderOverlay->VkDescriptorPoolDeferred) : true) && pResourceHeader->VkDescriptorPoolDeferred != NULL) {
 		vkDestroyDescriptorPool(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorPoolDeferred, NULL);
+		pResourceHeader->VkDescriptorPoolDeferred = NULL;
+	}
 
-	Destroy_SwapChain(pResourceHeader, true);
 
-	if (pResourceHeader->VkSurface != NULL)
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->SwapChain, &pResourceHeaderOverlay->SwapChain, sizeof(pResourceHeader->SwapChain)) != 0) : true) && TestNULL(&pResourceHeader->SwapChain, sizeof(pResourceHeader->SwapChain)) != Success) {
+		Destroy_SwapChain(pResourceHeader, true);
+		memset(&pResourceHeader->SwapChain, 0, sizeof(pResourceHeader->SwapChain));
+	}
+
+
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkSurface != pResourceHeaderOverlay->VkSurface) : true) && pResourceHeader->VkSurface != NULL) {
 		vkDestroySurfaceKHR(Utils.Instance, pResourceHeader->VkSurface, NULL);
-
-	if (pResourceHeader->pWindow != NULL)
+		pResourceHeader->VkSurface = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->pWindow != pResourceHeaderOverlay->pWindow) : true) && pResourceHeader->pWindow != NULL) {
 		Engine_Ref_Destroy_Window(pResourceHeader->pWindow, pResourceHeader->Header.Name);
-
-	Engine_Ref_Destroy_Mutex(pResourceHeader->SwapChainAccessMutex);
-
-	if (Full == true)
-	{
-
+		pResourceHeader->pWindow = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pResourceHeader->SwapChainAccessMutex, &pResourceHeaderOverlay->SwapChainAccessMutex) != Success) : true) && TestNULL(&pResourceHeader->SwapChainAccessMutex, sizeof(pResourceHeader->SwapChainAccessMutex)) != Success) {
+		Engine_Ref_Destroy_Mutex(&pResourceHeader->SwapChainAccessMutex);
+		memset(&pResourceHeader->SwapChainAccessMutex, 0, sizeof(pResourceHeader->SwapChainAccessMutex));
 	}
 	return (Success);
 }
 
-TEXRESULT Destroy_SceneHeader(RHeaderScene* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
+TEXRESULT Destroy_CameraHeader(RHeaderCamera* pResourceHeader, RHeaderCamera* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_CameraHeader(RHeaderCamera* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
+TEXRESULT Destroy_LightHeader(RHeaderLight* pResourceHeader, RHeaderLight* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_LightHeader(RHeaderLight* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
+TEXRESULT Destroy_SkinHeader(RHeaderSkin* pResourceHeader, RHeaderSkin* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_SkinHeader(RHeaderSkin* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
+TEXRESULT Destroy_PositionHeader(RHeaderPosition* pResourceHeader, RHeaderPosition* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_PositionHeader(RHeaderPosition* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
+TEXRESULT Destroy_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader, RHeaderAnimationChannel* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
+TEXRESULT Destroy_AnimationHeader(RHeaderAnimation* pResourceHeader, RHeaderAnimation* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_AnimationHeader(RHeaderAnimation* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	if (Full == true)
-	{
-
-	}
-	return (Success);
-}
-
-TEXRESULT Destroy_MaterialHeader(RHeaderMaterial* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	if (pResourceHeader->VkMaterialDescriptorSets != NULL)
-	{
-		//vkFreeDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkMaterialDescriptorPool, pGraphicsWindow->CurrentFrameBuffersSize, pResourceHeader->VkMaterialDescriptorSets);
+TEXRESULT Destroy_MaterialHeader(RHeaderMaterial* pResourceHeader, RHeaderMaterial* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkMaterialDescriptorSets != pResourceHeaderOverlay->VkMaterialDescriptorSets) : true) && pResourceHeader->VkMaterialDescriptorSets != NULL) {
 		free(pResourceHeader->VkMaterialDescriptorSets);
+		pResourceHeader->VkMaterialDescriptorSets = NULL;
 	}
-	if (pResourceHeader->VkMaterialDescriptorPool != NULL)
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkMaterialDescriptorPool != pResourceHeaderOverlay->VkMaterialDescriptorPool) : true) && pResourceHeader->VkMaterialDescriptorPool != NULL) {
 		vkDestroyDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkMaterialDescriptorPool, NULL);
-	if (Full == true)
-	{
-
+		pResourceHeader->VkMaterialDescriptorPool = NULL;
 	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT Destroy_TextureHeader(RHeaderTexture* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	Engine_Ref_FunctionError("eee", "aaa", ThreadIndex);
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Texture);
-	if (Full == true)
-	{
-
+TEXRESULT Destroy_TextureHeader(RHeaderTexture* pResourceHeader, RHeaderTexture* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->GPU_Texture, &pResourceHeaderOverlay->GPU_Texture, sizeof(pResourceHeader->GPU_Texture)) != 0) : true) && TestNULL(&pResourceHeader->GPU_Texture, sizeof(pResourceHeader->GPU_Texture)) != Success) {
+		Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Texture);
+		memset(&pResourceHeader->GPU_Texture, 0, sizeof(pResourceHeader->GPU_Texture));
 	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT Destroy_BufferHeader(RHeaderBuffer* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	Destroy_GPU_Buffer(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Buffer);
-	if (Full == true)
-	{
-
+TEXRESULT Destroy_BufferHeader(RHeaderBuffer* pResourceHeader, RHeaderBuffer* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);	
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->GPU_Buffer, &pResourceHeaderOverlay->GPU_Buffer, sizeof(pResourceHeader->GPU_Buffer)) != 0) : true) && TestNULL(&pResourceHeader->GPU_Buffer, sizeof(pResourceHeader->GPU_Buffer)) != Success) {
+		Destroy_GPU_Buffer(pGraphicsWindow->pLogicalDevice, &pResourceHeader->GPU_Buffer);
+		memset(&pResourceHeader->GPU_Buffer, 0, sizeof(pResourceHeader->GPU_Buffer));
 	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT Destroy_RenderHeader(RHeaderRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	if (pResourceHeader->pFrameBuffers != NULL)
-	{
+TEXRESULT Destroy_RenderHeader(RHeaderRender* pResourceHeader, RHeaderRender* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->pFrameBuffers != pResourceHeaderOverlay->pFrameBuffers) : true) && pResourceHeader->pFrameBuffers != NULL) {
 		for (size_t i1 = 0; i1 < pResourceHeader->pFrameBuffersSize; i1++)
-		{
 			vkDestroyFramebuffer(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->pFrameBuffers[i1], NULL);
-		}
 		free(pResourceHeader->pFrameBuffers);
+		pResourceHeader->pFrameBuffers = NULL;
 	}
-	if (Full == true)
-	{
-
-	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT Destroy_ElementGraphics(ElementGraphics* pElement, bool Full, uint32_t ThreadIndex)
-{
+TEXRESULT Destroy_ElementGraphics(ElementGraphics* pElement, ElementGraphics* pElementOverlay, bool Full, uint32_t ThreadIndex) {
 	TEXRESULT tres = (Success);
 	uint64_t pointer = 0;
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
 		GraphicsEffect* pEffect = (GraphicsEffect*)((void*)((uint64_t)pElement->Effects + pointer));
+		GraphicsEffect* pEffectOverlay = (GraphicsEffect*)((void*)((uint64_t)pElementOverlay->Effects + pointer));
 		GraphicsEffectSignature* pSignature = NULL;
 		uint64_t BufferIndex = NULL;
 		Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
 		if (pSignature->Destructor != NULL)
 		{
-			if ((tres = pSignature->Destructor(pElement, pEffect, Full, ThreadIndex)) != Success)
+			if ((tres = pSignature->Destructor(pElement, pElementOverlay, pEffect, pEffectOverlay, Full, ThreadIndex)) != Success)
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Destruction Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Destruction Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("Destroy_ElementGraphics()", buffer, tres);
 #endif
 				return tres;
 			}
 		}
 		pointer += pEffect->Header.AllocationSize;
-	}
-	if (Full == true)
-	{
-
 	}
 	return (Success);
 }
@@ -2490,10 +2413,9 @@ TEXRESULT Destroy_ElementGraphics(ElementGraphics* pElement, bool Full, uint32_t
 //Object ReCreation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, uint32_t ThreadIndex) {
 	VkResult res = VK_SUCCESS;
-	Engine_Ref_Create_Mutex(pResourceHeader->SwapChainAccessMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&pResourceHeader->SwapChainAccessMutex, MutexType_Plain);
 	Engine_Ref_Create_Window(&pResourceHeader->pWindow, pResourceHeader->TargetExtentWidth, pResourceHeader->TargetExtentHeight,
 		pResourceHeader->Header.Name, NULL, NULL);
 
@@ -2502,7 +2424,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkWin32SurfaceCreateInfoKHR SurfaceCreateInfo;
 		memset(&SurfaceCreateInfo, 0, sizeof(SurfaceCreateInfo));
 		SurfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-		SurfaceCreateInfo.hinstance = (HINSTANCE)((EngineUtils*)EngineRes.pUtils)->win32.Instance;
+		SurfaceCreateInfo.hinstance = (HINSTANCE)EngineRes.pUtils->win32.Instance;
 		SurfaceCreateInfo.hwnd = (HWND)pResourceHeader->pWindow->Window;
 		SurfaceCreateInfo.flags = 0;
 		SurfaceCreateInfo.pNext = NULL;
@@ -2581,6 +2503,22 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 			}
 		}
 
+		for (size_t i0 = 0; i0 < DeferredImageCount; i0++)
+		{
+			for (size_t i1 = 0; i1 < DeferredFormatPrioritySize; i1++)
+			{
+				VkImageFormatProperties ReturnProperties = {sizeof(ReturnProperties)};
+				vkGetPhysicalDeviceImageFormatProperties(pPhysicalDevice->VkPhysicalDevice, DeferredFormatPriorities[i0][i1], VK_IMAGE_TYPE_2D,
+					VK_IMAGE_TILING_OPTIMAL, DeferredImageUsages[i0], NULL, &ReturnProperties);
+
+				if (ReturnProperties.maxResourceSize != NULL)
+				{
+					CurrentDeviceScore += 1;
+				}
+			}
+		}
+			
+
 
 		if (pResourceHeader->TargetFrameBuffersSize > Capabilities.maxImageCount || pResourceHeader->TargetFrameBuffersSize < Capabilities.minImageCount)
 		{
@@ -2619,7 +2557,6 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		}
 	}
 
-
 	pResourceHeader->pLogicalDevice = (LogicalDevice*)&Utils.LogicalDevices[DeviceHighScoreIndex];
 
 	VkSurfaceCapabilitiesKHR Capabilities;
@@ -2637,8 +2574,6 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 	AvailableSurfacePresentModes = (VkPresentModeKHR*)calloc(AvailableSurfacePresentModesSize, sizeof(VkPresentModeKHR));
 	vkGetPhysicalDeviceSurfacePresentModesKHR(pResourceHeader->pLogicalDevice->pPhysicalDevice->VkPhysicalDevice, pResourceHeader->VkSurface, &AvailableSurfacePresentModesSize, AvailableSurfacePresentModes);
 
-
-
 	pResourceHeader->CurrentFrameBuffersSize = pResourceHeader->TargetFrameBuffersSize;
 	pResourceHeader->CurrentFrameBuffersSize = (pResourceHeader->CurrentFrameBuffersSize > Capabilities.maxImageCount) ? Capabilities.maxImageCount : pResourceHeader->CurrentFrameBuffersSize;		
 	pResourceHeader->CurrentFrameBuffersSize = (pResourceHeader->CurrentFrameBuffersSize < Capabilities.minImageCount) ? Capabilities.minImageCount : pResourceHeader->CurrentFrameBuffersSize;
@@ -2650,6 +2585,33 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 	pResourceHeader->CurrentExtentHeight = pResourceHeader->TargetExtentHeight;
 	pResourceHeader->CurrentExtentHeight = (pResourceHeader->CurrentExtentHeight > Capabilities.maxImageExtent.height) ? Capabilities.maxImageExtent.height : pResourceHeader->CurrentExtentHeight;
 	pResourceHeader->CurrentExtentHeight = (pResourceHeader->CurrentExtentHeight < Capabilities.minImageExtent.height) ? Capabilities.minImageExtent.height : pResourceHeader->CurrentExtentHeight;
+
+
+	for (size_t i0 = 0; i0 < DeferredImageCount; i0++)
+	{
+		bool found = false;
+		for (size_t i1 = 0; i1 < DeferredFormatPrioritySize; i1++)
+		{
+			VkImageFormatProperties ReturnProperties = { sizeof(ReturnProperties) };
+			vkGetPhysicalDeviceImageFormatProperties(pResourceHeader->pLogicalDevice->pPhysicalDevice->VkPhysicalDevice, DeferredFormatPriorities[i0][i1], VK_IMAGE_TYPE_2D,
+				VK_IMAGE_TILING_OPTIMAL, DeferredImageUsages[i0], NULL, &ReturnProperties);
+
+			if (ReturnProperties.maxResourceSize != NULL)
+			{
+				pResourceHeader->CurrentDeferredFormats[i0] = DeferredFormatPriorities[i0][i1];
+				found = true;
+				break;
+			}
+		}
+		if (found == false)
+		{
+			Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "Unable to find format for DeferredImage Number == ", i0);
+			return (Failure);
+			//pResourceHeader->CurrentDeferredFormats[i0] = DeferredFormatPriorities[i0][i1];
+			//pResourceHeader->CurrentSurfaceFormat = AvailableSurfaceFormats[0].format;
+			//pResourceHeader->CurrentSurfaceColourSpace = AvailableSurfaceFormats[0].colorSpace;
+		}
+	}
 
 	{
 		bool found = false;
@@ -2704,7 +2666,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference Albedo_Attachment = { sizeof(Albedo_Attachment) };
 		Albedo_Attachment.attachment = 0;
 		Albedo_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[0].format = DeferredFormats[0]; //needs decent precision
+		AttachmentDescs[0].format = pResourceHeader->CurrentDeferredFormats[0]; //needs decent precision
 		AttachmentDescs[0].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -2717,7 +2679,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference Position_Attachment = { sizeof(Position_Attachment) };
 		Position_Attachment.attachment = 1;
 		Position_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[1].format = DeferredFormats[1];  //needs ALOT of precision
+		AttachmentDescs[1].format = pResourceHeader->CurrentDeferredFormats[1];  //needs ALOT of precision
 		AttachmentDescs[1].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -2731,7 +2693,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference Normal_Attachment = { sizeof(Normal_Attachment) };
 		Normal_Attachment.attachment = 2;
 		Normal_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[2].format = DeferredFormats[2]; //doesnt need much precision
+		AttachmentDescs[2].format = pResourceHeader->CurrentDeferredFormats[2]; //doesnt need much precision
 		AttachmentDescs[2].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -2744,7 +2706,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference PBR_Attachment = { sizeof(PBR_Attachment) };
 		PBR_Attachment.attachment = 3;
 		PBR_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[3].format = DeferredFormats[3]; //doesnt need much precision
+		AttachmentDescs[3].format = pResourceHeader->CurrentDeferredFormats[3]; //doesnt need much precision
 		AttachmentDescs[3].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[3].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -2758,7 +2720,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference Transperancy_Attachment = { sizeof(Transperancy_Attachment) };
 		Transperancy_Attachment.attachment = 4;
 		Transperancy_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[4].format = DeferredFormats[4];
+		AttachmentDescs[4].format = pResourceHeader->CurrentDeferredFormats[4];
 		AttachmentDescs[4].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[4].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[4].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -2771,7 +2733,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference Revealage_Attachment = { sizeof(Revealage_Attachment) };
 		Revealage_Attachment.attachment = 5;
 		Revealage_Attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[5].format = DeferredFormats[5];
+		AttachmentDescs[5].format = pResourceHeader->CurrentDeferredFormats[5];
 		AttachmentDescs[5].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[5].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[5].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -2785,7 +2747,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		VkAttachmentReference Depth_Attachment = { sizeof(Depth_Attachment) };
 		Depth_Attachment.attachment = 6;
 		Depth_Attachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		AttachmentDescs[6].format = DeferredFormats[6];
+		AttachmentDescs[6].format = pResourceHeader->CurrentDeferredFormats[6];
 		AttachmentDescs[6].samples = VK_SAMPLE_COUNT_1_BIT;
 		AttachmentDescs[6].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		AttachmentDescs[6].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -2933,13 +2895,12 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//SwapChain
 	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	if (ReCreate_SwapChain(pResourceHeader, true) != Success)
+	
+	if (Create_SwapChain(pResourceHeader, ThreadIndex) != Success)
 	{
 		//Engine_Ref_FunctionError("ReCreate_GraphicsWindow()", "ReCreate_SwapChain Failed. VkResult == ", res);
 		return (Failure);
 	}
-
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Descriptor Layouts
@@ -3196,7 +3157,7 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 		{
 			VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			ImageInfo.imageView = pResourceHeader->SwapChain.FrameBuffers[i].DeferredImages[i1].ImageView;
+			ImageInfo.imageView = pResourceHeader->SwapChain.FrameBuffers[i].DeferredImages[i1].VkImageView;
 			ImageInfo.sampler = NULL;
 			Update_Descriptor(pResourceHeader->pLogicalDevice, pResourceHeader->VkDescriptorSetsInputAttachment[i], i1, 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, NULL, &ImageInfo);
 		}
@@ -3204,18 +3165,47 @@ TEXRESULT ReCreate_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, 
 	return (Success);
 }
 
-TEXRESULT ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t ThreadIndex) {
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
-	{
-		Engine_Ref_ArgsError("ReCreate_MaterialHeader()", "pResourceHeader->iGraphicsWindow Invalid");
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iGraphicsWindow) == NULL) {
+		Engine_Ref_ArgsError("ReCreate_MaterialHeader()", "pResourceHeader->iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
 
+	RHeaderTexture* pEmissiveTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->EmissiveTexture.iTexture, false, false, ThreadIndex);
+	if (pEmissiveTexture != NULL) {
+		if (Object_Ref_Compare_ResourceHeaderAllocation(pResourceHeader->iGraphicsWindow, pEmissiveTexture->iGraphicsWindow) != Success)
+			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "pEmissiveTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow == ", pEmissiveTexture->iGraphicsWindow.Pointer);
+		Object_Ref_End_ResourceHeaderPointer(pResourceHeader->EmissiveTexture.iTexture, false, false, ThreadIndex);
+	}
+	RHeaderTexture* pNormalTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->NormalTexture.iTexture, false, false, ThreadIndex);
+	if (pNormalTexture != NULL) {
+		if (Object_Ref_Compare_ResourceHeaderAllocation(pResourceHeader->iGraphicsWindow, pNormalTexture->iGraphicsWindow) != Success)
+			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "pNormalTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow == ", pNormalTexture->iGraphicsWindow.Pointer);
+		Object_Ref_End_ResourceHeaderPointer(pResourceHeader->NormalTexture.iTexture, false, false, ThreadIndex);
+	}
+	RHeaderTexture* pOcclusionTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->OcclusionTexture.iTexture, false, false, ThreadIndex);
+	if (pOcclusionTexture != NULL) {
+		if (Object_Ref_Compare_ResourceHeaderAllocation(pResourceHeader->iGraphicsWindow, pOcclusionTexture->iGraphicsWindow) != Success)
+			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "pOcclusionTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow == ", pOcclusionTexture->iGraphicsWindow.Pointer);
+		Object_Ref_End_ResourceHeaderPointer(pResourceHeader->OcclusionTexture.iTexture, false, false, ThreadIndex);
+	}
+	RHeaderTexture* pBaseColourTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->BaseColourTexture.iTexture, false, false, ThreadIndex);
+	if (pBaseColourTexture != NULL) {
+		if (Object_Ref_Compare_ResourceHeaderAllocation(pResourceHeader->iGraphicsWindow, pBaseColourTexture->iGraphicsWindow) != Success)
+			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "pBaseColourTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow == ", pBaseColourTexture->iGraphicsWindow.Pointer);
+		Object_Ref_End_ResourceHeaderPointer(pResourceHeader->BaseColourTexture.iTexture, false, false, ThreadIndex);
+	}
+	RHeaderTexture* pMetallicRoughnessTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->MetallicRoughnessTexture.iTexture, false, false, ThreadIndex);
+	if (pMetallicRoughnessTexture != NULL) {
+		if (Object_Ref_Compare_ResourceHeaderAllocation(pResourceHeader->iGraphicsWindow, pMetallicRoughnessTexture->iGraphicsWindow) != Success)
+			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "pMetallicRoughnessTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow == ", pMetallicRoughnessTexture->iGraphicsWindow.Pointer);
+		Object_Ref_End_ResourceHeaderPointer(pResourceHeader->MetallicRoughnessTexture.iTexture, false, false, ThreadIndex);
+	}
+
 	VkResult res = VK_SUCCESS;
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	{
 		uint32_t PoolSizesSize = 2;
 		VkDescriptorPoolSize PoolSizes[2] = { PoolSizesSize * sizeof(*PoolSizes) };
@@ -3241,44 +3231,53 @@ TEXRESULT ReCreate_MaterialHeader(RHeaderMaterial* pResourceHeader, uint32_t Thr
 	}
 
 	pResourceHeader->VkMaterialDescriptorSets = (VkDescriptorSet*)calloc(pGraphicsWindow->CurrentFrameBuffersSize, sizeof(VkDescriptorSet));
-	for (size_t i1 = 0; i1 < pGraphicsWindow->CurrentFrameBuffersSize; i1++)
+	if (pResourceHeader->VkMaterialDescriptorSets == NULL)
 	{
-		uint32_t layoutsSize = 1;
-		VkDescriptorSetLayout layouts[1] = { Utils.GenericResources[Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].VkDescriptorSetLayoutMaterial };
-		VkDescriptorSet sets[1];
-
-		VkDescriptorSetAllocateInfo Info;
-		memset(&Info, 0, sizeof(Info));
-		Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		Info.descriptorPool = pResourceHeader->VkMaterialDescriptorPool;
-		Info.descriptorSetCount = layoutsSize;
-		Info.pSetLayouts = layouts;
-		if ((res = vkAllocateDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
-		{
-			Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "vkAllocateDescriptorSets Failed, VkResult == ", res);
-			return Failure;
-		}
-		pResourceHeader->VkMaterialDescriptorSets[i1] = sets[0];
+		Engine_Ref_FunctionError("Create_DummyTEXI()", "Out Of Memory.", pResourceHeader->VkMaterialDescriptorSets);
+		return (Out_Of_Memory_Result | Failure);
 	}
+	else
+	{
+		for (size_t i1 = 0; i1 < pGraphicsWindow->CurrentFrameBuffersSize; i1++)
+		{
+			uint32_t layoutsSize = 1;
+			VkDescriptorSetLayout layouts[1] = { Utils.GenericResources[Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].VkDescriptorSetLayoutMaterial };
+			VkDescriptorSet sets[1];
+
+			VkDescriptorSetAllocateInfo Info;
+			memset(&Info, 0, sizeof(Info));
+			Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			Info.descriptorPool = pResourceHeader->VkMaterialDescriptorPool;
+			Info.descriptorSetCount = layoutsSize;
+			Info.pSetLayouts = layouts;
+			if ((res = vkAllocateDescriptorSets(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
+			{
+				Engine_Ref_FunctionError("ReCreate_MaterialHeader()", "vkAllocateDescriptorSets Failed, VkResult == ", res);
+				return Failure;
+			}
+			pResourceHeader->VkMaterialDescriptorSets[i1] = sets[0];
+		}
+	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
 TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iImageSource) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iImageSource) == NULL)
 	{
-		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pResourceHeader->iImageSource Invalid");
+		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pResourceHeader->iImageSource Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iGraphicsWindow) == NULL)
 	{
-		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pResourceHeader->iGraphicsWindow Invalid");
+		Engine_Ref_ArgsError("ReCreate_TextureHeader()", "pResourceHeader->iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	RHeaderImageSource* pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iImageSource);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iImageSource, false, false, ThreadIndex);
 //#ifndef NDEBUG
 	if (pImageSource->ImageData->Width == NULL)
 	{
@@ -3362,7 +3361,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 
 		VkImageFormatProperties ImageFormatProperties;
 		vkGetPhysicalDeviceImageFormatProperties(pGraphicsWindow->pLogicalDevice->pPhysicalDevice->VkPhysicalDevice,
-			(VkFormat)NewFormat, ImageType, VK_IMAGE_TILING_OPTIMAL, pResourceHeader->TextureUsage, NULL, &ImageFormatProperties);
+			(VkFormat)NewFormat, ImageType, VK_IMAGE_TILING_OPTIMAL, pResourceHeader->TextureUsage, (VkImageCreateFlags)NULL, &ImageFormatProperties);
 
 		if (pImageSource->ImageData->Width > ImageFormatProperties.maxExtent.width)
 			SuitableFormatFound = false;
@@ -3376,7 +3375,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 			SuitableFormatFound = false;
 		if (1 > ImageFormatProperties.maxArrayLayers)
 			SuitableFormatFound = false;
-		if (!(Config.Samples & ImageFormatProperties.sampleCounts))
+		if (!(Utils.Config.Samples & ImageFormatProperties.sampleCounts))
 			SuitableFormatFound = false;
 		if (!(FormatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
 			SuitableFormatFound = false;
@@ -3412,7 +3411,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 		Info.extent.depth = pImageSource->ImageData->Depth;
 		Info.mipLevels = pImageSource->ImageData->MipmapCount;
 		Info.arrayLayers = 1;
-		Info.samples = Config.Samples;
+		Info.samples = Utils.Config.Samples;
 		Info.tiling = VK_IMAGE_TILING_OPTIMAL;
 		Info.usage = pResourceHeader->TextureUsage;
 		Info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -3426,7 +3425,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 		}
 	}
 
-	VkMemoryRequirements memRequirements;
+	VkMemoryRequirements memRequirements = {sizeof(memRequirements)};
 	vkGetImageMemoryRequirements(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->GPU_Texture.VkImage, &memRequirements);
 	pResourceHeader->GPU_Texture.Allocation = GPUmalloc(pGraphicsWindow->pLogicalDevice, memRequirements, TargetMemory_Dst, pResourceHeader->AllocationType, ThreadIndex);
 	if (pResourceHeader->GPU_Texture.Allocation.SizeBytes == NULL)
@@ -3542,8 +3541,8 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 			break;
 		}
 
-		Info.anisotropyEnable = Config.AnisotropicFiltering;
-		Info.maxAnisotropy = Config.MaxAnisotropy;
+		Info.anisotropyEnable = Utils.Config.AnisotropicFiltering;
+		Info.maxAnisotropy = Utils.Config.MaxAnisotropy;
 		Info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		Info.unnormalizedCoordinates = VK_FALSE;
 		Info.compareEnable = VK_FALSE;
@@ -3859,7 +3858,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 		{
 			for (size_t i = 0; i < pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilySize; i++)
 			{
-				if (Engine_Ref_TryLock_Mutex(pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[i]) == Success)
+				if (Engine_Ref_TryLock_Mutex(&pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[i]) == Success)
 				{
 					QueueIndex = i;
 					found = true;
@@ -3884,7 +3883,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 	}
 
 	vkQueueWaitIdle(Queue);
-	Engine_Ref_Unlock_Mutex(pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex]);
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex]);
 
 	vkFreeCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 	vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
@@ -3897,25 +3896,27 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 	{
 		GPUfree(pGraphicsWindow->pLogicalDevice, &SrcAllocation);
 	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iImageSource, false, false, ThreadIndex);
 	return (Success);
 }
 
 TEXRESULT ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iBufferSource) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iBufferSource) == NULL)
 	{
-		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pResourceHeader->iBufferSource Invalid");
+		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pResourceHeader->iBufferSource Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iGraphicsWindow) == NULL)
 	{
-		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pResourceHeader->iGraphicsWindow Invalid");
+		Engine_Ref_ArgsError("ReCreate_BufferHeader()", "pResourceHeader->iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	RHeaderBufferSource* pBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iBufferSource);
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderBufferSource* pBufferSource = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iBufferSource, false, false, ThreadIndex);
 #ifndef NDEBUG
 	if (pBufferSource->Data.LinearSize == NULL)
 	{
@@ -4049,7 +4050,7 @@ TEXRESULT ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadI
 		{
 			for (size_t i = 0; i < pGraphicsWindow->pLogicalDevice->MemoryQueueFamilySize; i++)
 			{
-				if (Engine_Ref_TryLock_Mutex(pGraphicsWindow->pLogicalDevice->MemoryQueueMutexes[i]) == Success)
+				if (Engine_Ref_TryLock_Mutex(&pGraphicsWindow->pLogicalDevice->MemoryQueueMutexes[i]) == Success)
 				{
 					QueueIndex = i;
 					found = true;
@@ -4074,8 +4075,7 @@ TEXRESULT ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadI
 	}
 
 	vkQueueWaitIdle(Queue);
-	Engine_Ref_Unlock_Mutex(pGraphicsWindow->pLogicalDevice->MemoryQueueMutexes[QueueIndex]);
-
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->pLogicalDevice->MemoryQueueMutexes[QueueIndex]);
 
 	vkFreeCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 	vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
@@ -4085,31 +4085,37 @@ TEXRESULT ReCreate_BufferHeader(RHeaderBuffer* pResourceHeader, uint32_t ThreadI
 
 	}
 	else
+	{
 		GPUfree(pGraphicsWindow->pLogicalDevice, &SrcAllocation);
+	}
+		
+
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iBufferSource, false, false, ThreadIndex);
 	return (Success);
 }
 
 TEXRESULT ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iGraphicsWindow) == NULL)
 	{
-		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pResourceHeader->iGraphicsWindow Invalid");
+		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pResourceHeader->iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iTextureTarget) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iTextureTarget) == NULL)
 	{
-		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pResourceHeader->iTextureTarget Invalid");
+		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pResourceHeader->iTextureTarget Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
 	VkResult res = VK_SUCCESS;
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	RHeaderTexture* pTexture = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget);
-	RHeaderImageSource* pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
+	RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pTexture->iImageSource) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture->iImageSource) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_RenderHeader()", "pTexture->iImageSource Invalid");
 		return (Invalid_Parameter | Failure);
@@ -4128,17 +4134,22 @@ TEXRESULT ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadI
 	Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, NULL, 0);
 	pResourceHeader->pFrameBuffersSize = pGraphicsWindow->CurrentFrameBuffersSize;
 	pResourceHeader->pFrameBuffers = (VkFramebuffer*)calloc(pGraphicsWindow->CurrentFrameBuffersSize, sizeof(*pResourceHeader->pFrameBuffers));
+	if (pResourceHeader->pFrameBuffers == NULL)
+	{
+		Engine_Ref_FunctionError("ReCreate_RenderHeader()", "Out Of Memory.", pResourceHeader->pFrameBuffers);
+		return (Out_Of_Memory_Result | Failure);
+	}
 	for (size_t i1 = 0; i1 < pGraphicsWindow->CurrentFrameBuffersSize; i1++)
 	{
 		uint32_t Framebuffersize = TotalDeferredFramebufferCount;
 		VkImageView Framebuffers[] = {
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[0].ImageView,
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[1].ImageView,
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[2].ImageView,
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[3].ImageView,
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[4].ImageView,
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[5].ImageView,
-			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[6].ImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[0].VkImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[1].VkImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[2].VkImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[3].VkImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[4].VkImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[5].VkImageView,
+			pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[6].VkImageView,
 			pTexture->GPU_Texture.VkImageView,
 			pGraphicsWindow->SwapChain.FrameBuffers[i1].VkSwapChainImageView
 		};
@@ -4158,6 +4169,9 @@ TEXRESULT ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadI
 			return (Failure);
 		}
 	}
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 	return (Success);
 }
 
@@ -4176,8 +4190,8 @@ TEXRESULT ReCreate_ElementGraphics(ElementGraphics* pElement, uint32_t ThreadInd
 			if ((tres = pSignature->ReConstructor(pElement, pEffect, ThreadIndex)) != Success)
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Recreation Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Recreation Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("ReCreate_ElementGraphics()", buffer, tres);
 #endif
 				return tres;
@@ -4294,18 +4308,6 @@ TEXRESULT Pack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader
 	return (Success);
 }
 
-TEXRESULT Pack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
-	if (pData != NULL)
-	{
-
-	}
-	else
-	{
-
-	}
-	return (Success);
-}
 
 TEXRESULT Pack_CameraHeader(const RHeaderCamera* pResourceHeader, RHeaderCamera* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
 {
@@ -4456,8 +4458,8 @@ TEXRESULT Pack_ElementGraphics(const ElementGraphics* pElement, ElementGraphics*
 			if ((tres = pSignature->Packer(pElement, pCopiedElement, pEffect, pCopiedEffect, pBufferPointer, pData, ThreadIndex)) != Success)
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Packing Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Packing Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("Pack_ElementGraphics()", buffer, tres);
 #endif
 				return tres;
@@ -4509,11 +4511,6 @@ TEXRESULT UnPack_BufferSourceHeader(const RHeaderBufferSource* pResourceHeader, 
 }
 
 TEXRESULT UnPack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader, RHeaderGraphicsWindow* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
-{
-	return (Success);
-}
-
-TEXRESULT UnPack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
 {
 	return (Success);
 }
@@ -4584,8 +4581,8 @@ TEXRESULT UnPack_ElementGraphics(const ElementGraphics* pElement, ElementGraphic
 			if ((tres = pSignature->UnPacker(pElement, pCopiedElement, pEffect, pCopiedEffect, pData, ThreadIndex)) != Success)
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "UnPacking Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Unpacking Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 				Engine_Ref_FunctionError("UnPack_ElementGraphics()", buffer, tres);
 #endif
 				return tres;
@@ -4624,30 +4621,10 @@ TEXRESULT Create_WeightsHeader(RHeaderWeights* pResourceHeader, RHeaderWeightsCr
 		for (size_t i = 0; i < pResourceHeader->WeightsSize; i++)
 			pResourceHeader->Weights[i] = pCreateInfo->Weights[i];
 	}
-	*pAllocationSize = sizeof(RHeaderWeights) + (sizeof(float) * pCreateInfo->WeightsSize);
+	*pAllocationSize = sizeof(RHeaderWeights) + (sizeof(*pResourceHeader->Weights) * pCreateInfo->WeightsSize);
 	return (Success);
 }
 
-TEXRESULT Create_SceneHeader(RHeaderScene* pResourceHeader, RHeaderSceneCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
-	if (pResourceHeader == NULL)
-	{
-
-	}
-	else
-	{
-#ifndef NDEBUG
-		if (pCreateInfo == NULL)
-		{
-			Engine_Ref_ArgsError("Create_SceneHeader()", "pCreateInfo == NULLPTR");
-			return (Invalid_Parameter | Failure);
-		}
-#endif
-		pResourceHeader->Active = pCreateInfo->InitialActive;
-	}
-	*pAllocationSize = sizeof(RHeaderScene);
-	return (Success);
-}
 
 TEXRESULT Create_ImageSourceHeader(RHeaderImageSource* pResourceHeader, RHeaderImageSourceCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
 {
@@ -4719,7 +4696,6 @@ TEXRESULT Create_GraphicsWindowHeader(RHeaderGraphicsWindow* pResourceHeader, RH
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-
 		//pResourceHeader->TargetSurfacePresentMode = pCreateInfo->TargetSurfacePresentMode;
 		//pResourceHeader->TargetSurfaceFormat = pCreateInfo->TargetSurfaceFormat;
 		pResourceHeader->TargetExtentWidth = pCreateInfo->TargetExtentWidth;
@@ -4779,7 +4755,6 @@ TEXRESULT Create_LightHeader(RHeaderLight* pResourceHeader, RHeaderLightCreateIn
 		memcpy(&pResourceHeader->LightU, &pCreateInfo->LightU, sizeof(pResourceHeader->LightU));
 
 		pResourceHeader->Type = pCreateInfo->Type;
-
 	}
 	*pAllocationSize = sizeof(RHeaderLight);
 	return (Success);
@@ -4799,21 +4774,20 @@ TEXRESULT Create_SkinHeader(RHeaderSkin* pResourceHeader, RHeaderSkinCreateInfo*
 			Engine_Ref_ArgsError("Create_SkinHeader()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pJoints == NULL)
+		if (pCreateInfo->iJoints == NULL)
 		{
-			Engine_Ref_ArgsError("Create_SkinHeader()", "pCreateInfo->pJoints == NULLPTR");
+			Engine_Ref_ArgsError("Create_SkinHeader()", "pCreateInfo->iJoints == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-
 		pResourceHeader->InverseBindMatrices = pCreateInfo->InverseBindMatrices;
-		pResourceHeader->iSkeleton = pCreateInfo->pSkeleton->Header.Allocation;
+		pResourceHeader->iSkeleton = pCreateInfo->iSkeleton;
 
-		pResourceHeader->JointsSize = pCreateInfo->JointsSize;
-		for (size_t i = 0; i < pResourceHeader->JointsSize; i++)
-			pResourceHeader->iJoints[i] = pCreateInfo->pJoints[i]->Header.Allocation;
+		pResourceHeader->iJointsSize = pCreateInfo->iJointsSize;
+		for (size_t i = 0; i < pResourceHeader->iJointsSize; i++)
+			pResourceHeader->iJoints[i] = pCreateInfo->iJoints[i];
 	}
-	*pAllocationSize = sizeof(RHeaderSkin) + (sizeof(ObjectAllocation) * pCreateInfo->JointsSize);
+	*pAllocationSize = sizeof(RHeaderSkin) + (sizeof(*pResourceHeader->iJoints) * pCreateInfo->iJointsSize);
 	return (Success);
 }
 
@@ -4851,16 +4825,17 @@ TEXRESULT Create_AnimationChannelHeader(RHeaderAnimationChannel* pResourceHeader
 		{
 			Engine_Ref_ArgsError("Create_AnimationChannelHeader()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
-		}
-		if (pCreateInfo->pAnimation == NULL)
+		}		
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iAnimation) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_AnimationChannelHeader()", "pCreateInfo->pAnimation == NULLPTR");
+			Engine_Ref_ArgsError("Create_AnimationChannelHeader()", "pCreateInfo->iAnimation Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
+		pResourceHeader->iAnimation = pCreateInfo->iAnimation;
+
 		pResourceHeader->Sampler = pCreateInfo->Sampler;
 		pResourceHeader->Target = pCreateInfo->Target;
-		pResourceHeader->iAnimation = pCreateInfo->pAnimation->Header.Allocation;
 	}
 	*pAllocationSize = sizeof(RHeaderAnimationChannel);
 	return (Success);
@@ -4883,12 +4858,12 @@ TEXRESULT Create_AnimationHeader(RHeaderAnimation* pResourceHeader, RHeaderAnima
 #endif
 		pResourceHeader->PlaybackMode = pCreateInfo->PlaybackMode;
 		pResourceHeader->Speed = pCreateInfo->Speed;
-		pResourceHeader->iChannelsSize = pCreateInfo->pChannelsSize;
+		pResourceHeader->iChannelsSize = pCreateInfo->iChannelsSize;
 		if (pResourceHeader->iChannelsSize != NULL)
 			for (size_t i = 0; i < pResourceHeader->iChannelsSize; i++)
-				pResourceHeader->iChannels[i] = pCreateInfo->pChannels[i];
+				pResourceHeader->iChannels[i] = pCreateInfo->iChannels[i];
 	}
-	*pAllocationSize = sizeof(RHeaderAnimation) + (sizeof(*pResourceHeader->iChannels) * pCreateInfo->pChannelsSize);
+	*pAllocationSize = sizeof(RHeaderAnimation) + (sizeof(*pResourceHeader->iChannels) * pCreateInfo->iChannelsSize);
 	return (Success);
 }
 
@@ -4906,21 +4881,30 @@ TEXRESULT Create_MaterialHeader(RHeaderMaterial* pResourceHeader, RHeaderMateria
 			Engine_Ref_ArgsError("Create_MaterialHeader()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pGraphicsWindow == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iGraphicsWindow) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_MaterialHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
+			Engine_Ref_ArgsError("Create_MaterialHeader()", "pCreateInfo->iGraphicsWindow Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
+
+		pResourceHeader->iGraphicsWindow = pCreateInfo->iGraphicsWindow;
+
+		pResourceHeader->BaseColourFactor[0] = pCreateInfo->BaseColourFactor[0];
+		pResourceHeader->BaseColourFactor[1] = pCreateInfo->BaseColourFactor[1];
+		pResourceHeader->BaseColourFactor[2] = pCreateInfo->BaseColourFactor[2];
+		pResourceHeader->BaseColourFactor[3] = pCreateInfo->BaseColourFactor[3];
+
+		pResourceHeader->EmissiveFactor[0] = pCreateInfo->EmissiveFactor[0];
+		pResourceHeader->EmissiveFactor[1] = pCreateInfo->EmissiveFactor[1];
+		pResourceHeader->EmissiveFactor[2] = pCreateInfo->EmissiveFactor[2];
+		pResourceHeader->EmissiveFactor[3] = pCreateInfo->EmissiveFactor[3];
 
 		pResourceHeader->MetallicFactor = pCreateInfo->MetallicFactor;
 		pResourceHeader->RoughnessFactor = pCreateInfo->RoughnessFactor;
 		pResourceHeader->AlphaCutoff = pCreateInfo->AlphaCutoff;
-
 		pResourceHeader->OcclusionStrength = pCreateInfo->OcclusionStrength;
 		pResourceHeader->NormalScale = pCreateInfo->NormalScale;
-
 		pResourceHeader->AlphaMode = pCreateInfo->AlphaMode;
 		pResourceHeader->DoubleSided = pCreateInfo->DoubleSided;
 
@@ -4932,15 +4916,7 @@ TEXRESULT Create_MaterialHeader(RHeaderMaterial* pResourceHeader, RHeaderMateria
 
 		pResourceHeader->BaseColourMode = pCreateInfo->BaseColourMode;
 
-		pResourceHeader->BaseColourFactor[0] = pCreateInfo->BaseColourFactor[0];
-		pResourceHeader->BaseColourFactor[1] = pCreateInfo->BaseColourFactor[1];
-		pResourceHeader->BaseColourFactor[2] = pCreateInfo->BaseColourFactor[2];
-		pResourceHeader->BaseColourFactor[3] = pCreateInfo->BaseColourFactor[3];
 
-		pResourceHeader->EmissiveFactor[0] = pCreateInfo->EmissiveFactor[0];
-		pResourceHeader->EmissiveFactor[1] = pCreateInfo->EmissiveFactor[1];
-		pResourceHeader->EmissiveFactor[2] = pCreateInfo->EmissiveFactor[2];
-		pResourceHeader->EmissiveFactor[3] = pCreateInfo->EmissiveFactor[3];
 		//glm_vec4_copy(pCreateInfo->BaseColourFactor, pResourceHeader->BaseColourFactor);
 		//glm_vec4_copy(pCreateInfo->EmissiveFactor, pResourceHeader->EmissiveFactor);
 
@@ -4964,14 +4940,20 @@ TEXRESULT Create_TextureHeader(RHeaderTexture* pResourceHeader, RHeaderTextureCr
 			Engine_Ref_ArgsError("Create_TextureHeader()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pGraphicsWindow == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iGraphicsWindow) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_TextureHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
+			Engine_Ref_ArgsError("Create_TextureHeader()", "pCreateInfo->iGraphicsWindow Invalid.");
+			return (Invalid_Parameter | Failure);
+		}
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iImageSource) == NULL)
+		{
+			Engine_Ref_ArgsError("Create_TextureHeader()", "pCreateInfo->iImageSource Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
-		pResourceHeader->iImageSource = pCreateInfo->pImageSource->Header.Allocation;
+		pResourceHeader->iGraphicsWindow = pCreateInfo->iGraphicsWindow;
+		
+		pResourceHeader->iImageSource = pCreateInfo->iImageSource;
 
 		pResourceHeader->MinFilter = pCreateInfo->MinFilter;
 		pResourceHeader->MagFilter = pCreateInfo->MagFilter;
@@ -5000,14 +4982,19 @@ TEXRESULT Create_BufferHeader(RHeaderBuffer* pResourceHeader, RHeaderBufferCreat
 			Engine_Ref_ArgsError("Create_BufferHeader()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pGraphicsWindow == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iGraphicsWindow) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_BufferHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
+			Engine_Ref_ArgsError("Create_BufferHeader()", "pCreateInfo->iGraphicsWindow Invalid.");
+			return (Invalid_Parameter | Failure);
+		}
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iBufferSource) == NULL)
+		{
+			Engine_Ref_ArgsError("Create_BufferHeader()", "pCreateInfo->iBufferSource Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
-		pResourceHeader->iBufferSource = pCreateInfo->pBufferSource->Header.Allocation;
+		pResourceHeader->iGraphicsWindow = pCreateInfo->iGraphicsWindow;
+		pResourceHeader->iBufferSource = pCreateInfo->iBufferSource;
 
 		pResourceHeader->AllocationType = pCreateInfo->AllocationType;
 		pResourceHeader->BufferUsage = pCreateInfo->BufferUsage;
@@ -5031,28 +5018,31 @@ TEXRESULT Create_RenderHeader(RHeaderRender* pResourceHeader, RHeaderRenderCreat
 			Engine_Ref_ArgsError("Create_RenderHeader()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pGraphicsWindow == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iGraphicsWindow) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_RenderHeader()", "pCreateInfo->pGraphicsWindow == NULLPTR");
+			Engine_Ref_ArgsError("Create_RenderHeader()", "pCreateInfo->iGraphicsWindow Invalid.");
+			return (Invalid_Parameter | Failure);
+		}
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iTextureTarget) == NULL)
+		{
+			Engine_Ref_ArgsError("Create_RenderHeader()", "pCreateInfo->iTextureTarget Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
+		pResourceHeader->iGraphicsWindow = pCreateInfo->iGraphicsWindow;
+		pResourceHeader->iTextureTarget = pCreateInfo->iTextureTarget;
+
 		pResourceHeader->Clear[0] = pCreateInfo->Clear[0];
 		pResourceHeader->Clear[1] = pCreateInfo->Clear[1];
 		pResourceHeader->Clear[2] = pCreateInfo->Clear[2];
 		pResourceHeader->Clear[3] = pCreateInfo->Clear[3];
-		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
-		pResourceHeader->iTextureTarget = pCreateInfo->pTextureTarget->Header.Allocation;
-
-		pResourceHeader->iScenesSize = pCreateInfo->pScenesSize;
+		pResourceHeader->iScenesSize = pCreateInfo->iScenesSize;
 		if (pResourceHeader->iScenesSize != NULL)
 			for (size_t i = 0; i < pResourceHeader->iScenesSize; i++)
-				pResourceHeader->iScenes[i] = pCreateInfo->pScenes[i]->Header.Allocation;
-
-
+				pResourceHeader->iScenes[i] = pCreateInfo->iScenes[i];
 		ReCreate_RenderHeader(pResourceHeader, ThreadIndex);
 	}
-	*pAllocationSize = sizeof(RHeaderRender) + (sizeof(*pResourceHeader->iScenes) * pCreateInfo->pScenesSize);
+	*pAllocationSize = sizeof(RHeaderRender) + (sizeof(*pResourceHeader->iScenes) * pCreateInfo->iScenesSize);
 	return (Success);
 }
 
@@ -5069,11 +5059,11 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 		uint64_t AllocationSize = 0;
 		if (pSignature->Constructor != NULL)
 		{
-			if ((tres = pSignature->Constructor(pElement, NULL, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)Success)
+			if ((tres = pSignature->Constructor(pElement, NULL, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != Success)
 			{
 #ifndef NDEBUG
-				char buffer[51 + 64 + 64];
-				snprintf(buffer, 51 + 64 + 64, "Creating Of Effect %p %p Returned TEXRESULT == ", pSignature, NULL);
+				char buffer[51 + 64];
+				snprintf(buffer, 51 + 64, "Creation Of Effect %i Returned TEXRESULT == ", pCreateInfo->EffectCreateInfos[i].Identifier);
 				Engine_Ref_FunctionError("Create_ElementGraphics()", buffer, tres);
 #endif
 				return tres;
@@ -5088,26 +5078,25 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 	}
 	else
 	{
-#ifdef NDEBUG
-#else
+#ifndef NDEBUG
 		if (pCreateInfo == NULL)
 		{
 			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo == NULLPTR");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pMaterial == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iGraphicsWindow) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo->pMaterial == NULLPTR");
+			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo->iGraphicsWindow Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
-		if (pCreateInfo->pGraphicsWindow == NULL)
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pCreateInfo->iMaterial) == NULL)
 		{
-			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo->pGraphicsWindow == NULLPTR");
+			Engine_Ref_ArgsError("Create_ElementGraphics()", "pCreateInfo->iMaterial Invalid.");
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		pElement->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
-		pElement->iMaterial = pCreateInfo->pMaterial->Header.Allocation;
+		pElement->iGraphicsWindow = pCreateInfo->iGraphicsWindow;
+		pElement->iMaterial = pCreateInfo->iMaterial;
 
 		pElement->EffectsSize = pCreateInfo->EffectCreateInfosSize;
 		uint64_t pointer = 0;
@@ -5124,17 +5113,16 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 			uint64_t AllocationSize = 0;
 			if (pSignature->Constructor != NULL)
 			{
-				if ((tres = pSignature->Constructor(pElement, pEffect, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != (TEXRESULT)Success)
+				if ((tres = pSignature->Constructor(pElement, pEffect, pCreateInfo->EffectCreateInfos[i].pEffectCreateInfo, &AllocationSize, ThreadIndex)) != Success)
 				{
 #ifndef NDEBUG
-					char buffer[51 + 64 + 64];
-					snprintf(buffer, 51 + 64 + 64, "Creating Of Effect %p %p Returned TEXRESULT == ", pSignature, pEffect);
+					char buffer[51 + 64];
+					snprintf(buffer, 51 + 64, "Creation Of Effect %i Returned TEXRESULT == ", pEffect->Header.Identifier);
 					Engine_Ref_FunctionError("Create_ElementGraphics()", buffer, tres);
 #endif
 					return tres;
 				}
 			}
-
 			pEffect->Header.AllocationSize = AllocationSize;
 			pointer += pEffect->Header.AllocationSize;
 		}
@@ -5152,22 +5140,26 @@ TEXRESULT Create_ElementGraphics(ElementGraphics* pElement, ElementGraphicsCreat
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Draw_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, GraphicsEffectGeneric3D* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
-{
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex) {
 	VkDeviceSize offsets[256];
 	VkBuffer buffers[256];
 	size_t maxattribs = min(pEffect->AttributesSize, pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxVertexInputAttributes);
 
-	RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Position);
-	RHeaderSkin* pSkinHeader = (RHeaderSkin*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Skin);
-	RHeaderWeights* pWeightsHeader = (RHeaderWeights*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Weights);
-	RHeaderLight* pLightHeader = (RHeaderLight*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Light);
+	ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Position, ThreadIndex);
+	ResourceHeaderAllocation iSkinHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Skin, ThreadIndex);
+	ResourceHeaderAllocation iWeightsHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Weights, ThreadIndex);
+	ResourceHeaderAllocation iLightHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Light, ThreadIndex);
+	ResourceHeaderAllocation iAnimationChannelHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_AnimationChannel, ThreadIndex);
 
+	RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+	RHeaderSkin* pSkinHeader = Object_Ref_Get_ResourceHeaderPointer(iSkinHeader, false, false, ThreadIndex);
+	RHeaderWeights* pWeightsHeader = Object_Ref_Get_ResourceHeaderPointer(iWeightsHeader, false, false, ThreadIndex);
+	RHeaderLight* pLightHeader = Object_Ref_Get_ResourceHeaderPointer(iLightHeader, false, false, ThreadIndex);
+	RHeaderAnimationChannel* pAnimationChannelHeader = Object_Ref_Get_ResourceHeaderPointer(iAnimationChannelHeader, false, false, ThreadIndex);
 
 	PushConstantsGeneric3D PushConstants3D;
 	memset(&PushConstants3D, 0, sizeof(PushConstants3D));
 	glm_mat4_copy(CameraVP, PushConstants3D.VP);
-
 
 	PushConstants3D.InfosOffset = GPU_BufferPointers[0];
 	GPU_BufferPointers[0] += maxattribs;
@@ -5180,7 +5172,7 @@ void Draw_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 	if (pSkinHeader != NULL)
 	{
 		PushConstants3D.JointsOffset = GPU_BufferPointers[2];
-		GPU_BufferPointers[2] += pSkinHeader->JointsSize;
+		GPU_BufferPointers[2] += pSkinHeader->iJointsSize;
 	}
 	if (pLightHeader != NULL)
 	{
@@ -5193,16 +5185,16 @@ void Draw_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 	}
 
 	vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
-
 	vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, Utils.GenericResources[Get_DeviceIndex(pGraphicsWindow->pLogicalDevice)].PipelineLayout3D, VK_SHADER_STAGE_ALL, 0,
 		pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants3D);
 
 	uint32_t buffersSize = maxattribs;
 	for (size_t i3 = 0; i3 < maxattribs; i3++)
 	{
-		RHeaderBuffer* buffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pEffect->UsedAttributes[i3].Accessor.iBuffer);	
-		buffers[i3] = buffer->GPU_Buffer.VkBuffer;
+		RHeaderBuffer* pBuffer = Object_Ref_Get_ResourceHeaderPointer(pEffect->UsedAttributes[i3].Accessor.iBuffer, false, false, ThreadIndex);
+		buffers[i3] = pBuffer->GPU_Buffer.VkBuffer;
 		offsets[i3] = pEffect->UsedAttributes[i3].Accessor.ByteOffset; //  + (uint32_t)pElement->Attributes[i3]->byteOffset
+		Object_Ref_End_ResourceHeaderPointer(pEffect->UsedAttributes[i3].Accessor.iBuffer, false, false, ThreadIndex);
 	}
 
 	VkDescriptorSet descriptorsets[2] = {
@@ -5218,8 +5210,7 @@ void Draw_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 
 	if (pEffect->Indices.Count != NULL)
 	{
-		RHeaderBuffer* buffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pEffect->Indices.iBuffer);
-
+		RHeaderBuffer* pBuffer = Object_Ref_Get_ResourceHeaderPointer(pEffect->Indices.iBuffer, false, false, ThreadIndex);
 		VkIndexType indextype = VK_INDEX_TYPE_UINT16;
 		switch (pEffect->Indices.Format)
 		{
@@ -5233,18 +5224,23 @@ void Draw_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 			indextype = VK_INDEX_TYPE_UINT32;
 			break;
 		}
-		vkCmdBindIndexBuffer(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, buffer->GPU_Buffer.VkBuffer, pEffect->Indices.ByteOffset, indextype);
+		vkCmdBindIndexBuffer(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pBuffer->GPU_Buffer.VkBuffer, pEffect->Indices.ByteOffset, indextype);
 		vkCmdDrawIndexed(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->Indices.Count, 1, 0, 0, 0);
+		Object_Ref_End_ResourceHeaderPointer(pEffect->Indices.iBuffer, false, false, ThreadIndex);
 	}
 	else
 	{
 		vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->UsedAttributes[0].Accessor.Count, 1, 0, 0);
 	}
+	Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iSkinHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iWeightsHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iLightHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iAnimationChannelHeader, false, false, ThreadIndex);
 }
 
 void Draw_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, GraphicsEffectGeneric2D* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
-{
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex) {
 	VkBuffer vkBuffer = GPU_Buffers[0].Allocater.pArenaAllocater->VkBuffer;
 	VkDeviceSize VkOffset = GPU_Buffers[0].Pointer + GPU_BufferPointers[0];
 	GPU_BufferPointers[0] += sizeof(GPU_GraphicsEffectGeneric2D);
@@ -5275,16 +5271,21 @@ void Draw_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, GraphicsEffectGeneric3D* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
-	RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Position);
-	RHeaderSkin* pSkinHeader = (RHeaderSkin*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Skin);
-	RHeaderWeights* pWeightsHeader = (RHeaderWeights*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Weights);
-	RHeaderLight* pLightHeader = (RHeaderLight*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Light);
-	RHeaderAnimationChannel* pAnimationChannelHeader = (RHeaderAnimationChannel*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_AnimationChannel);
+	ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Position, ThreadIndex);
+	ResourceHeaderAllocation iSkinHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Skin, ThreadIndex);
+	ResourceHeaderAllocation iWeightsHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Weights, ThreadIndex);
+	ResourceHeaderAllocation iLightHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Light, ThreadIndex);
+	ResourceHeaderAllocation iAnimationChannelHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_AnimationChannel, ThreadIndex);
+
+	RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+	RHeaderSkin* pSkinHeader = Object_Ref_Get_ResourceHeaderPointer(iSkinHeader, false, false, ThreadIndex);
+	RHeaderWeights* pWeightsHeader = Object_Ref_Get_ResourceHeaderPointer(iWeightsHeader, false, false, ThreadIndex);
+	RHeaderLight* pLightHeader = Object_Ref_Get_ResourceHeaderPointer(iLightHeader, false, false, ThreadIndex);
+	RHeaderAnimationChannel* pAnimationChannelHeader = Object_Ref_Get_ResourceHeaderPointer(iAnimationChannelHeader, false, false, ThreadIndex);
 
 	size_t maxattribs = min(pEffect->AttributesSize, pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxVertexInputAttributes);
-
 	if (GPU_Buffers == NULL)
 	{
 		GPU_BufferPointers[0] += maxattribs * sizeof(Generic3DInfo);
@@ -5294,7 +5295,7 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 		}
 		if (pSkinHeader != NULL)
 		{
-			GPU_BufferPointers[2] += pSkinHeader->JointsSize * sizeof(mat4);
+			GPU_BufferPointers[2] += pSkinHeader->iJointsSize * sizeof(mat4);
 		}
 		if (pLightHeader != NULL)
 		{
@@ -5313,13 +5314,11 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 			memcpy(pWeights, pWeightsHeader->Weights, pWeightsHeader->WeightsSize * sizeof(*pWeightsHeader->Weights));
 			if (pAnimationChannelHeader != NULL && pAnimationChannelHeader->Target == AnimationTargetType_Weights)
 			{
-				RHeaderAnimation* pAnimation = (RHeaderAnimation*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->iAnimation);
-
-				RHeaderBuffer* pInputBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer);
-				RHeaderBuffer* pOutputBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer);
-
-				RHeaderBufferSource* pInputBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pInputBuffer->iBufferSource);
-				RHeaderBufferSource* pOutputBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pOutputBuffer->iBufferSource);
+				RHeaderAnimation* pAnimation = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->iAnimation, false, false, ThreadIndex);
+				RHeaderBuffer* pInputBuffer = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer, false, false, ThreadIndex);
+				RHeaderBuffer* pOutputBuffer = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer, false, false, ThreadIndex);
+				RHeaderBufferSource* pInputBufferSource = Object_Ref_Get_ResourceHeaderPointer(pInputBuffer->iBufferSource, false, false, ThreadIndex);
+				RHeaderBufferSource* pOutputBufferSource = Object_Ref_Get_ResourceHeaderPointer(pOutputBuffer->iBufferSource, false, false, ThreadIndex);
 
 				void* inputpointer = (void*)((uint64_t)pInputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Input.ByteOffset);
 				void* outputpointer = (void*)((uint64_t)pOutputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Output.ByteOffset);
@@ -5358,6 +5357,11 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 					}
 					break;
 				}
+				Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->iAnimation, false, false, ThreadIndex);
+				Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer, false, false, ThreadIndex);
+				Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer, false, false, ThreadIndex);
+				Object_Ref_End_ResourceHeaderPointer(pInputBuffer->iBufferSource, false, false, ThreadIndex);
+				Object_Ref_End_ResourceHeaderPointer(pOutputBuffer->iBufferSource, false, false, ThreadIndex);
 			}
 
 			float prevmax = FLT_MAX;
@@ -5386,26 +5390,28 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 		{
 			mat4 skeleton;
 			glm_mat4_identity(skeleton);
-			if (Object_Ref_Get_ObjectAllocationValidity(pSkinHeader->iSkeleton) == (TEXRESULT)Success)
+			if (Object_Ref_Get_ObjectAllocationData(pSkinHeader->iSkeleton) != NULL)
 			{
-				Calculate_TotalMatrix(&skeleton, pSkinHeader->iSkeleton);
+				Calculate_TotalMatrix(&skeleton, pSkinHeader->iSkeleton, ThreadIndex);
 			}
 			mat4* pmats = (mat4*)((void*)((uint64_t)GPU_BufferPointers[2]));
-			RHeaderBuffer* pBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pSkinHeader->InverseBindMatrices.iBuffer);
-			RHeaderBufferSource* pBufferSource = Object_Ref_Get_ResourceHeaderPointer(pBuffer->iBufferSource);
+			RHeaderBuffer* pBuffer = Object_Ref_Get_ResourceHeaderPointer(pSkinHeader->InverseBindMatrices.iBuffer, false, false, ThreadIndex);
+			RHeaderBufferSource* pBufferSource = Object_Ref_Get_ResourceHeaderPointer(pBuffer->iBufferSource, false, false, ThreadIndex);
 			mat4* pIBM = (mat4*)((void*)((uint64_t)pBufferSource->Data.pData + (uint64_t)pSkinHeader->InverseBindMatrices.ByteOffset));
-			for (size_t i1 = 0; i1 < pSkinHeader->JointsSize; i1++)
+			for (size_t i1 = 0; i1 < pSkinHeader->iJointsSize; i1++)
 			{
 				mat4 temp;
 				glm_mat4_identity(temp);
-				Calculate_TotalMatrix(&temp, pSkinHeader->iJoints[i1]);
+				Calculate_TotalMatrix(&temp, pSkinHeader->iJoints[i1], ThreadIndex);
 				mat4 inverseskeleton;
 				glm_mat4_identity(inverseskeleton);
 				glm_mat4_inv_sse2(skeleton, inverseskeleton);
 				glm_mul_sse2(inverseskeleton, temp, pmats[i1]);
 				glm_mul_sse2(pmats[i1], pIBM[i1], pmats[i1]);
 			}
-			GPU_BufferPointers[2] += pSkinHeader->JointsSize * sizeof(mat4);
+			GPU_BufferPointers[2] += pSkinHeader->iJointsSize * sizeof(mat4);
+			Object_Ref_End_ResourceHeaderPointer(pSkinHeader->InverseBindMatrices.iBuffer, false, false, ThreadIndex);
+			Object_Ref_End_ResourceHeaderPointer(pBuffer->iBufferSource, false, false, ThreadIndex);
 		}
 		if (pLightHeader != NULL)
 		{
@@ -5426,7 +5432,7 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 				vec4 translationf;
 				mat4 temp;
 				glm_mat4_identity(temp);
-				Calculate_TotalMatrix(&temp, pObject->Header.Allocation);
+				Calculate_TotalMatrix(&temp, pObject->Header.Allocation, ThreadIndex);
 				glm_vec4_copy(temp[3], translationf);
 				templight.Position[0] = translationf[0];
 				templight.Position[1] = translationf[1];
@@ -5448,7 +5454,7 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 		{
 			mat4* pMatrix = (mat4*)(void*)((uint64_t)GPU_BufferPointers[4]);
 			glm_mat4_identity(*pMatrix);
-			Calculate_TotalMatrix(pMatrix, pObject->Header.Allocation);
+			Calculate_TotalMatrix(pMatrix, pObject->Header.Allocation, ThreadIndex);
 			GPU_BufferPointers[4] += sizeof(mat4);
 		}
 		for (size_t i = 0; i < maxattribs; i++)
@@ -5459,10 +5465,15 @@ void Update_Generic3D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 			GPU_BufferPointers[0] += sizeof(Generic3DInfo);
 		}
 	}
+	Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iSkinHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iWeightsHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iLightHeader, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(iAnimationChannelHeader, false, false, ThreadIndex);
 }
 
 void Update_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, GraphicsEffectGeneric2D* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 	if (GPU_Buffers == NULL)
 	{
@@ -5492,8 +5503,117 @@ void Update_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 //Effect Signature Updates
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UpdateSignature_Generic3D(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
-{
+void UpdateSignature_Generic3D(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex) {
+	//animations frame update
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++)
+	{
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier != 0 && pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Animation)
+		{
+			RHeaderAnimation* pAnimation = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
+			if (pAnimation != NULL)
+			{
+				pAnimation->Time += (((double)clock() / (double)CLOCKS_PER_SEC) - pAnimation->LastTime) * pAnimation->Speed;
+				pAnimation->LastTime = ((double)clock() / (double)CLOCKS_PER_SEC);
+
+				for (size_t i = 0; i < pAnimation->iChannelsSize; i++) {
+					RHeaderAnimationChannel* pAnimationChannelHeader = Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i], false, false, ThreadIndex);
+					if (pAnimationChannelHeader->Sampler.Input.Count > pAnimation->longest)
+						pAnimation->longest = i;
+					Object_Ref_End_ResourceHeaderPointer(pAnimation->iChannels[i], false, false, ThreadIndex);
+				}
+				for (size_t i = 0; i < pAnimation->iChannelsSize; i++) {
+					RHeaderAnimationChannel* pAnimationChannelHeader = Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i], true, false, ThreadIndex);
+					RHeaderBuffer* pInputBuffer = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer, false, false, ThreadIndex);
+					RHeaderBuffer* pOutputBuffer = Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer, false, false, ThreadIndex);
+					RHeaderBufferSource* pInputBufferSource = Object_Ref_Get_ResourceHeaderPointer(pInputBuffer->iBufferSource, false, false, ThreadIndex);
+					RHeaderBufferSource* pOutputBufferSource = Object_Ref_Get_ResourceHeaderPointer(pOutputBuffer->iBufferSource, false, false, ThreadIndex);
+
+					void* inputpointer = (void*)((uint64_t)pInputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Input.ByteOffset);
+					void* outputpointer = (void*)((uint64_t)pOutputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Output.ByteOffset);
+
+					float barrier = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame];
+					float barrier1 = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame + 1];
+
+					while (((pAnimation->Speed >= 0.0) ? false : (pAnimation->Time < barrier)) ||
+						((pAnimation->Speed <= 0.0) ? false : (pAnimation->Time > barrier1))) // pAnimation->Time > barrier1 || (pAnimation->Time) <= barrier
+					{
+						pAnimationChannelHeader->KeyFrame += (pAnimation->Speed >= 0.0) ? 1 : -1;
+						if (pAnimation->longest == i)
+						{
+							if (pAnimationChannelHeader->KeyFrame < 0) //end reached
+							{
+								pAnimationChannelHeader->KeyFrame = 0;
+								switch (pAnimation->PlaybackMode)
+								{
+								case AnimationPlaybackMode_Once:
+									break;
+								case AnimationPlaybackMode_Repeat:
+									pAnimation->Time = ((float*)inputpointer)[pAnimationChannelHeader->Sampler.Input.Count - 2];
+									for (size_t i1 = 0; i1 < pAnimation->iChannelsSize; i1++) {
+										RHeaderAnimationChannel* pAnimationChannelHeader1 = Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i1], true, false, ThreadIndex);
+										pAnimationChannelHeader1->KeyFrame = pAnimationChannelHeader1->Sampler.Input.Count - 2;
+										Object_Ref_End_ResourceHeaderPointer(pAnimation->iChannels[i1], true, false, ThreadIndex);
+									}
+									break;
+								case AnimationPlaybackMode_BackToFront:
+									pAnimation->Time = 0.0;
+									pAnimation->Speed = pAnimation->Speed * -1;
+									break;
+								}
+								break;
+							}
+							else if ((pAnimationChannelHeader->KeyFrame) > (pAnimationChannelHeader->Sampler.Input.Count - 2)) //end reached
+							{
+								pAnimationChannelHeader->KeyFrame = pAnimationChannelHeader->Sampler.Input.Count - 2;
+								switch (pAnimation->PlaybackMode)
+								{
+								case AnimationPlaybackMode_Once:
+									break;
+								case AnimationPlaybackMode_Repeat:
+									pAnimation->Time = 0.0;
+									for (size_t i1 = 0; i1 < pAnimation->iChannelsSize; i1++) {
+										RHeaderAnimationChannel* pAnimationChannelHeader1 = Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i1], true, false, ThreadIndex);
+										pAnimationChannelHeader1->KeyFrame = 0;
+										Object_Ref_End_ResourceHeaderPointer(pAnimation->iChannels[i1], true, false, ThreadIndex);
+									}
+									break;
+								case AnimationPlaybackMode_BackToFront:
+									pAnimation->Time = ((float*)inputpointer)[pAnimationChannelHeader->Sampler.Input.Count - 2];
+									pAnimation->Speed = pAnimation->Speed * -1;
+									break;
+								}
+								break;
+							}
+						}
+						else
+						{
+							if (pAnimationChannelHeader->KeyFrame < 0) //end reached
+							{
+								pAnimationChannelHeader->KeyFrame = 0;
+								break;
+							}
+							else if ((pAnimationChannelHeader->KeyFrame) > (pAnimationChannelHeader->Sampler.Input.Count - 2)) //end reached
+							{
+								pAnimationChannelHeader->KeyFrame = pAnimationChannelHeader->Sampler.Input.Count - 2;
+								break;
+							}
+						}
+
+						barrier = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame];
+						barrier1 = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame + 1];
+					}
+					Object_Ref_End_ResourceHeaderPointer(pAnimation->iChannels[i], true, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pInputBuffer->iBufferSource, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pOutputBuffer->iBufferSource, false, false, ThreadIndex);
+				}
+				Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
+			}
+		}
+	}
+
 	//descriptor binding = info 0 weights 1, joints 2, lights 3, matrixs 4
 	//buffer indexes = amorphous 0, weights 1, joints 2, lights 3, matrixs 4
 	for (size_t i = 0; i < StorageBufferBindings; i++)
@@ -5509,8 +5629,7 @@ void UpdateSignature_Generic3D(GraphicsEffectSignature* pSignature, RHeaderGraph
 	}
 }
 
-void UpdateSignature_Generic2D(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
-{
+void UpdateSignature_Generic2D(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex) {
 
 }
 
@@ -5518,31 +5637,46 @@ void UpdateSignature_Generic2D(GraphicsEffectSignature* pSignature, RHeaderGraph
 //Effect Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Destroy_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
+TEXRESULT Destroy_Generic3D(ElementGraphics* pElement, ElementGraphics* pElementOverlay, GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 
-	if (pEffect->VkPipeline != NULL)
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipeline != pEffectOverlay->VkPipeline) : true) && pEffect->VkPipeline != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipeline, NULL);
-	if (pEffect->UsedAttributes != NULL)
-		free(pEffect->UsedAttributes);
-	if (pEffect->VkShaderVertex != NULL)
+		pEffect->VkPipeline = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderVertex != pEffectOverlay->VkShaderVertex) : true) && pEffect->VkShaderVertex != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
-	if (pEffect->VkShaderFragment != NULL)
+		pEffect->VkShaderVertex = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderFragment != pEffectOverlay->VkShaderFragment) : true) && pEffect->VkShaderFragment != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
+		pEffect->VkShaderFragment = NULL;
+	}
+
+	if (((pEffectOverlay != NULL) ? (pEffect->UsedAttributes != pEffectOverlay->UsedAttributes) : true) && pEffect->UsedAttributes != NULL) {
+		free(pEffect->UsedAttributes);
+		pEffect->UsedAttributes = NULL;
+	}
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT Destroy_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
+TEXRESULT Destroy_Generic2D(ElementGraphics* pElement, ElementGraphics* pElementOverlay, GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 
-	if (pEffect->VkPipeline != NULL)
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipeline != pEffectOverlay->VkPipeline) : true) && pEffect->VkPipeline != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipeline, NULL);
-	if (pEffect->VkShaderVertex != NULL)
+		pEffect->VkPipeline = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderVertex != pEffectOverlay->VkShaderVertex) : true) && pEffect->VkShaderVertex != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
-	if (pEffect->VkShaderFragment != NULL)
+		pEffect->VkShaderVertex = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderFragment != pEffectOverlay->VkShaderFragment) : true) && pEffect->VkShaderFragment != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
+		pEffect->VkShaderFragment = NULL;
+	}
+	Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -5550,17 +5684,15 @@ TEXRESULT Destroy_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* 
 //Effect Recreation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int cmpfunction(const void* a, const void* b)
-{
+int cmpfunction(const void* a, const void* b) {
 	if (Get_AttributeTypePriority(*((Attribute*)(a))) < Get_AttributeTypePriority(*((Attribute*)(b))))  return -1;
 	if (Get_AttributeTypePriority(*((Attribute*)(a))) == Get_AttributeTypePriority(*((Attribute*)(b))))  return 0;
 	if (Get_AttributeTypePriority(*((Attribute*)(a))) > Get_AttributeTypePriority(*((Attribute*)(b))))  return 1;
 }
-TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, uint32_t ThreadIndex) {
 	VkResult res = VK_SUCCESS;
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
-	RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 
 	size_t sfloatc = 0;
 	size_t ufloatc = 0;
@@ -5571,7 +5703,6 @@ TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D*
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//sorting attriubs
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 	size_t maxattribs = min(pEffect->AttributesSize, pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxVertexInputAttributes);
 	pEffect->UsedAttributes = (Attribute*)calloc(pEffect->AttributesSize, sizeof(Attribute));
@@ -5663,32 +5794,31 @@ TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D*
 	memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_ExecutionMode, FragmentShader3D_ExecutionMode_Size);
 	FragmentShader3DCompiledPointer += FragmentShader3D_ExecutionMode_Size;
 
-
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->EmissiveTexture.iTexture) == (TEXRESULT)Success) {
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->EmissiveTexture.iTexture) != NULL) {
 		const SPIRV Fragment_EmissiveTexture[] = FragmentShader3D_Decoration_TextureInput(1, Fragment3DVariable_UniformConstantPointer_Image_float32_Emissive);
 
 		Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Decoration_TextureInput_Size, 1);
 		memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_EmissiveTexture, FragmentShader3D_Decoration_TextureInput_Size);
 		FragmentShader3DCompiledPointer += FragmentShader3D_Decoration_TextureInput_Size;
-	}if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->NormalTexture.iTexture) == (TEXRESULT)Success) {
+	}if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->NormalTexture.iTexture) != NULL) {
 		const SPIRV Fragment_NormalTexture[] = FragmentShader3D_Decoration_TextureInput(2, Fragment3DVariable_UniformConstantPointer_Image_float32_Normal);
 
 		Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Decoration_TextureInput_Size, 1);
 		memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_NormalTexture, FragmentShader3D_Decoration_TextureInput_Size);
 		FragmentShader3DCompiledPointer += FragmentShader3D_Decoration_TextureInput_Size;
-	}if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->OcclusionTexture.iTexture) == (TEXRESULT)Success) {
+	}if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->OcclusionTexture.iTexture) != NULL) {
 		const SPIRV Fragment_OcclusionTexture[] = FragmentShader3D_Decoration_TextureInput(3, Fragment3DVariable_UniformConstantPointer_Image_float32_Occlusion);
 
 		Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Decoration_TextureInput_Size, 1);
 		memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_OcclusionTexture, FragmentShader3D_Decoration_TextureInput_Size);
 		FragmentShader3DCompiledPointer += FragmentShader3D_Decoration_TextureInput_Size;
-	}if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->BaseColourTexture.iTexture) == (TEXRESULT)Success) {
+	}if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->BaseColourTexture.iTexture) != NULL) {
 		const SPIRV Fragment_BaseColourTexture[] = FragmentShader3D_Decoration_TextureInput(4, Fragment3DVariable_UniformConstantPointer_Image_float32_BaseColour);
 
 		Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Decoration_TextureInput_Size, 1);
 		memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_BaseColourTexture, FragmentShader3D_Decoration_TextureInput_Size);
 		FragmentShader3DCompiledPointer += FragmentShader3D_Decoration_TextureInput_Size;
-	}if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->MetallicRoughnessTexture.iTexture) == (TEXRESULT)Success) {
+	}if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->MetallicRoughnessTexture.iTexture) != NULL) {
 		const SPIRV Fragment_MetallicRoughnessTexture[] = FragmentShader3D_Decoration_TextureInput(5, Fragment3DVariable_UniformConstantPointer_Image_float32_MetallicRoughness);
 
 		Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Decoration_TextureInput_Size, 1);
@@ -5862,23 +5992,23 @@ TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D*
 			memcpy((void*)((uint64_t)VertexShader3DCompiled + (uint64_t)VertexShader3DCompiledPointer), Vertex_Function_AttributeTexCoord, VertexShader3D_Function_AttributePass_Size);
 			VertexShader3DCompiledPointer += VertexShader3D_Function_AttributePass_Size;
 
-			if (pMaterial->EmissiveTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->EmissiveTexture.iTexture) == (TEXRESULT)Success)) {
+			if (pMaterial->EmissiveTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->EmissiveTexture.iTexture) != NULL)) {
 				Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Function_AttributeTexCoord_Size, 1);
 				memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_Function_AttributeTexCoordEmissive, FragmentShader3D_Function_AttributeTexCoord_Size);
 				FragmentShader3DCompiledPointer += FragmentShader3D_Function_AttributeTexCoord_Size;
-			}if (pMaterial->NormalTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->NormalTexture.iTexture) == (TEXRESULT)Success)) {
+			}if (pMaterial->NormalTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->NormalTexture.iTexture) != NULL)) {
 				Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Function_AttributeTexCoord_Size, 1);
 				memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_Function_AttributeTexCoordNormal, FragmentShader3D_Function_AttributeTexCoord_Size);
 				FragmentShader3DCompiledPointer += FragmentShader3D_Function_AttributeTexCoord_Size;
-			}if (pMaterial->OcclusionTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->OcclusionTexture.iTexture) == (TEXRESULT)Success)) {
+			}if (pMaterial->OcclusionTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->OcclusionTexture.iTexture) != NULL)) {
 				Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Function_AttributeTexCoord_Size, 1);
 				memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_Function_AttributeTexCoordOcclusion, FragmentShader3D_Function_AttributeTexCoord_Size);
 				FragmentShader3DCompiledPointer += FragmentShader3D_Function_AttributeTexCoord_Size;
-			}if (pMaterial->BaseColourTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->BaseColourTexture.iTexture) == (TEXRESULT)Success)) {
+			}if (pMaterial->BaseColourTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->BaseColourTexture.iTexture) != NULL)) {
 				Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Function_AttributeTexCoord_Size, 1);
 				memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_Function_AttributeTexCoordBaseColour, FragmentShader3D_Function_AttributeTexCoord_Size);
 				FragmentShader3DCompiledPointer += FragmentShader3D_Function_AttributeTexCoord_Size;
-			}if (pMaterial->MetallicRoughnessTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->MetallicRoughnessTexture.iTexture) == (TEXRESULT)Success)) {
+			}if (pMaterial->MetallicRoughnessTexture.UVIndex == TextureCoordsPair && (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->MetallicRoughnessTexture.iTexture) != NULL)) {
 				Resize_Array((void**)&FragmentShader3DCompiled, FragmentShader3DCompiledPointer, FragmentShader3DCompiledPointer + FragmentShader3D_Function_AttributeTexCoord_Size, 1);
 				memcpy((void*)((uint64_t)FragmentShader3DCompiled + (uint64_t)FragmentShader3DCompiledPointer), Fragment_Function_AttributeTexCoordMetallicRoughness, FragmentShader3D_Function_AttributeTexCoord_Size);
 				FragmentShader3DCompiledPointer += FragmentShader3D_Function_AttributeTexCoord_Size;
@@ -6181,16 +6311,17 @@ TEXRESULT ReCreate_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D*
 		}
 
 	}
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 	free(InputAttribDescs);
 	free(InputBindingDescs);
 	return (Success);
 }
 
-TEXRESULT ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, uint32_t ThreadIndex) {
 	VkResult res = VK_SUCCESS;
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
-	RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 	
 	uint64_t FragmentShader2DCompiledPointer = 0;
 	SPIRV FragmentShader2DCompiled[FragmentShader2D_MaxSize];
@@ -6202,8 +6333,7 @@ TEXRESULT ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D*
 	{
 		const SPIRV Fragment_TextureSampling_Default[] = FragmentShader2D_TextureSampling_Default();
 
-		if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->BaseColourTexture.iTexture) == (TEXRESULT)Success)
-		{
+		if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->BaseColourTexture.iTexture) != NULL)	{
 			memcpy((void*)((uint64_t)FragmentShader2DCompiled + (uint64_t)FragmentShader2DCompiledPointer), Fragment_TextureSampling_Default, FragmentShader2D_TextureSampling_DefaultSize);
 			FragmentShader2DCompiledPointer += FragmentShader2D_TextureSampling_DefaultSize;
 		}
@@ -6456,6 +6586,8 @@ TEXRESULT ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D*
 			return (Failure);
 		}
 	}
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -6463,8 +6595,7 @@ TEXRESULT ReCreate_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D*
 //Effect Packers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Pack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT Pack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	if (pData != NULL)
 	{
 		memset(&pCopiedEffect->VkPipeline, 0, sizeof(pCopiedEffect->VkPipeline));
@@ -6479,8 +6610,7 @@ TEXRESULT Pack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopi
 	return (Success);
 }
 
-TEXRESULT Pack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT Pack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	if (pData != NULL)
 	{
 		memset(&pCopiedEffect->VkPipeline, 0, sizeof(pCopiedEffect->VkPipeline));
@@ -6498,13 +6628,11 @@ TEXRESULT Pack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopi
 //Effect UnPackers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT UnPack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT UnPack_Generic3D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric3D* pEffect, GraphicsEffectGeneric3D* pCopiedEffect, const void* pData, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT UnPack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, const void* pData, uint32_t ThreadIndex)
-{
+TEXRESULT UnPack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const GraphicsEffectGeneric2D* pEffect, GraphicsEffectGeneric2D* pCopiedEffect, const void* pData, uint32_t ThreadIndex) {
 	return (Success);
 }
 
@@ -6512,8 +6640,7 @@ TEXRESULT UnPack_Generic2D(const ElementGraphics* pElement, ElementGraphics* pCo
 //Effect Constructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Create_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, GraphicsEffectCreateInfoGeneric3D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
+TEXRESULT Create_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* pEffect, GraphicsEffectCreateInfoGeneric3D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
 	if (pEffect == NULL)
 	{
 
@@ -6539,8 +6666,7 @@ TEXRESULT Create_Generic3D(ElementGraphics* pElement, GraphicsEffectGeneric3D* p
 	return (Success);
 }
 
-TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, GraphicsEffectCreateInfoGeneric2D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
-{
+TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* pEffect, GraphicsEffectCreateInfoGeneric2D* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
 	if (pEffect == NULL)
 	{
 
@@ -6576,8 +6702,7 @@ TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* p
 //Validators
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Check_Extension_Validately(const char* extension, VkExtensionProperties* ExtensionsAvailable, size_t ExtensionsAvailableSize)
-{
+bool Check_Extension_Validately(const char* extension, VkExtensionProperties* ExtensionsAvailable, size_t ExtensionsAvailableSize) {
 	for (size_t i1 = 0; i1 < ExtensionsAvailableSize; i1++)
 	{
 		if (strcmp(extension, ExtensionsAvailable[i1].extensionName) == 0)
@@ -6588,8 +6713,7 @@ bool Check_Extension_Validately(const char* extension, VkExtensionProperties* Ex
 	return false;
 }
 
-bool Check_Layer_Validately(const char* layer, VkLayerProperties* ValidationLayersAvailable, size_t ValidationLayersAvailableSize)
-{
+bool Check_Layer_Validately(const char* layer, VkLayerProperties* ValidationLayersAvailable, size_t ValidationLayersAvailableSize) {
 	for (size_t i1 = 0; i1 < ValidationLayersAvailableSize; i1++)
 	{
 		if (strcmp(layer, ValidationLayersAvailable[i1].layerName) == 0)
@@ -6606,14 +6730,15 @@ bool Check_Layer_Validately(const char* layer, VkLayerProperties* ValidationLaye
 
 //these three functions must match exactly apart from function it triggers
 void Size_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialHeader, RHeaderGraphicsWindow* pGraphicsWindow, RHeaderRender* pRender, uint32_t FrameIndex,
-	GPU_Allocation** ppAllocations, uint64_t** ppPointers){
-	for (size_t i0 = 0; i0 < pElement->Header.iParentsSize; i0++)
+	GPU_Allocation** ppAllocations, uint64_t** ppPointers, uint32_t ThreadIndex){
+	for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++)
 	{
-		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iParents[i0]);
-		for (size_t i1 = 0; i1 < pParentHeader->Header.iParentsSize; i1++)
+		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
+		for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++)
 		{
-			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iParents[i1]);
-			RHeaderScene* pSceneHeader = (RHeaderScene*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Scene);
+			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+			ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
+			RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 			for (size_t i2 = 0; i2 < pRender->iScenesSize; i2++)
 			{
 				if (pSceneHeader->Active == true && Object_Ref_Compare_ResourceHeaderAllocation(pRender->iScenes[i2], pSceneHeader->Header.Allocation) == Success)
@@ -6628,25 +6753,29 @@ void Size_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialH
 						if (pSignature->Update != NULL)
 						{
 							pSignature->Update(pElement, pParentHeader, pObject, pEffect, pGraphicsWindow, FrameIndex, pMaterialHeader,
-								NULL, ppPointers[BufferIndex]);
+								NULL, ppPointers[BufferIndex], ThreadIndex);
 						}
 						pointer += pEffect->Header.AllocationSize;
 					}
 				}
 			}
+			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+			Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 		}
+		Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 	}
 }
 
 void Fill_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialHeader, RHeaderGraphicsWindow* pGraphicsWindow, RHeaderRender* pRender, uint32_t FrameIndex,
-	GPU_Allocation** ppAllocations, uint64_t** ppPointers){
-	for (size_t i0 = 0; i0 < pElement->Header.iParentsSize; i0++)
+	GPU_Allocation** ppAllocations, uint64_t** ppPointers, uint32_t ThreadIndex){
+	for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++)
 	{
-		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iParents[i0]);
-		for (size_t i1 = 0; i1 < pParentHeader->Header.iParentsSize; i1++)
+		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
+		for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++)
 		{
-			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iParents[i1]);
-			RHeaderScene* pSceneHeader = (RHeaderScene*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Scene);
+			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+			ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
+			RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 			for (size_t i2 = 0; i2 < pRender->iScenesSize; i2++)
 			{
 				if (pSceneHeader->Active == true && Object_Ref_Compare_ResourceHeaderAllocation(pRender->iScenes[i2], pSceneHeader->Header.Allocation) == Success)
@@ -6661,25 +6790,29 @@ void Fill_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialH
 						if (pSignature->Update != NULL)
 						{
 							pSignature->Update(pElement, pParentHeader, pObject, pEffect, pGraphicsWindow, FrameIndex, pMaterialHeader,
-								ppAllocations[BufferIndex], ppPointers[BufferIndex]);
+								ppAllocations[BufferIndex], ppPointers[BufferIndex], ThreadIndex);
 						}
 						pointer += pEffect->Header.AllocationSize;
 					}
 				}
 			}
+			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+			Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 		}
+		Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 	}
 }
 
 void Draw_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialHeader, RHeaderGraphicsWindow* pGraphicsWindow, RHeaderRender* pRender, uint32_t FrameIndex,
-	GPU_Allocation** ppAllocations, uint64_t** ppPointers, RHeaderCamera* pCamera, mat4 CameraVP){
-	for (size_t i0 = 0; i0 < pElement->Header.iParentsSize; i0++)
+	GPU_Allocation** ppAllocations, uint64_t** ppPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex){
+	for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++)
 	{
-		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iParents[i0]);
-		for (size_t i1 = 0; i1 < pParentHeader->Header.iParentsSize; i1++)
+		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
+		for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++)
 		{
-			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iParents[i1]);
-			RHeaderScene* pSceneHeader = (RHeaderScene*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Scene);
+			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+			ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
+			RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 			for (size_t i2 = 0; i2 < pRender->iScenesSize; i2++)
 			{
 				if (pSceneHeader->Active == true && Object_Ref_Compare_ResourceHeaderAllocation(pRender->iScenes[i2], pSceneHeader->Header.Allocation) == Success)
@@ -6694,30 +6827,27 @@ void Draw_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialH
 						if (pSignature->Draw != NULL)
 						{
 							pSignature->Draw(pElement, pParentHeader, pObject, pEffect, pGraphicsWindow, FrameIndex, pMaterialHeader,
-								ppAllocations[BufferIndex], ppPointers[BufferIndex], pCamera, CameraVP);
+								ppAllocations[BufferIndex], ppPointers[BufferIndex], pCamera, CameraVP, ThreadIndex);
 						}
 						pointer += pEffect->Header.AllocationSize;
 					}
 				}
 			}
+			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+			Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 		}
+		Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 	}
 }
 
-void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
-{
+void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 	RHeaderGraphicsWindow* pGraphicsWindow = pFrameBuffer->pGraphicsWindow;
-	//uint32_t FrameIndex = pFrameBuffer->FrameIndex;
-	//uint32_t QueueIndex = pFrameBuffer->QueueIndex;
-	//uint32_t SwapChainIndex = pFrameBuffer->SwapChainIndex;
-
-	while (pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag == true)
-	{
+	uint32_t ThreadIndex = pFrameBuffer->ThreadIndex;
+	while (pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag == true) {
 		VkResult res = VK_SUCCESS;
 		GPU_Allocation** ppTotalAllocations = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppTotalAllocations));
 		uint64_t** ppPointers = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppPointers));
-		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-		{
+		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
 			GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
 			ppTotalAllocations[i] = (GPU_Allocation*)calloc(pSignature->SignatureGPUBuffersSize, sizeof(**ppTotalAllocations));
 			ppPointers[i] = (uint64_t*)calloc(pSignature->SignatureGPUBuffersSize, sizeof(**ppPointers));
@@ -6727,107 +6857,86 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		//Size Pass
 		//////////////////////////////////////////////////////////////////////////
 
-		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
-		{
-			RHeaderRender* pRenderHeader = ((RHeaderRender*)&Utils.RHeaderRenderBuffer.Buffer[i1]);
-			if (pRenderHeader->Header.AllocationSize != NULL && pRenderHeader->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Render)
-			{
-				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == (TEXRESULT)Success)
-				{
-					for (size_t i2 = 0; i2 < pRenderHeader->Header.iParentsSize; i2++)
-					{
-						Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iParents[i2]);
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
-						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								ElementGraphics* pElementInstance = NULL;
-								RHeaderMaterial* pMaterialInstace = NULL;
-								Object_Ref_StartThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex, &pElementInstance);
-								Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
 
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-									if (pMaterialInstace->AlphaMode == AlphaMode_Opaque || pMaterialInstace->AlphaMode == AlphaMode_Mask)
-										Size_ElementGraphics(pElementInstance, pMaterialInstace, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers);
-								i2 += pElement->Header.AllocationSize;
+		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Render) {
+				RHeaderRender* pRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+				if (pRenderHeader != NULL) {
+					if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == Success) {
+						for (size_t i2 = 0; i2 < pRenderHeader->Header.iObjectsSize; i2++) {
+							Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iObjects[i2], false, false, ThreadIndex);
+							//MAIN PASS
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+									if (pElement != NULL) {						
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+											if (pMaterial->AlphaMode == AlphaMode_Opaque || pMaterial->AlphaMode == AlphaMode_Mask)
+												Size_ElementGraphics(pElement, pMaterial, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, ThreadIndex);
+											//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}
+										//Object_Ref_End_ElementPointer(i, false, false, ThreadIndex);
+									}
+								}
 							}
-							else
-							{
-								i2++;
+							//TRANSPERANCY PASS		
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+											if (pMaterial->AlphaMode == AlphaMode_Blend)
+												Size_ElementGraphics(pElement, pMaterial, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, ThreadIndex);
+											//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}
+										//Object_Ref_End_ElementPointer(i, false, false, ThreadIndex);
+									}
+								}
 							}
-						}
-						//TRANSPERANCY PASS			
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
-						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								ElementGraphics* pElementInstance = NULL;
-								RHeaderMaterial* pMaterialInstace = NULL;
-								Object_Ref_StartThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex, &pElementInstance);
-								Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
-
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-									if (pMaterialInstace->AlphaMode == AlphaMode_Blend)
-										Size_ElementGraphics(pElementInstance, pMaterialInstace, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers);
-								i2 += pElement->Header.AllocationSize;
-							}
-							else
-							{
-								i2++;
-							}
+							//Object_Ref_End_ObjectPointer(pRenderHeader->Header.iParents[i2], false, false, ThreadIndex);
 						}
 					}
+					//Object_Ref_End_ResourceHeaderPointer(i, false, false, ThreadIndex);
 				}
-				i1 += pRenderHeader->Header.AllocationSize;
-			}
-			else
-			{
-				i1++;
 			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//Buffer Allocation
 		//////////////////////////////////////////////////////////////////////////
-
-		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-		{
+	
+		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
 			GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
-			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++)
-			{
+			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++) {
 				VkMemoryRequirements requirements = { sizeof(requirements) };
 				requirements.size = ppPointers[i][i1];
-				requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
+				//requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 				requirements.memoryTypeBits = NULL;
-				if (requirements.size != NULL)
-				{
+				if (requirements.size != NULL) {
 					ppTotalAllocations[i][i1] = GPUmalloc(pGraphicsWindow->pLogicalDevice, requirements, TargetMemory_Src, AllocationType_Linear, pFrameBuffer->ThreadIndex);
 					ppPointers[i][i1] = (uint64_t)ppTotalAllocations[i][i1].Allocater.pArenaAllocater->MappedMemory + ppTotalAllocations[i][i1].Pointer;
 				}
 			}
 		}
-
+		
 		//////////////////////////////////////////////////////////////////////////
 		//Additional Update Functions
 		//////////////////////////////////////////////////////////////////////////
 
-		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-		{
+		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
 			if (Utils.GraphicsEffectSignatures[i]->UpdateSignature != NULL)
-				Utils.GraphicsEffectSignatures[i]->UpdateSignature(Utils.GraphicsEffectSignatures[i], pGraphicsWindow, pFrameBuffer->FrameIndex, ppTotalAllocations[i], ppPointers[i]);
+				Utils.GraphicsEffectSignatures[i]->UpdateSignature(Utils.GraphicsEffectSignatures[i], pGraphicsWindow, pFrameBuffer->FrameIndex, ppTotalAllocations[i], ppPointers[i], ThreadIndex);
 		}
-		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-		{
+		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
 			GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
-			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++)
-			{
+			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++) {
 				ppPointers[i][i1] = 0;
-				if (ppTotalAllocations[i][i1].SizeBytes != NULL)
-				{
+				if (ppTotalAllocations[i][i1].SizeBytes != NULL) {
 					ppPointers[i][i1] = (uint64_t)ppTotalAllocations[i][i1].Allocater.pArenaAllocater->MappedMemory + ppTotalAllocations[i][i1].Pointer;
 				}
 			}
@@ -6837,73 +6946,57 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		//Data Fill Pass
 		//////////////////////////////////////////////////////////////////////////
 
-		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
-		{
-			RHeaderRender* pRenderHeader = ((RHeaderRender*)&Utils.RHeaderRenderBuffer.Buffer[i1]);
-			if (pRenderHeader->Header.AllocationSize != NULL && pRenderHeader->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Render)
-			{
-				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == (TEXRESULT)Success)
-				{
-					for (size_t i2 = 0; i2 < pRenderHeader->Header.iParentsSize; i2++)
-					{
-						Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iParents[i2]);
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
-						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								ElementGraphics* pElementInstance = NULL;
-								RHeaderMaterial* pMaterialInstace = NULL;
-								Object_Ref_StartThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex, &pElementInstance);
-								Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
-
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-									if (pMaterialInstace->AlphaMode == AlphaMode_Opaque || pMaterialInstace->AlphaMode == AlphaMode_Mask)
-										Fill_ElementGraphics(pElementInstance, pMaterialInstace, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers);
-								i2 += pElement->Header.AllocationSize;
+		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Render) {
+				RHeaderRender* pRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+				if (pRenderHeader != NULL) {
+					if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == Success) {
+						for (size_t i2 = 0; i2 < pRenderHeader->Header.iObjectsSize; i2++) {
+							Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iObjects[i2], false, true, ThreadIndex);
+							//MAIN PASS
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, true, ThreadIndex);
+											if (pMaterial->AlphaMode == AlphaMode_Opaque || pMaterial->AlphaMode == AlphaMode_Mask)
+												Fill_ElementGraphics(pElement, pMaterial, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, ThreadIndex);
+											//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}
+										//Object_Ref_End_ElementPointer(i, false, false, ThreadIndex);
+									}
+								}
 							}
-							else
-							{
-								i2++;
+							//TRANSPERANCY PASS		
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, true, ThreadIndex);
+											if (pMaterial->AlphaMode == AlphaMode_Blend)
+												Fill_ElementGraphics(pElement, pMaterial, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, ThreadIndex);
+											//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}
+										//Object_Ref_End_ElementPointer(i, false, false, ThreadIndex);
+									}
+								}
 							}
-						}
-						//TRANSPERANCY PASS
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
-						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								ElementGraphics* pElementInstance = NULL;
-								RHeaderMaterial* pMaterialInstace = NULL;
-								Object_Ref_StartThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex, &pElementInstance);
-								Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
-
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-									if (pMaterialInstace->AlphaMode == AlphaMode_Blend)
-										Fill_ElementGraphics(pElementInstance, pMaterialInstace, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers);
-								i2 += pElement->Header.AllocationSize;
-							}
-							else
-							{
-								i2++;
-							}
+							//Object_Ref_End_ObjectPointer(pRenderHeader->Header.iParents[i2], false, false, ThreadIndex);
 						}
 					}
+					//Object_Ref_End_ResourceHeaderPointer(i, false, false, ThreadIndex);
 				}
-				i1 += pRenderHeader->Header.AllocationSize;
-			}
-			else
-			{
-				i1++;
 			}
 		}
-		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-		{
+
+		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
 			GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
-			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++)
-			{
+			for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++) {
 				ppPointers[i][i1] = 0;
 			}
 		}
@@ -6913,157 +7006,113 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		memset(&MaterialsAllocation, 0, sizeof(MaterialsAllocation));
 		{
 			uint64_t MaterialsSize = 0;
-			for (size_t i = 0; i < Utils.RHeaderMaterialBuffer.Size;)
-			{
-				RHeaderMaterial* pMaterialHeader = (RHeaderMaterial*)&Utils.RHeaderMaterialBuffer.Buffer[i];
-				if (pMaterialHeader->Header.AllocationSize != NULL && pMaterialHeader->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Material)
-				{
-					MaterialsSize += AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
-					i += pMaterialHeader->Header.AllocationSize;
-				}
-				else
-				{
-					i++;
+			for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+				AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+				if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Material) {
+					RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+					if (pMaterial != NULL) {
+						if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pMaterial->iGraphicsWindow) == Success) {
+							MaterialsSize += AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
+						}
+					//	Object_Ref_End_ResourceHeaderPointer(i, false, false, ThreadIndex);
+					}
 				}
 			}
+
 			VkMemoryRequirements Materialsrequirements = { sizeof(Materialsrequirements) };
 			Materialsrequirements.size = MaterialsSize;
-			Materialsrequirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
+			//Materialsrequirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 			Materialsrequirements.memoryTypeBits = NULL;
 			if (MaterialsSize != NULL)
 				MaterialsAllocation = GPUmalloc(pGraphicsWindow->pLogicalDevice, Materialsrequirements, TargetMemory_Src, AllocationType_Linear, pFrameBuffer->ThreadIndex);
 
 			uint64_t MaterialsPointer = 0;
-			for (size_t i = 0; i < Utils.RHeaderMaterialBuffer.Size;)
-			{
-				RHeaderMaterial* pMaterial = (RHeaderMaterial*)&Utils.RHeaderMaterialBuffer.Buffer[i];
-				if (pMaterial->Header.AllocationSize != NULL && pMaterial->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Material)
-				{
-					RHeaderMaterial* pMaterialInstace = Object_Ref_Get_ResourceHeaderPointer(pMaterial->Header.Allocation);
-					Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
+			for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+				AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+				if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Material) {
+					RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+					if (pMaterial != NULL) {
+						if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pMaterial->iGraphicsWindow) == Success) {
+							GPU_RHeaderMaterial GPU_Material = { sizeof(GPU_Material) };
+							glm_vec4_copy(pMaterial->BaseColourFactor, GPU_Material.BaseColourFactor);
+							glm_vec4_copy(pMaterial->EmissiveFactor, GPU_Material.EmissiveFactor);
+							GPU_Material.MetallicFactor = pMaterial->MetallicFactor;
+							GPU_Material.RoughnessFactor = pMaterial->RoughnessFactor;
+							GPU_Material.AlphaCutoff = pMaterial->AlphaCutoff;
+							GPU_Material.reservedf0 = 0.0f;
+							GPU_Material.OcclusionStrength = pMaterial->OcclusionStrength;
+							GPU_Material.NormalScale = pMaterial->NormalScale;
+							GPU_Material.reservedf1 = 0.0f;
+							GPU_Material.reservedf2 = 0.0f;
+							GPU_Material.AlphaMode = pMaterial->AlphaMode;
+							GPU_Material.DoubleSided = pMaterial->DoubleSided;
+							GPU_Material.reservedi0 = 0;
+							GPU_Material.reservedi1 = 0;
+							GPU_Material.BaseColourTextureIndex = pMaterial->BaseColourTexture.UVIndex;
+							GPU_Material.MetallicRoughnessTextureIndex = pMaterial->MetallicRoughnessTexture.UVIndex;
+							GPU_Material.EmissiveTextureIndex = pMaterial->EmissiveTexture.UVIndex;
+							GPU_Material.NormalTextureIndex = pMaterial->NormalTexture.UVIndex;
+							GPU_Material.OcclusionTextureIndex = pMaterial->OcclusionTexture.UVIndex;
+							memcpy((void*)(((uint64_t)MaterialsAllocation.Allocater.pArenaAllocater->MappedMemory + MaterialsAllocation.Pointer + MaterialsPointer)), &GPU_Material, sizeof(GPU_RHeaderMaterial));
 
-					if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pGraphicsWindow->Header.Allocation) == (TEXRESULT)Success)
-					{
-						GPU_RHeaderMaterial GPU_Material = { sizeof(GPU_Material) };
-						glm_vec4_copy(pMaterialInstace->BaseColourFactor, GPU_Material.BaseColourFactor);
-						glm_vec4_copy(pMaterialInstace->EmissiveFactor, GPU_Material.EmissiveFactor);
+							VkDescriptorBufferInfo BufferInfo = { sizeof(BufferInfo) };
+							BufferInfo.buffer = MaterialsAllocation.Allocater.pArenaAllocater->VkBuffer;
+							BufferInfo.offset = MaterialsAllocation.Pointer + MaterialsPointer;
+							BufferInfo.range = AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
+							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterial->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &BufferInfo, NULL);
 
-						GPU_Material.MetallicFactor = pMaterialInstace->MetallicFactor;
-						GPU_Material.RoughnessFactor = pMaterialInstace->RoughnessFactor;
-						GPU_Material.AlphaCutoff = pMaterialInstace->AlphaCutoff;
-						GPU_Material.reservedf0 = 0.0f;
 
-						GPU_Material.OcclusionStrength = pMaterialInstace->OcclusionStrength;
-						GPU_Material.NormalScale = pMaterialInstace->NormalScale;
-						GPU_Material.reservedf1 = 0.0f;
-						GPU_Material.reservedf2 = 0.0f;
-
-						GPU_Material.AlphaMode = pMaterialInstace->AlphaMode;
-						GPU_Material.DoubleSided = pMaterialInstace->DoubleSided;
-						GPU_Material.reservedi0 = 0;
-						GPU_Material.reservedi1 = 0;
-
-						GPU_Material.BaseColourTextureIndex = pMaterialInstace->BaseColourTexture.UVIndex;
-						GPU_Material.MetallicRoughnessTextureIndex = pMaterialInstace->MetallicRoughnessTexture.UVIndex;
-						GPU_Material.EmissiveTextureIndex = pMaterialInstace->EmissiveTexture.UVIndex;
-						GPU_Material.NormalTextureIndex = pMaterialInstace->NormalTexture.UVIndex;
-						GPU_Material.OcclusionTextureIndex = pMaterialInstace->OcclusionTexture.UVIndex;
-
-						memcpy((void*)(((uint64_t)MaterialsAllocation.Allocater.pArenaAllocater->MappedMemory + MaterialsAllocation.Pointer + MaterialsPointer)), &GPU_Material, sizeof(GPU_RHeaderMaterial));
-
-						VkDescriptorBufferInfo BufferInfo = { sizeof(BufferInfo) };
-						BufferInfo.buffer = MaterialsAllocation.Allocater.pArenaAllocater->VkBuffer;
-						BufferInfo.offset = MaterialsAllocation.Pointer + MaterialsPointer;
-						BufferInfo.range = AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
-						Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterialInstace->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &BufferInfo, NULL);
-
-						if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialInstace->EmissiveTexture.iTexture) == (TEXRESULT)Success)
-						{
-							RHeaderTexture* pTextureInstance = Object_Ref_Get_ResourceHeaderPointer(pMaterialInstace->EmissiveTexture.iTexture);
-							Object_Ref_StartThread_ResourceHeader(pMaterialInstace->EmissiveTexture.iTexture, pFrameBuffer->ThreadIndex, &pTextureInstance);
-#ifndef NDEBUG
-							if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pTextureInstance->iGraphicsWindow) != (TEXRESULT)Success)
-							{
-								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 0);
+							RHeaderTexture* pEmissiveTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
+							if (pEmissiveTexture != NULL) {
+								VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
+								ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								ImageInfo.imageView = pEmissiveTexture->GPU_Texture.VkImageView;
+								ImageInfo.sampler = pEmissiveTexture->GPU_Texture.VkSampler;
+								Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterial->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
+								//Object_Ref_End_ResourceHeaderPointer(pMaterialHeader->EmissiveTexture.iTexture, false, false, ThreadIndex);
 							}
-#endif
-							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
-							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
-							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
-							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterialInstace->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
-						}
-						if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialInstace->NormalTexture.iTexture) == (TEXRESULT)Success)
-						{
-							RHeaderTexture* pTextureInstance = Object_Ref_Get_ResourceHeaderPointer(pMaterialInstace->NormalTexture.iTexture);
-							Object_Ref_StartThread_ResourceHeader(pMaterialInstace->NormalTexture.iTexture, pFrameBuffer->ThreadIndex, &pTextureInstance);
-#ifndef NDEBUG
-							if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pTextureInstance->iGraphicsWindow) != (TEXRESULT)Success)
-							{
-								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 1);
+							RHeaderTexture* pNormalTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->NormalTexture.iTexture, false, false, ThreadIndex);
+							if (pNormalTexture != NULL) {
+								VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
+								ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								ImageInfo.imageView = pNormalTexture->GPU_Texture.VkImageView;
+								ImageInfo.sampler = pNormalTexture->GPU_Texture.VkSampler;
+								Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterial->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
+								//Object_Ref_End_ResourceHeaderPointer(pMaterialHeader->NormalTexture.iTexture, false, false, ThreadIndex);
 							}
-#endif
-							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
-							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
-							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
-							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterialInstace->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
-						}
-						if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialInstace->OcclusionTexture.iTexture) == (TEXRESULT)Success)
-						{
-							RHeaderTexture* pTextureInstance = Object_Ref_Get_ResourceHeaderPointer(pMaterialInstace->OcclusionTexture.iTexture);
-							Object_Ref_StartThread_ResourceHeader(pMaterialInstace->OcclusionTexture.iTexture, pFrameBuffer->ThreadIndex, &pTextureInstance);
-#ifndef NDEBUG
-							if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pTextureInstance->iGraphicsWindow) != (TEXRESULT)Success)
-							{
-								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 2);
+							RHeaderTexture* pOcclusionTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->OcclusionTexture.iTexture, false, false, ThreadIndex);
+							if (pOcclusionTexture != NULL) {
+								VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
+								ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								ImageInfo.imageView = pOcclusionTexture->GPU_Texture.VkImageView;
+								ImageInfo.sampler = pOcclusionTexture->GPU_Texture.VkSampler;
+								Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterial->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
+								//Object_Ref_End_ResourceHeaderPointer(pMaterialHeader->OcclusionTexture.iTexture, false, false, ThreadIndex);
 							}
-#endif
-							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
-							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
-							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
-							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterialInstace->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
-						}
-						if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialInstace->BaseColourTexture.iTexture) == (TEXRESULT)Success)
-						{
-							RHeaderTexture* pTextureInstance = Object_Ref_Get_ResourceHeaderPointer(pMaterialInstace->BaseColourTexture.iTexture);
-							Object_Ref_StartThread_ResourceHeader(pMaterialInstace->BaseColourTexture.iTexture, pFrameBuffer->ThreadIndex, &pTextureInstance);
-#ifndef NDEBUG
-							if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pTextureInstance->iGraphicsWindow) != (TEXRESULT)Success)
-							{
-								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 3);
+							RHeaderTexture* pBaseColourTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+							if (pBaseColourTexture != NULL) {
+								//AllocationData* pallocdata = Object_Ref_Get_ResourceHeaderAllocationData(pBaseColourTexture->Header.Allocation);
+								//Engine_Ref_FunctionError("PTR", "AAA", pallocdata->LatestPointer);
+								VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
+								ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								ImageInfo.imageView = pBaseColourTexture->GPU_Texture.VkImageView;
+								ImageInfo.sampler = pBaseColourTexture->GPU_Texture.VkSampler;
+								Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterial->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 4, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
+								//Object_Ref_End_ResourceHeaderPointer(pMaterialHeader->BaseColourTexture.iTexture, false, false, ThreadIndex);
 							}
-#endif
-							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
-							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
-							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
-							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterialInstace->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 4, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
-						}
-						if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialInstace->MetallicRoughnessTexture.iTexture) == (TEXRESULT)Success)
-						{
-							RHeaderTexture* pTextureInstance = Object_Ref_Get_ResourceHeaderPointer(pMaterialInstace->MetallicRoughnessTexture.iTexture);
-							Object_Ref_StartThread_ResourceHeader(pMaterialInstace->MetallicRoughnessTexture.iTexture, pFrameBuffer->ThreadIndex, &pTextureInstance);
-#ifndef NDEBUG
-							if (Object_Ref_Compare_ResourceHeaderAllocation(pMaterialInstace->iGraphicsWindow, pTextureInstance->iGraphicsWindow) != (TEXRESULT)Success)
-							{
-								Engine_Ref_FunctionError("ReCreate_TextureHeader()", "pTexture->iGraphicsWindow Does Not Match pMaterialHeader->iGraphicsWindow, Material Texture Index == ", 4);
+							RHeaderTexture* pMetallicRoughnessTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->MetallicRoughnessTexture.iTexture, false, false, ThreadIndex);
+							if (pMetallicRoughnessTexture != NULL) {
+								VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
+								ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								ImageInfo.imageView = pMetallicRoughnessTexture->GPU_Texture.VkImageView;
+								ImageInfo.sampler = pMetallicRoughnessTexture->GPU_Texture.VkSampler;
+								Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterial->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 5, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
+								//Object_Ref_End_ResourceHeaderPointer(pMaterialHeader->MetallicRoughnessTexture.iTexture, false, false, ThreadIndex);
 							}
-#endif
-							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
-							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-							ImageInfo.imageView = pTextureInstance->GPU_Texture.VkImageView;
-							ImageInfo.sampler = pTextureInstance->GPU_Texture.VkSampler;
-							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pMaterialInstace->VkMaterialDescriptorSets[pFrameBuffer->FrameIndex], 5, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NULL, &ImageInfo);
+							MaterialsPointer += AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
 						}
-						MaterialsPointer += AlignNumber(sizeof(GPU_RHeaderMaterial), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minUniformBufferOffsetAlignment);
+						//Object_Ref_End_ResourceHeaderPointer(i, false, false, ThreadIndex);
 					}
-					i += pMaterialInstace->Header.AllocationSize;
-				}
-				else
-				{
-					i++;
 				}
 			}
 		}
@@ -7077,8 +7126,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		BeginInfo.flags = NULL;
 		BeginInfo.pInheritanceInfo = NULL;
 		BeginInfo.pNext = NULL;
-		if ((res = vkBeginCommandBuffer(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, &BeginInfo)) != VK_SUCCESS)
-		{
+		if ((res = vkBeginCommandBuffer(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, &BeginInfo)) != VK_SUCCESS) {
 			Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkBeginCommandBuffer Failed, VkResult == ", res);
 		}
 
@@ -7103,212 +7151,183 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		//Additional Draw Functions
 		//////////////////////////////////////////////////////////////////////////
 
-		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-		{
+		for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
 			if (Utils.GraphicsEffectSignatures[i]->DrawSignature != NULL)
-				Utils.GraphicsEffectSignatures[i]->DrawSignature(Utils.GraphicsEffectSignatures[i], pGraphicsWindow, pFrameBuffer->FrameIndex, ppTotalAllocations[i], ppPointers[i]);
+				Utils.GraphicsEffectSignatures[i]->DrawSignature(Utils.GraphicsEffectSignatures[i], pGraphicsWindow, pFrameBuffer->FrameIndex, ppTotalAllocations[i], ppPointers[i], ThreadIndex);
 		}
 
-		Engine_Ref_Lock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+		Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		if ((res = vkAcquireNextImageKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain,
-			UINT32_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT)
-		{
+			UINT32_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT) {
 			Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkAcquireNextImageKHR Failed, VkResult == ", res);
 		}
 
-		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
-		{
-			RHeaderRender* pRenderHeader = ((RHeaderRender*)&Utils.RHeaderRenderBuffer.Buffer[i1]);
-			if (pRenderHeader->Header.AllocationSize != NULL && pRenderHeader->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Render)
-			{
-				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == (TEXRESULT)Success)
-				{
-					for (size_t i2 = 0; i2 < pRenderHeader->Header.iParentsSize; i2++)
-					{
-						Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iParents[i2]);
+		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Render) {
+				RHeaderRender* pRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+				if (pRenderHeader != NULL) {
+					if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == Success) {
+						for (size_t i2 = 0; i2 < pRenderHeader->Header.iObjectsSize; i2++) {
+							Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iObjects[i2], false, true, ThreadIndex);
 
-						VkRenderPassBeginInfo BeginRenderPassInfo;
-						memset(&BeginRenderPassInfo, 0, sizeof(BeginRenderPassInfo));
-						BeginRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-						BeginRenderPassInfo.renderPass = pGraphicsWindow->VkRenderPassDeferred;
-						BeginRenderPassInfo.framebuffer = pRenderHeader->pFrameBuffers[pFrameBuffer->SwapChainIndex];
-						BeginRenderPassInfo.renderArea.offset.x = 0;
-						BeginRenderPassInfo.renderArea.offset.y = 0;
-						BeginRenderPassInfo.renderArea.extent.width = pGraphicsWindow->CurrentExtentWidth;
-						BeginRenderPassInfo.renderArea.extent.height = pGraphicsWindow->CurrentExtentHeight;
-						BeginRenderPassInfo.clearValueCount = TotalDeferredFramebufferCount;
+							VkRenderPassBeginInfo BeginRenderPassInfo;
+							memset(&BeginRenderPassInfo, 0, sizeof(BeginRenderPassInfo));
+							BeginRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+							BeginRenderPassInfo.renderPass = pGraphicsWindow->VkRenderPassDeferred;
+							BeginRenderPassInfo.framebuffer = pRenderHeader->pFrameBuffers[pFrameBuffer->SwapChainIndex];
+							BeginRenderPassInfo.renderArea.offset.x = 0;
+							BeginRenderPassInfo.renderArea.offset.y = 0;
+							BeginRenderPassInfo.renderArea.extent.width = pGraphicsWindow->CurrentExtentWidth;
+							BeginRenderPassInfo.renderArea.extent.height = pGraphicsWindow->CurrentExtentHeight;
+							BeginRenderPassInfo.clearValueCount = TotalDeferredFramebufferCount;
 
-						VkClearValue clears[TotalDeferredFramebufferCount] = { sizeof(*clears) * TotalDeferredFramebufferCount };
+							VkClearValue clears[TotalDeferredFramebufferCount] = { sizeof(*clears) * TotalDeferredFramebufferCount };
 
-						clears[0].color.float32[0] = pRenderHeader->Clear[0];
-						clears[0].color.float32[1] = pRenderHeader->Clear[1];
-						clears[0].color.float32[2] = pRenderHeader->Clear[2];
-						clears[0].color.float32[3] = pRenderHeader->Clear[3];
-						clears[1].color.float32[0] = 0.0f;
-						clears[1].color.float32[1] = 0.0f;
-						clears[1].color.float32[2] = 0.0f;
-						clears[1].color.float32[3] = 0.0f;
-						clears[2].color.float32[0] = 0.0f;
-						clears[2].color.float32[1] = 0.0f;
-						clears[2].color.float32[2] = 0.0f;
-						clears[2].color.float32[3] = 0.0f;
-						clears[3].color.float32[0] = 0.0f;
-						clears[3].color.float32[1] = 0.0f;
-						clears[3].color.float32[2] = 0.0f;
-						clears[3].color.float32[3] = 0.0f;
-						clears[4].color.float32[0] = 0.0f;
-						clears[4].color.float32[1] = 0.0f;
-						clears[4].color.float32[2] = 0.0f;
-						clears[4].color.float32[3] = 0.0f;
-						clears[5].color.float32[0] = pRenderHeader->Clear[0];
-						clears[5].color.float32[1] = pRenderHeader->Clear[1];
-						clears[5].color.float32[2] = pRenderHeader->Clear[2];
-						clears[5].color.float32[3] = pRenderHeader->Clear[3];
+							clears[0].color.float32[0] = pRenderHeader->Clear[0];
+							clears[0].color.float32[1] = pRenderHeader->Clear[1];
+							clears[0].color.float32[2] = pRenderHeader->Clear[2];
+							clears[0].color.float32[3] = pRenderHeader->Clear[3];
+							clears[1].color.float32[0] = 0.0f;
+							clears[1].color.float32[1] = 0.0f;
+							clears[1].color.float32[2] = 0.0f;
+							clears[1].color.float32[3] = 0.0f;
+							clears[2].color.float32[0] = 0.0f;
+							clears[2].color.float32[1] = 0.0f;
+							clears[2].color.float32[2] = 0.0f;
+							clears[2].color.float32[3] = 0.0f;
+							clears[3].color.float32[0] = 0.0f;
+							clears[3].color.float32[1] = 0.0f;
+							clears[3].color.float32[2] = 0.0f;
+							clears[3].color.float32[3] = 0.0f;
+							clears[4].color.float32[0] = 0.0f;
+							clears[4].color.float32[1] = 0.0f;
+							clears[4].color.float32[2] = 0.0f;
+							clears[4].color.float32[3] = 0.0f;
+							clears[5].color.float32[0] = pRenderHeader->Clear[0];
+							clears[5].color.float32[1] = pRenderHeader->Clear[1];
+							clears[5].color.float32[2] = pRenderHeader->Clear[2];
+							clears[5].color.float32[3] = pRenderHeader->Clear[3];
 
-						clears[6].depthStencil.depth = 1.0f;
-						clears[6].depthStencil.stencil = 1;
-						memset(&clears[7], 0, sizeof(VkClearValue));
-						memset(&clears[8], 0, sizeof(VkClearValue));
+							clears[6].depthStencil.depth = 1.0f;
+							clears[6].depthStencil.stencil = 1;
+							memset(&clears[7], 0, sizeof(VkClearValue));
+							memset(&clears[8], 0, sizeof(VkClearValue));
 
+							BeginRenderPassInfo.pClearValues = clears;
+							vkCmdBeginRenderPass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, &BeginRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-						BeginRenderPassInfo.pClearValues = clears;
-						vkCmdBeginRenderPass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, &BeginRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+							PushConstantsDeferred DeferredPushConstants;
+							memset(&DeferredPushConstants, 0, sizeof(DeferredPushConstants));
 
-						PushConstantsDeferred DeferredPushConstants;
-						memset(&DeferredPushConstants, 0, sizeof(DeferredPushConstants));
+							ResourceHeaderAllocation iCameraHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Camera, ThreadIndex);
+							RHeaderCamera* pCameraHeader = Object_Ref_Get_ResourceHeaderPointer(iCameraHeader, false, false, ThreadIndex);
 
-						RHeaderCamera* pCameraHeader = (RHeaderCamera*)Object_Ref_Scan_ObjectHeadersSingle(pObject->Header.Allocation, (uint32_t)GraphicsHeader_Camera);
-						
-						mat4 VP;
-						mat4 CameraPositionMatrix;
-						glm_mat4_identity(CameraPositionMatrix);
-						Calculate_TotalMatrix(&CameraPositionMatrix, pObject->Header.Allocation);
-						//multiple position headers is undefined
+							mat4 VP;
+							mat4 CameraPositionMatrix;
+							glm_mat4_identity(CameraPositionMatrix);
+							Calculate_TotalMatrix(&CameraPositionMatrix, pObject->Header.Allocation, ThreadIndex);
+							//multiple position headers is undefined
 
-						mat4 vmat;
-						mat4 pmat;
-						glm_mat4_identity(vmat);
-						glm_mat4_identity(pmat);
-						glm_mat4_inv_precise_sse2(CameraPositionMatrix, vmat);
-
-						if (pCameraHeader != NULL)
-						{
-							switch (pCameraHeader->Type)
-							{
-							case CameraType_Perspective:
-								glm_perspective((float)pCameraHeader->CameraU.Perspective.y_fov, (float)pCameraHeader->CameraU.Perspective.AspectRatio,
-									(float)pCameraHeader->CameraU.Perspective.z_near, (float)pCameraHeader->CameraU.Perspective.z_far, pmat);
-								break;
-							case CameraType_Orthographic:
-								glm_ortho(-(float)pCameraHeader->CameraU.Orthographic.x_mag, (float)pCameraHeader->CameraU.Orthographic.x_mag,
-									-(float)pCameraHeader->CameraU.Orthographic.y_mag, (float)pCameraHeader->CameraU.Orthographic.y_mag,
-									(float)pCameraHeader->CameraU.Orthographic.z_near, (float)pCameraHeader->CameraU.Orthographic.z_far, pmat);
-								break;
-							}
-						}
-						else
-						{
+							mat4 vmat;
+							mat4 pmat;
+							glm_mat4_identity(vmat);
 							glm_mat4_identity(pmat);
+							glm_mat4_inv_precise_sse2(CameraPositionMatrix, vmat);
+
+							if (pCameraHeader != NULL) {
+								switch (pCameraHeader->Type) {
+								case CameraType_Perspective:
+									glm_perspective((float)pCameraHeader->CameraU.Perspective.y_fov, (float)pCameraHeader->CameraU.Perspective.AspectRatio,
+										(float)pCameraHeader->CameraU.Perspective.z_near, (float)pCameraHeader->CameraU.Perspective.z_far, pmat);
+									break;
+								case CameraType_Orthographic:
+									glm_ortho(-(float)pCameraHeader->CameraU.Orthographic.x_mag, (float)pCameraHeader->CameraU.Orthographic.x_mag,
+										-(float)pCameraHeader->CameraU.Orthographic.y_mag, (float)pCameraHeader->CameraU.Orthographic.y_mag,
+										(float)pCameraHeader->CameraU.Orthographic.z_near, (float)pCameraHeader->CameraU.Orthographic.z_far, pmat);
+									break;
+								}
+							}
+							else {
+								glm_mat4_identity(pmat);
+							}
+							glm_mul_sse2(pmat, vmat, VP);
+
+							for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++) {
+								GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
+								for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++) {
+									ppPointers[i][i1] = 0;
+								}
+							}
+
+							//MAIN PASS
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, true, ThreadIndex);
+											if (pMaterial->AlphaMode == AlphaMode_Opaque || pMaterial->AlphaMode == AlphaMode_Mask)
+												Draw_ElementGraphics(pElement, pMaterial, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, pCameraHeader, VP, ThreadIndex);
+											//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}							
+										//Object_Ref_End_ElementPointer(i, false, false, ThreadIndex);
+									}
+								}
+							}
+							vkCmdNextSubpass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+							//TRANSPERANCY PASS		
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, true, ThreadIndex);
+											if (pMaterial->AlphaMode == AlphaMode_Blend)
+												Draw_ElementGraphics(pElement, pMaterial, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, pCameraHeader, VP, ThreadIndex);
+											//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}								
+										//Object_Ref_End_ElementPointer(i, false, false, ThreadIndex);
+									}
+								}
+							}
+							vkCmdNextSubpass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pGraphicsWindow->VkPipelineDeferred);
+
+							uint8_t pushconstantbuffer[sizeof(PushConstantsDeferred)];
+							memcpy(pushconstantbuffer, &DeferredPushConstants, sizeof(DeferredPushConstants));
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, pGraphicsWindow->VkPipelineLayoutDeferred, VK_SHADER_STAGE_ALL, 0,
+								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, pushconstantbuffer);
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+								pGraphicsWindow->VkPipelineLayoutDeferred, 0, 1, &pGraphicsWindow->VkDescriptorSetsInputAttachment[pFrameBuffer->SwapChainIndex], 0, NULL);
+							vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, 6, 1, 0, 0);
+							vkCmdEndRenderPass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer);
+
+							Object_Ref_End_ResourceHeaderPointer(iCameraHeader, false, false, ThreadIndex);
+
+							//Object_Ref_End_ObjectPointer(pRenderHeader->Header.iParents[i2], false, false, ThreadIndex);
 						}
-						glm_mul_sse2(pmat, vmat, VP);
-
-						for (size_t i = 0; i < Utils.GraphicsEffectSignaturesSize; i++)
-						{
-							GraphicsEffectSignature* pSignature = Utils.GraphicsEffectSignatures[i];
-							for (size_t i1 = 0; i1 < pSignature->SignatureGPUBuffersSize; i1++)
-							{
-								ppPointers[i][i1] = 0;
-							}
-						}
-
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
-						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								ElementGraphics* pElementInstance = NULL;
-								RHeaderMaterial* pMaterialInstace = NULL;
-								Object_Ref_StartThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex, &pElementInstance);
-								Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
-
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-									if (pMaterialInstace->AlphaMode == AlphaMode_Opaque || pMaterialInstace->AlphaMode == AlphaMode_Mask)
-										Draw_ElementGraphics(pElementInstance, pMaterialInstace, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, pCameraHeader, VP);
-								i2 += pElement->Header.AllocationSize;
-							}
-							else
-							{
-								i2++;
-							}
-						}
-						vkCmdNextSubpass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
-						//TRANSPERANCY PASS							
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
-						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								ElementGraphics* pElementInstance = NULL;
-								RHeaderMaterial* pMaterialInstace = NULL;
-								Object_Ref_StartThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex, &pElementInstance);
-								Object_Ref_StartThread_ResourceHeader(pMaterial->Header.Allocation, pFrameBuffer->ThreadIndex, &pMaterialInstace);
-
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-									if (pMaterialInstace->AlphaMode == AlphaMode_Blend)
-										Draw_ElementGraphics(pElementInstance, pMaterialInstace, pGraphicsWindow, pRenderHeader, pFrameBuffer->FrameIndex, ppTotalAllocations, ppPointers, pCameraHeader, VP);
-								i2 += pElement->Header.AllocationSize;
-							}
-							else
-							{
-								i2++;
-							}
-						}
-
-						vkCmdNextSubpass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
-
-						vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pGraphicsWindow->VkPipelineDeferred);
-
-						uint8_t pushconstantbuffer[sizeof(PushConstantsDeferred)];
-						memcpy(pushconstantbuffer, &DeferredPushConstants, sizeof(DeferredPushConstants));
-						vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, pGraphicsWindow->VkPipelineLayoutDeferred, VK_SHADER_STAGE_ALL, 0,
-							pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, pushconstantbuffer);
-
-						vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-							pGraphicsWindow->VkPipelineLayoutDeferred, 0, 1, &pGraphicsWindow->VkDescriptorSetsInputAttachment[pFrameBuffer->SwapChainIndex], 0, NULL);
-
-						vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer, 6, 1, 0, 0);
-
-						vkCmdEndRenderPass(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer);
 					}
+					//Object_Ref_End_ResourceHeaderPointer(i, false, false, ThreadIndex);
 				}
-				i1 += pRenderHeader->Header.AllocationSize;
-			}
-			else
-			{
-				i1++;
-			}
+			}		
 		}
 
 		vkEndCommandBuffer(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer);
 
 		//alternate break point
-		if (pGraphicsWindow->RecreateFlag != false || pGraphicsWindow->CloseFlag != false)
-		{
-			Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+		if (pGraphicsWindow->RecreateFlag != false || pGraphicsWindow->CloseFlag != false) {
+			Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		}
-		else
-		{
+		else {
 			uint32_t QueueIndex1 = 0;
 			{
 				bool found = false;
-				while (found == false)
-				{
-					for (size_t i = 0; i < pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilySize; i++)
-					{
-						if (Engine_Ref_TryLock_Mutex(pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[i]) == Success)
-						{
+				while (found == false) {
+					for (size_t i = 0; i < pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilySize; i++) {
+						if (Engine_Ref_TryLock_Mutex(&pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[i]) == Success) {
 							QueueIndex1 = i;
 							found = true;
 							break;
@@ -7337,8 +7356,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			SubmitInfo.signalSemaphoreCount = SignalSemaphoresSize;
 			SubmitInfo.pCommandBuffers = &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer;
 			SubmitInfo.commandBufferCount = 1;
-			if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence)) != VK_SUCCESS)
-			{
+			if ((res = vkQueueSubmit(Queue, 1, &SubmitInfo, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence)) != VK_SUCCESS) {
 				Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkQueueSubmit Failed, VkResult == ", res);
 			}
 
@@ -7355,100 +7373,111 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 			PresentInfo.pImageIndices = &pFrameBuffer->SwapChainIndex;
 			PresentInfo.pResults = NULL;
 
-			if ((res = vkQueuePresentKHR(Queue, &PresentInfo)) != VK_SUCCESS)
-			{
-				if (res == VK_ERROR_OUT_OF_DATE_KHR)
-				{
+			if ((res = vkQueuePresentKHR(Queue, &PresentInfo)) != VK_SUCCESS) {
+				if (res == VK_ERROR_OUT_OF_DATE_KHR) {
 					//Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
 					c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				}
-				else
-				{
+				else {
 					Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkQueuePresentKHR Failed, VkResult == ", res);
 				}
 			}
 			pGraphicsWindow->FramesDone++;
-			Engine_Ref_Unlock_Mutex(pGraphicsWindow->SwapChainAccessMutex);
+			Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		
 			vkWaitForFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence, VK_TRUE, UINT64_MAX);
 			vkResetFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence);
-			Engine_Ref_Unlock_Mutex(pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex1]);
+			Engine_Ref_Unlock_Mutex(&pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex1]);
 		}
 
-		for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
-		{
-			RHeaderRender* pRenderHeader = ((RHeaderRender*)&Utils.RHeaderRenderBuffer.Buffer[i1]);
-			if (pRenderHeader->Header.AllocationSize != NULL && pRenderHeader->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Render)
-			{
-				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == (TEXRESULT)Success)
-				{
-					for (size_t i2 = 0; i2 < pRenderHeader->Header.iParentsSize; i2++)
-					{
-						Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iParents[i2]);
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
+
+		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Material) {
+				RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+				if (pMaterial != NULL) {
+					if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pMaterial->iGraphicsWindow) == Success) {
+						RHeaderTexture* pEmissiveTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, true, ThreadIndex);
+						if (pEmissiveTexture != NULL)
 						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterialHeader = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-								{
-									Object_Ref_EndThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex);
-									Object_Ref_EndThread_ResourceHeader(pMaterialHeader->Header.Allocation, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->BaseColourTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->BaseColourTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->MetallicRoughnessTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->MetallicRoughnessTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->EmissiveTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->EmissiveTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->NormalTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->NormalTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->OcclusionTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->OcclusionTexture.iTexture, pFrameBuffer->ThreadIndex);
-								}
-								i2 += pElement->Header.AllocationSize;
-							}
-							else
-							{
-								i2++;
-							}
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, true, ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
 						}
-						//TRANSPERANCY PASS
-						for (size_t i2 = 0; i2 < Utils.ElementGraphicsBuffer.Size;)
+						RHeaderTexture* pNormalTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->NormalTexture.iTexture, false, true, ThreadIndex);
+						if (pNormalTexture != NULL)
 						{
-							ElementGraphics* pElement = (Element*)&Utils.ElementGraphicsBuffer.Buffer[i2];
-							if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-							{
-								RHeaderMaterial* pMaterialHeader = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == (TEXRESULT)Success)
-								{
-									Object_Ref_EndThread_Element(pElement->Header.Allocation, pFrameBuffer->ThreadIndex);
-									Object_Ref_EndThread_ResourceHeader(pMaterialHeader->Header.Allocation, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->BaseColourTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->BaseColourTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->MetallicRoughnessTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->MetallicRoughnessTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->EmissiveTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->EmissiveTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->NormalTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->NormalTexture.iTexture, pFrameBuffer->ThreadIndex);
-									if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterialHeader->OcclusionTexture.iTexture) == Success)
-										Object_Ref_EndThread_ResourceHeader(pMaterialHeader->OcclusionTexture.iTexture, pFrameBuffer->ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, true, ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->NormalTexture.iTexture, false, false, ThreadIndex);
+						}
+						RHeaderTexture* pOcclusionTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->OcclusionTexture.iTexture, false, true, ThreadIndex);
+						if (pOcclusionTexture != NULL)
+						{
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, true, ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->OcclusionTexture.iTexture, false, false, ThreadIndex);
+						}
+						RHeaderTexture* pBaseColourTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, true, ThreadIndex);
+						if (pBaseColourTexture != NULL)
+						{
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, true, ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+						}
+						RHeaderTexture* pMetallicRoughnessTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->MetallicRoughnessTexture.iTexture, false, true, ThreadIndex);
+						if (pMetallicRoughnessTexture != NULL)
+						{
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, true, ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pMaterial->MetallicRoughnessTexture.iTexture, false, false, ThreadIndex);
+						}
+
+					}
+					Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+				}
+			}
+		}
+
+
+		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Render) {
+				RHeaderRender* pRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+				if (pRenderHeader != NULL) {
+					if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == Success) {
+						for (size_t i2 = 0; i2 < pRenderHeader->Header.iObjectsSize; i2++) {
+							Object* pObject = Object_Ref_Get_ObjectPointer(pRenderHeader->Header.iObjects[i2], false, true, ThreadIndex);
+							//MAIN PASS
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, true, ThreadIndex);
+
+											Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}
+										Object_Ref_End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+									}
 								}
-								i2 += pElement->Header.AllocationSize;
 							}
-							else
-							{
-								i2++;
+							//TRANSPERANCY PASS		
+							for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+								AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+								if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+									ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+									if (pElement != NULL) {
+										if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pElement->iGraphicsWindow) == Success) {
+											RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, true, ThreadIndex);
+
+											Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+										}
+										Object_Ref_End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+									}
+								}
 							}
+							Object_Ref_End_ObjectPointer(pRenderHeader->Header.iObjects[i2], false, false, ThreadIndex);
 						}
 					}
+					Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 				}
-				i1 += pRenderHeader->Header.AllocationSize;
-			}
-			else
-			{
-				i1++;
 			}
 		}
 
@@ -7477,192 +7506,65 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer)
 		{
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
 		}
-
 	}
 	Engine_Ref_Exit_Thread(0);
 }
 
-TEXRESULT Update_Graphics()
-{
-	//animations frame update
-	for (size_t anim = 0; anim < Utils.RHeaderAnimationBuffer.Size;)
-	{
-		RHeaderAnimation* pAnimation = (RHeaderAnimation*)&Utils.RHeaderAnimationBuffer.Buffer[anim];
-		if (pAnimation->Header.AllocationSize != NULL && pAnimation->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Animation)
-		{
-			pAnimation->Time += (((double)clock() / (double)CLOCKS_PER_SEC) - pAnimation->LastTime) * pAnimation->Speed;
-			pAnimation->LastTime = ((double)clock() / (double)CLOCKS_PER_SEC);
-
-			for (size_t i = 0; i < pAnimation->iChannelsSize; i++)
-			{
-				RHeaderAnimationChannel* pAnimationChannelHeader = (RHeaderAnimationChannel*)Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i]);
-
-				if (pAnimationChannelHeader->Sampler.Input.Count > pAnimation->longest)
-				{
-					pAnimation->longest = i;
-				}
-			}
-			for (size_t i = 0; i < pAnimation->iChannelsSize; i++)
-			{
-				RHeaderAnimationChannel* pAnimationChannelHeader = (RHeaderAnimationChannel*)Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i]);
-
-				RHeaderBuffer* pInputBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Input.iBuffer);
-				RHeaderBuffer* pOutputBuffer = (RHeaderBuffer*)Object_Ref_Get_ResourceHeaderPointer(pAnimationChannelHeader->Sampler.Output.iBuffer);
-
-				RHeaderBufferSource* pInputBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pInputBuffer->iBufferSource);
-				RHeaderBufferSource* pOutputBufferSource = (RHeaderBufferSource*)Object_Ref_Get_ResourceHeaderPointer(pOutputBuffer->iBufferSource);
-
-				void* inputpointer = (void*)((uint64_t)pInputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Input.ByteOffset);
-				void* outputpointer = (void*)((uint64_t)pOutputBufferSource->Data.pData + pAnimationChannelHeader->Sampler.Output.ByteOffset);
-
-				float barrier = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame];
-				float barrier1 = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame + 1];
-
-				while (((pAnimation->Speed >= 0.0) ? false : (pAnimation->Time < barrier)) ||
-					((pAnimation->Speed <= 0.0) ? false : (pAnimation->Time > barrier1))) // pAnimation->Time > barrier1 || (pAnimation->Time) <= barrier
-				{
-					pAnimationChannelHeader->KeyFrame += (pAnimation->Speed >= 0.0) ? 1 : -1;
-					if (pAnimation->longest == i)
-					{
-						if (pAnimationChannelHeader->KeyFrame < 0) //end reached
-						{
-							pAnimationChannelHeader->KeyFrame = 0;
-							switch (pAnimation->PlaybackMode)
-							{
-							case AnimationPlaybackMode_Once:
-								break;
-							case AnimationPlaybackMode_Repeat:
-								pAnimation->Time = ((float*)inputpointer)[pAnimationChannelHeader->Sampler.Input.Count - 2];
-								for (size_t i1 = 0; i1 < pAnimation->iChannelsSize; i1++)
-								{
-									RHeaderAnimationChannel* pAnimationChannelHeader1 = (RHeaderAnimationChannel*)Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i1]);
-									pAnimationChannelHeader1->KeyFrame = pAnimationChannelHeader1->Sampler.Input.Count - 2;
+TEXRESULT Update_Graphics() {
+	uint32_t ThreadIndex = 0;
+	size_t WindowCount = 0;
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_GraphicsWindow) {
+			RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
+			if (pGraphicsWindow != NULL) {
+				VkResult res = VK_SUCCESS;
+				if (pGraphicsWindow->RecreateFlag == true) {
+					
+					Destroy_SwapChain(pGraphicsWindow, false, ThreadIndex);
+					if (Create_SwapChain(pGraphicsWindow, ThreadIndex) == Invalid_Parameter) {
+						return (Success);
+					}
+					for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+						AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+						if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Render) {
+							RHeaderRender* pRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+							if (pRenderHeader != NULL) {
+								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == Success) {
+									ReCreate_RenderHeader(pRenderHeader, ThreadIndex);
 								}
-								break;
-							case AnimationPlaybackMode_BackToFront:
-								pAnimation->Time = 0.0;
-								pAnimation->Speed = pAnimation->Speed * -1;
-								break;
+								Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 							}
-							break;
-						}
-						else if ((pAnimationChannelHeader->KeyFrame) > (pAnimationChannelHeader->Sampler.Input.Count - 2)) //end reached
-						{
-							pAnimationChannelHeader->KeyFrame = pAnimationChannelHeader->Sampler.Input.Count - 2;
-							switch (pAnimation->PlaybackMode)
-							{
-							case AnimationPlaybackMode_Once:
-								break;
-							case AnimationPlaybackMode_Repeat:
-								pAnimation->Time = 0.0;
-								for (size_t i1 = 0; i1 < pAnimation->iChannelsSize; i1++)
-								{
-									RHeaderAnimationChannel* pAnimationChannelHeader1 = (RHeaderAnimationChannel*)Object_Ref_Get_ResourceHeaderPointer(pAnimation->iChannels[i1]);
-									pAnimationChannelHeader1->KeyFrame = 0;
-								}
-								break;
-							case AnimationPlaybackMode_BackToFront:
-								pAnimation->Time = ((float*)inputpointer)[pAnimationChannelHeader->Sampler.Input.Count - 2];
-								pAnimation->Speed = pAnimation->Speed * -1;
-								break;
-							}
-							break;
 						}
 					}
-					else
-					{
-						if (pAnimationChannelHeader->KeyFrame < 0) //end reached
-						{
-							pAnimationChannelHeader->KeyFrame = 0;
-							break;
-						}
-						else if ((pAnimationChannelHeader->KeyFrame) > (pAnimationChannelHeader->Sampler.Input.Count - 2)) //end reached
-						{
-							pAnimationChannelHeader->KeyFrame = pAnimationChannelHeader->Sampler.Input.Count - 2;
-							break;
+					for (size_t i1 = 0; i1 < pGraphicsWindow->CurrentFrameBuffersSize; i1++) {
+						for (size_t i2 = 0; i2 < DeferredImageCount; i2++) {
+							VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
+							ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+							ImageInfo.imageView = pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[i2].VkImageView;
+							ImageInfo.sampler = NULL;
+							Update_Descriptor(pGraphicsWindow->pLogicalDevice, pGraphicsWindow->VkDescriptorSetsInputAttachment[i1], i2, 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, NULL, &ImageInfo);
 						}
 					}
-
-					barrier = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame];
-					barrier1 = ((float*)inputpointer)[pAnimationChannelHeader->KeyFrame + 1];
+					c89atomic_flag_clear(&pGraphicsWindow->RecreateFlag);
 				}
+				for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++) {
+					if (pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].RenderingFlag == false) {
+						pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].pGraphicsWindow = pGraphicsWindow;
+						pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].FrameIndex = pGraphicsWindow->FrameIndex;
+						pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].ThreadIndex = (1 + WindowCount + pGraphicsWindow->FrameIndex) % EngineRes.pUtils->CPU.MaxThreads;
+						pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].QueueIndex = (WindowCount + pGraphicsWindow->FrameIndex) % pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilySize;
+						pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].RenderingFlag = true;
+
+						Thread* pThread = NULL;
+						Engine_Ref_Create_Thread(&pThread, Render_GraphicsWindow, &pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex]);
+						Engine_Ref_Detach_Thread(pThread);
+						pGraphicsWindow->FrameIndex = (pGraphicsWindow->FrameIndex + 1) % pGraphicsWindow->CurrentFrameBuffersSize;
+					}
+				}
+				WindowCount += pGraphicsWindow->CurrentFrameBuffersSize;
+				Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
 			}
-			anim += pAnimation->Header.AllocationSize;
-		}
-		else
-		{
-			anim++;
-		}
-	}
-
-
-	size_t windowcount = 0;
-	for (size_t iWindow = 0; iWindow < Utils.RHeaderGraphicsWindowBuffer.Size;)
-	{
-		RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)&Utils.RHeaderGraphicsWindowBuffer.Buffer[iWindow];
-		if (pGraphicsWindow->Header.AllocationSize != NULL && pGraphicsWindow->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_GraphicsWindow)
-		{
-			VkResult res = VK_SUCCESS;
-
-			if (pGraphicsWindow->RecreateFlag == true)
-			{		
-				if (ReCreate_SwapChain(pGraphicsWindow, false) == Invalid_Parameter)
-				{
-					return;
-				}
-
-				for (size_t i1 = 0; i1 < Utils.RHeaderRenderBuffer.Size;)
-				{
-					RHeaderRender* pRenderHeader = ((RHeaderRender*)&Utils.RHeaderRenderBuffer.Buffer[i1]);
-					if (pRenderHeader->Header.AllocationSize != NULL && pRenderHeader->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_Render)
-					{
-						if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == (TEXRESULT)Success)
-							ReCreate_RenderHeader(pRenderHeader, 0);
-						i1 += pRenderHeader->Header.AllocationSize;
-					}
-					else
-					{
-						i1++;
-					}
-				}
-
-				for (size_t i1 = 0; i1 < pGraphicsWindow->CurrentFrameBuffersSize; i1++)
-				{
-					for (size_t i2 = 0; i2 < DeferredImageCount; i2++)
-					{
-						VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
-						ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-						ImageInfo.imageView = pGraphicsWindow->SwapChain.FrameBuffers[i1].DeferredImages[i2].ImageView;
-						ImageInfo.sampler = NULL;
-						Update_Descriptor(pGraphicsWindow->pLogicalDevice, pGraphicsWindow->VkDescriptorSetsInputAttachment[i1], i2, 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, NULL, &ImageInfo);
-					}
-				}
-				c89atomic_flag_clear(&pGraphicsWindow->RecreateFlag);
-			}
-
-			for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
-			{
-				if (pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].RenderingFlag == false)
-				{
-					pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].pGraphicsWindow = pGraphicsWindow;
-					pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].FrameIndex = pGraphicsWindow->FrameIndex;
-					pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].ThreadIndex = (1 + windowcount + pGraphicsWindow->FrameIndex) % ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads;
-					pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].QueueIndex = (windowcount + pGraphicsWindow->FrameIndex) % pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilySize;
-					pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex].RenderingFlag = true;
-
-					Thread* pThread = NULL;
-					Engine_Ref_Create_Thread(&pThread, Render_GraphicsWindow, &pGraphicsWindow->SwapChain.FrameBuffers[pGraphicsWindow->FrameIndex]);
-					Engine_Ref_Detach_Thread(pThread);
-
-					pGraphicsWindow->FrameIndex = (pGraphicsWindow->FrameIndex + 1) % pGraphicsWindow->CurrentFrameBuffersSize;
-				}
-			}
-			windowcount += pGraphicsWindow->CurrentFrameBuffersSize;
-			iWindow += pGraphicsWindow->Header.AllocationSize;
-		}
-		else
-		{
-			iWindow++;
 		}
 	}
 	return (Success);
@@ -7672,75 +7574,44 @@ TEXRESULT Update_Graphics()
 //Main Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Initialise_Graphics()
-{
+TEXRESULT Initialise_Graphics() {
 	memset(&Utils, 0, sizeof(Utils));
-	memset(&Config, 0, sizeof(Config));
 
 	//config 
-	Config.ExtensionsEnabledSize = 3;
-	Config.ExtensionsEnabled[0] = (char*)VK_KHR_SURFACE_EXTENSION_NAME;
-	Config.ExtensionsEnabled[1] = (char*)"VK_KHR_win32_surface";
-	Config.ExtensionsEnabled[2] = (char*)VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+	Utils.Config.ExtensionsEnabledSize = 3;
+	Utils.Config.ExtensionsEnabled[0] = (char*)VK_KHR_SURFACE_EXTENSION_NAME;
+	Utils.Config.ExtensionsEnabled[1] = (char*)"VK_KHR_win32_surface";
+	Utils.Config.ExtensionsEnabled[2] = (char*)VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 
 #ifndef NDEBUG
-	Config.ValidationLayersEnabledSize = 1;
+	Utils.Config.ValidationLayersEnabledSize = 1;
 #else
-	Config.ValidationLayersEnabledSize = 0;
+	Utils.Config.ValidationLayersEnabledSize = 0;
 #endif
 
-	Config.ValidationLayersEnabled[0] = (char*)"VK_LAYER_KHRONOS_validation";
+	Utils.Config.ValidationLayersEnabled[0] = (char*)"VK_LAYER_KHRONOS_validation";
 
-	Config.InitialElementsMax = 1024;
-	Config.InitialHeadersMax = 1024;
+	Utils.Config.InitialStagingGPUBufferSize = MebiBytes(100);
+	Utils.Config.InitialNativeGPUBufferSize = MebiBytes(200);
 
-	Config.InitialStagingGPUBufferSize = MebiBytes(3);
-	Config.InitialNativeGPUBufferSize = MebiBytes(3);
+	Utils.Config.Samples = VK_SAMPLE_COUNT_1_BIT;
+	Utils.Config.MaxAnisotropy = 16;
+	Utils.Config.AnisotropicFiltering = true;
 
-	Config.Samples = VK_SAMPLE_COUNT_1_BIT;
-	Config.MaxAnisotropy = 16;
-	Config.AnisotropicFiltering = true;
+	Utils.Config.ActiveGPUMemoryResizing = true;
 
-	Config.Active_GPU_MemoryResizing = true;
-
-	Engine_Ref_Create_Mutex(Utils.ConvertersToTEXIMutex, MutexType_Plain);
-	Engine_Ref_Create_Mutex(Utils.ConvertersFromTEXIMutex, MutexType_Plain);
-	Engine_Ref_Create_Mutex(Utils.GraphicsEffectSignaturesMutex, MutexType_Plain);
-
+	Engine_Ref_Create_Mutex(&Utils.ConvertersToTEXIMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.ConvertersFromTEXIMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.GraphicsEffectSignaturesMutex, MutexType_Plain);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	//buffer
+	//Bytelength
 	///////////////////////////////////////////////////////////////////////////////////////////////
-
-
-	Utils.RHeaderWeightsSig.Buffer = &Utils.RHeaderWeightsBuffer;
-	Utils.RHeaderImageSourceSig.Buffer = &Utils.RHeaderImageSourceBuffer;
-	Utils.RHeaderBufferSourceSig.Buffer = &Utils.RHeaderBufferSourceBuffer;
-	Utils.RHeaderGraphicsWindowSig.Buffer = &Utils.RHeaderGraphicsWindowBuffer;
-	Utils.RHeaderSceneSig.Buffer = &Utils.RHeaderSceneBuffer;
-	Utils.RHeaderCameraSig.Buffer = &Utils.RHeaderCameraBuffer;
-	Utils.RHeaderLightSig.Buffer = &Utils.RHeaderLightBuffer;
-	Utils.RHeaderSkinSig.Buffer = &Utils.RHeaderSkinBuffer;
-	Utils.RHeaderPositionSig.Buffer = &Utils.RHeaderPositionBuffer;
-	Utils.RHeaderAnimationChannelSig.Buffer = &Utils.RHeaderAnimationChannelBuffer;
-	Utils.RHeaderAnimationSig.Buffer = &Utils.RHeaderAnimationBuffer;
-	Utils.RHeaderMaterialSig.Buffer = &Utils.RHeaderMaterialBuffer;
-	Utils.RHeaderTextureSig.Buffer = &Utils.RHeaderTextureBuffer;
-	Utils.RHeaderBufferSig.Buffer = &Utils.RHeaderBufferBuffer;
-	Utils.RHeaderRenderSig.Buffer = &Utils.RHeaderRenderBuffer;
-
-	Utils.ElementGraphicsSig.Buffer = &Utils.ElementGraphicsBuffer;
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//bytelength
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
 
 	Utils.RHeaderWeightsSig.ByteLength = sizeof(RHeaderWeights);
 	Utils.RHeaderImageSourceSig.ByteLength = sizeof(RHeaderImageSource);
 	Utils.RHeaderBufferSourceSig.ByteLength = sizeof(RHeaderBufferSource);
 	Utils.RHeaderGraphicsWindowSig.ByteLength = sizeof(RHeaderGraphicsWindow);
-	Utils.RHeaderSceneSig.ByteLength = sizeof(RHeaderScene);
 	Utils.RHeaderCameraSig.ByteLength = sizeof(RHeaderCamera);
 	Utils.RHeaderLightSig.ByteLength = sizeof(RHeaderLight);
 	Utils.RHeaderSkinSig.ByteLength = sizeof(RHeaderSkin);
@@ -7758,12 +7629,10 @@ TEXRESULT Initialise_Graphics()
 	//identifiers
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-
 	Utils.RHeaderWeightsSig.Identifier = (uint32_t)GraphicsHeader_Weights;
 	Utils.RHeaderImageSourceSig.Identifier = (uint32_t)GraphicsHeader_ImageSource;
 	Utils.RHeaderBufferSourceSig.Identifier = (uint32_t)GraphicsHeader_BufferSource;
 	Utils.RHeaderGraphicsWindowSig.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
-	Utils.RHeaderSceneSig.Identifier = (uint32_t)GraphicsHeader_Scene;
 	Utils.RHeaderCameraSig.Identifier = (uint32_t)GraphicsHeader_Camera;
 	Utils.RHeaderLightSig.Identifier = (uint32_t)GraphicsHeader_Light;
 	Utils.RHeaderSkinSig.Identifier = (uint32_t)GraphicsHeader_Skin;
@@ -7777,17 +7646,14 @@ TEXRESULT Initialise_Graphics()
 
 	Utils.ElementGraphicsSig.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
 
-
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//destructors
 	///////////////////////////////////////////////////////////////////////////////////////////////
-
 
 	Utils.RHeaderWeightsSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_WeightsHeader;
 	Utils.RHeaderImageSourceSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_ImageSourceHeader;
 	Utils.RHeaderBufferSourceSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_BufferSourceHeader;
 	Utils.RHeaderGraphicsWindowSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_GraphicsWindowHeader;
-	Utils.RHeaderSceneSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_SceneHeader;
 	Utils.RHeaderCameraSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_CameraHeader;
 	Utils.RHeaderLightSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_LightHeader;
 	Utils.RHeaderSkinSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_SkinHeader;
@@ -7809,7 +7675,6 @@ TEXRESULT Initialise_Graphics()
 	Utils.RHeaderImageSourceSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_ImageSourceHeader;
 	Utils.RHeaderBufferSourceSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_BufferSourceHeader;
 	Utils.RHeaderGraphicsWindowSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_GraphicsWindowHeader;
-	Utils.RHeaderSceneSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_SceneHeader;
 	Utils.RHeaderCameraSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_CameraHeader;
 	Utils.RHeaderLightSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_LightHeader;
 	Utils.RHeaderSkinSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_SkinHeader;
@@ -7831,7 +7696,6 @@ TEXRESULT Initialise_Graphics()
 	//Utils.RHeaderImageSourceSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_ImageSourceHeader;
 	//Utils.RHeaderBufferSourceSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_BufferSourceHeader;
 	Utils.RHeaderGraphicsWindowSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_GraphicsWindowHeader;
-	//Utils.RHeaderSceneSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_SceneHeader;
 	//Utils.RHeaderCameraSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_CameraHeader;
 	//Utils.RHeaderLightSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_LightHeader;
 	//Utils.RHeaderSkinSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_SkinHeader;
@@ -7853,7 +7717,6 @@ TEXRESULT Initialise_Graphics()
 	Utils.RHeaderImageSourceSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_ImageSourceHeader;
 	Utils.RHeaderBufferSourceSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_BufferSourceHeader;
 	Utils.RHeaderGraphicsWindowSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_GraphicsWindowHeader;
-	Utils.RHeaderSceneSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_SceneHeader;
 	Utils.RHeaderCameraSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_CameraHeader;
 	Utils.RHeaderLightSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_LightHeader;
 	Utils.RHeaderSkinSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_SkinHeader;
@@ -7875,7 +7738,6 @@ TEXRESULT Initialise_Graphics()
 	Utils.RHeaderImageSourceSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_ImageSourceHeader;
 	Utils.RHeaderBufferSourceSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_BufferSourceHeader;
 	Utils.RHeaderGraphicsWindowSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_GraphicsWindowHeader;
-	Utils.RHeaderSceneSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_SceneHeader;
 	Utils.RHeaderCameraSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_CameraHeader;
 	Utils.RHeaderLightSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_LightHeader;
 	Utils.RHeaderSkinSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_SkinHeader;
@@ -7889,41 +7751,14 @@ TEXRESULT Initialise_Graphics()
 
 	Utils.ElementGraphicsSig.UnPacker = (UnPack_ElementTemplate*)&UnPack_ElementGraphics;
 
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//create buffer
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderWeightsBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderImageSourceBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderBufferSourceBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderGraphicsWindowBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderSceneBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderCameraBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderLightBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderSkinBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderPositionBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderAnimationChannelBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderAnimationBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderMaterialBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderTextureBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderBufferBuffer, Config.InitialHeadersMax);
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderRenderBuffer, Config.InitialHeadersMax);
-
-	Object_Ref_Create_ElementBuffer(&Utils.ElementGraphicsBuffer, Config.InitialElementsMax);
-
-
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//register
 	///////////////////////////////////////////////////////////////////////////////////////////////
-
 
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderWeightsSig);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderImageSourceSig);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderBufferSourceSig);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig);
-	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderSceneSig);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderCameraSig);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderLightSig);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderSkinSig);
@@ -7936,7 +7771,6 @@ TEXRESULT Initialise_Graphics()
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderRenderSig);
 
 	Object_Ref_Register_ElementSignature(&Utils.ElementGraphicsSig);
-
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//effects
@@ -8002,8 +7836,8 @@ TEXRESULT Initialise_Graphics()
 	//Update Effect Signature
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Utils.Generic3DSig.UpdateSignature = &UpdateSignature_Generic3D;
-	Utils.Generic2DSig.UpdateSignature = &UpdateSignature_Generic2D;
+	Utils.Generic3DSig.UpdateSignature = (UpdateSignature_GraphicsEffectTemplate*)&UpdateSignature_Generic3D;
+	Utils.Generic2DSig.UpdateSignature = (UpdateSignature_GraphicsEffectTemplate*)&UpdateSignature_Generic2D;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Effects Buffers/Pointers
@@ -8051,21 +7885,21 @@ TEXRESULT Initialise_Graphics()
 		}
 
 		//checking for validaty 
-		for (size_t i = 0; i < Config.ExtensionsEnabledSize; i++)
+		for (size_t i = 0; i < Utils.Config.ExtensionsEnabledSize; i++)
 		{
-			if (Check_Extension_Validately(Config.ExtensionsEnabled[i], ExtensionsAvailable, ExtensionsAvailableSize) == false)
+			if (Check_Extension_Validately(Utils.Config.ExtensionsEnabled[i], ExtensionsAvailable, ExtensionsAvailableSize) == false)
 			{
-				Engine_Ref_FunctionError("Initialise_Graphics()", "Extension Is Not Available.", Config.ExtensionsEnabled[i]);
-				return (TEXRESULT)Invalid_Parameter;
+				Engine_Ref_FunctionError("Initialise_Graphics()", "Extension Is Not Available.", Utils.Config.ExtensionsEnabled[i]);
+				return (Invalid_Parameter | Failure);
 			}
 		}
 
-		for (size_t i = 0; i < Config.ValidationLayersEnabledSize; i++)
+		for (size_t i = 0; i < Utils.Config.ValidationLayersEnabledSize; i++)
 		{
-			if (Check_Layer_Validately(Config.ValidationLayersEnabled[i], ValidationLayersAvailable, ValidationLayersAvailableSize) == false)
+			if (Check_Layer_Validately(Utils.Config.ValidationLayersEnabled[i], ValidationLayersAvailable, ValidationLayersAvailableSize) == false)
 			{
-				Engine_Ref_FunctionError("Initialise_Graphics()", "Layer Is Not Available.", Config.ValidationLayersEnabled[i]);
-				return (TEXRESULT)Invalid_Parameter;
+				Engine_Ref_FunctionError("Initialise_Graphics()", "Layer Is Not Available.", Utils.Config.ValidationLayersEnabled[i]);
+				return (Invalid_Parameter | Failure);
 			}
 		}
 		//printing pData
@@ -8111,16 +7945,16 @@ TEXRESULT Initialise_Graphics()
 			Info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 			Info.pApplicationInfo = &ApplicationInfo;
 
-			Info.enabledExtensionCount = Config.ExtensionsEnabledSize;
-			Info.ppEnabledExtensionNames = Config.ExtensionsEnabled;
+			Info.enabledExtensionCount = Utils.Config.ExtensionsEnabledSize;
+			Info.ppEnabledExtensionNames = Utils.Config.ExtensionsEnabled;
 
-			Info.enabledLayerCount = Config.ValidationLayersEnabledSize;
-			Info.ppEnabledLayerNames = Config.ValidationLayersEnabled;
+			Info.enabledLayerCount = Utils.Config.ValidationLayersEnabledSize;
+			Info.ppEnabledLayerNames = Utils.Config.ValidationLayersEnabled;
 
 			if ((res = vkCreateInstance(&Info, NULL, &Utils.Instance)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("Initialise_Graphics()", "Vulkan Instance Creation Failed. VkResult == ", res);
-				return (TEXRESULT)Failure;
+				return (Invalid_Parameter | Failure);
 			}
 		}
 
@@ -8138,17 +7972,17 @@ TEXRESULT Initialise_Graphics()
 	if (Utils.DevicesSize == NULL)
 	{
 		Engine_Ref_FunctionError("Initialise_Graphics()", "No Graphics Devices Were Found. Instance == ", Utils.Instance);
-		return (TEXRESULT)Failure;
+		return (Invalid_Parameter | Failure);
 	}
 
 	Utils.LogicalDevices = (LogicalDevice*)calloc(Utils.DevicesSize, sizeof(*Utils.LogicalDevices));
 	for (size_t i = 0; i < Utils.DevicesSize; i++)
 	{
-		if ((tres = Create_LogicalDevice((LogicalDevice*)&Utils.LogicalDevices[i], (PhysicalDevice*)&Utils.PhysicalDevices[i], (char**)Config.ValidationLayersEnabled, Config.ValidationLayersEnabledSize,
-			(char**)LogicalDeviceExtensions, LogicalDeviceExtensionsSize, &Utils.PhysicalDevices[i].Features, Config.InitialStagingGPUBufferSize, Config.InitialNativeGPUBufferSize)) != (TEXRESULT)Success)
+		if ((tres = Create_LogicalDevice((LogicalDevice*)&Utils.LogicalDevices[i], (PhysicalDevice*)&Utils.PhysicalDevices[i], (char**)Utils.Config.ValidationLayersEnabled, Utils.Config.ValidationLayersEnabledSize,
+			(char**)LogicalDeviceExtensions, LogicalDeviceExtensionsSize, &Utils.PhysicalDevices[i].Features, Utils.Config.InitialStagingGPUBufferSize, Utils.Config.InitialNativeGPUBufferSize)) != Success)
 		{
 			Engine_Ref_FunctionError("Initialise_Graphics()", "Create_LogicalDevice, TEXRESULT == ", tres);
-			return (TEXRESULT)Failure;
+			return (Invalid_Parameter | Failure);
 		}
 	}
 
@@ -8157,6 +7991,11 @@ TEXRESULT Initialise_Graphics()
 	/////////////////////////////////////////////////////////////////////
 
 	Utils.GenericResources = calloc(Utils.DevicesSize, sizeof(*Utils.GenericResources));
+	if (Utils.GenericResources == NULL)
+	{
+		Engine_Ref_FunctionError("Initialise_Graphics()", "Out Of Memory.", Utils.GenericResources);
+		return (Out_Of_Memory_Result | Failure);
+	}
 	for (size_t i = 0; i < Utils.DevicesSize; i++)
 	{
 		{//material textures bindings
@@ -8185,7 +8024,7 @@ TEXRESULT Initialise_Graphics()
 			Info.flags = NULL;
 			if ((res = vkCreateDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].VkDescriptorSetLayoutMaterial)) != VK_SUCCESS)
 			{
-				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
+				Engine_Ref_FunctionError("Initialise_Graphics()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
 				return (Failure);
 			}
 		}
@@ -8208,7 +8047,7 @@ TEXRESULT Initialise_Graphics()
 			Info.flags = NULL;
 			if ((res = vkCreateDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers)) != VK_SUCCESS)
 			{
-				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
+				Engine_Ref_FunctionError("Initialise_Graphics()", "vkCreateDescriptorSetLayout Failed, VkResult == ", res);
 				return (Failure);
 			}
 		}
@@ -8232,7 +8071,7 @@ TEXRESULT Initialise_Graphics()
 			Info.pNext = NULL;
 			if ((res = vkCreatePipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].PipelineLayout3D)) != VK_SUCCESS)
 			{
-				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreatePipelineLayout Failed, VkResult == ", res);
+				Engine_Ref_FunctionError("Initialise_Graphics()", "vkCreatePipelineLayout Failed, VkResult == ", res);
 				return (Failure);
 			}
 		}
@@ -8257,7 +8096,7 @@ TEXRESULT Initialise_Graphics()
 			Info.pNext = NULL;
 			if ((res = vkCreatePipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].PipelineLayout2D)) != VK_SUCCESS)
 			{
-				Engine_Ref_FunctionError("Create_LogicalDevice()", "vkCreatePipelineLayout Failed, VkResult == ", res);
+				Engine_Ref_FunctionError("Initialise_Graphics()", "vkCreatePipelineLayout Failed, VkResult == ", res);
 				return (Failure);
 			}
 		}
@@ -8280,8 +8119,8 @@ TEXRESULT Initialise_Graphics()
 
 				if ((res = vkCreateDescriptorPool(Utils.LogicalDevices[i].VkLogicalDevice, &Info, NULL, &Utils.GenericResources[i].VkDescriptorPool3D)) != VK_SUCCESS)
 				{
-					Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkCreateDescriptorPool, VkResult == ", res);
-					return;
+					Engine_Ref_FunctionError("Initialise_Graphics()", "vkCreateDescriptorPool, VkResult == ", res);
+					return (Failure);
 				}
 			}
 			for (size_t i1 = 0; i1 < Utils.LogicalDevices[i].GraphicsQueueFamilySize; i1++)
@@ -8299,8 +8138,8 @@ TEXRESULT Initialise_Graphics()
 				Info.pNext = NULL;
 				if ((res = vkAllocateDescriptorSets(Utils.LogicalDevices[i].VkLogicalDevice, &Info, sets)) != VK_SUCCESS)
 				{
-					Engine_Ref_FunctionError("ReCreate_GraphicsWindowHeader()", "vkAllocateDescriptorSets, VkResult == ", res);
-					return;
+					Engine_Ref_FunctionError("Initialise_Graphics()", "vkAllocateDescriptorSets, VkResult == ", res);
+					return (Failure);
 				}
 				Utils.GenericResources[i].VkDescriptorSetsStorageBuffers[i1] = sets[0];
 			}
@@ -8309,46 +8148,24 @@ TEXRESULT Initialise_Graphics()
 	return (Success);
 }
 
-TEXRESULT Destroy_Graphics()
-{
+TEXRESULT Destroy_Graphics() {
+	uint32_t ThreadIndex = 0;
 	//to destroy all rendering threads.
-	for (size_t iWindow = 0; iWindow < Utils.RHeaderGraphicsWindowBuffer.Size;)
-	{
-		RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)&Utils.RHeaderGraphicsWindowBuffer.Buffer[iWindow];
-		if (pGraphicsWindow->Header.AllocationSize != NULL && pGraphicsWindow->Header.Allocation.Identifier == (uint32_t)GraphicsHeader_GraphicsWindow)
-		{
-			Destroy_SwapChain(pGraphicsWindow, true);
-			iWindow += pGraphicsWindow->Header.AllocationSize;
-		}
-		else
-		{
-			iWindow++;
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_GraphicsWindow) {
+			RHeaderGraphicsWindow* pResourceHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+			if (pResourceHeader != NULL) {
+				Destroy_SwapChain(pResourceHeader, true);
+				Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+			}
 		}
 	}
-
-	Object_Ref_Destroy_ElementBuffer(&Utils.ElementGraphicsBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderWeightsBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderImageSourceBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderBufferSourceBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderSceneBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderCameraBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderLightBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderSkinBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderPositionBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderAnimationChannelBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderAnimationBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderMaterialBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderTextureBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderBufferBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderRenderBuffer);
-	Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderGraphicsWindowBuffer);
-
 
 	Object_Ref_DeRegister_ElementSignature(&Utils.ElementGraphicsSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWeightsSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderImageSourceSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderBufferSourceSig);
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderSceneSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderCameraSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderLightSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderSkinSig);
@@ -8360,7 +8177,6 @@ TEXRESULT Destroy_Graphics()
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderBufferSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderRenderSig);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig);
-
 
 	DeRegister_GraphicsEffectSignature(&Utils.Generic2DSig);
 	DeRegister_GraphicsEffectSignature(&Utils.Generic3DSig);
@@ -8377,42 +8193,37 @@ TEXRESULT Destroy_Graphics()
 		free(Utils.ConvertersFromTEXI);
 	Utils.ConvertersFromTEXISize = NULL;
 
-	Engine_Ref_Destroy_Mutex(Utils.ConvertersToTEXIMutex, MutexType_Plain);
-	Engine_Ref_Destroy_Mutex(Utils.ConvertersFromTEXIMutex, MutexType_Plain);
-	Engine_Ref_Destroy_Mutex(Utils.GraphicsEffectSignaturesMutex, MutexType_Plain);
+	Engine_Ref_Destroy_Mutex(&Utils.ConvertersToTEXIMutex, MutexType_Plain);
+	Engine_Ref_Destroy_Mutex(&Utils.ConvertersFromTEXIMutex, MutexType_Plain);
+	Engine_Ref_Destroy_Mutex(&Utils.GraphicsEffectSignaturesMutex, MutexType_Plain);
 
-	for (size_t i = 0; i < Utils.DevicesSize; i++)
+	if (Utils.GenericResources != NULL && Utils.LogicalDevices != NULL && Utils.PhysicalDevices != NULL && Utils.DevicesSize != NULL)
 	{
-		if (Utils.GenericResources[i].PipelineLayout3D != NULL)
-			vkDestroyPipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].PipelineLayout3D, NULL);
-		if (Utils.GenericResources[i].PipelineLayout2D != NULL)
-			vkDestroyPipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].PipelineLayout2D, NULL);
-		if (Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers != NULL)
-			vkDestroyDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers, NULL);
-		if (Utils.GenericResources[i].VkDescriptorSetLayoutMaterial != NULL)
-			vkDestroyDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorSetLayoutMaterial, NULL);
-		if (Utils.GenericResources[i].VkDescriptorSetsStorageBuffers != NULL)
+		for (size_t i = 0; i < Utils.DevicesSize; i++)
 		{
-			free(Utils.GenericResources[i].VkDescriptorSetsStorageBuffers);
+			if (Utils.GenericResources[i].PipelineLayout3D != NULL)
+				vkDestroyPipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].PipelineLayout3D, NULL);
+			if (Utils.GenericResources[i].PipelineLayout2D != NULL)
+				vkDestroyPipelineLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].PipelineLayout2D, NULL);
+			if (Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers != NULL)
+				vkDestroyDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorSetLayoutStorageBuffers, NULL);
+			if (Utils.GenericResources[i].VkDescriptorSetLayoutMaterial != NULL)
+				vkDestroyDescriptorSetLayout(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorSetLayoutMaterial, NULL);
+			if (Utils.GenericResources[i].VkDescriptorPool3D != NULL)
+				vkDestroyDescriptorPool(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorPool3D, NULL);
+			if (Utils.GenericResources[i].VkDescriptorSetsStorageBuffers != NULL)
+				free(Utils.GenericResources[i].VkDescriptorSetsStorageBuffers);
+			Destroy_LogicalDevice((LogicalDevice*)&Utils.LogicalDevices[i]);
+			Clear_PhysicalDevice((PhysicalDevice*)&Utils.PhysicalDevices[i]);
 		}
-		if (Utils.GenericResources[i].VkDescriptorPool3D != NULL)
-			vkDestroyDescriptorPool(Utils.LogicalDevices[i].VkLogicalDevice, Utils.GenericResources[i].VkDescriptorPool3D, NULL);
-		Destroy_LogicalDevice((LogicalDevice*)&Utils.LogicalDevices[i]);
-		Clear_PhysicalDevice((PhysicalDevice*)&Utils.PhysicalDevices[i]);
-	}
-	if (Utils.DevicesSize != NULL)
-	{
-		free(Utils.LogicalDevices);
-		free(Utils.PhysicalDevices);
 		free(Utils.GenericResources);
+		free(Utils.PhysicalDevices);
+		free(Utils.LogicalDevices);
 	}
 
 	vkDestroyInstance(Utils.Instance, NULL);
 
-	memset(&Config, 0, sizeof(Config));
 	memset(&Utils, 0, sizeof(Utils));
-
-
 	return (Success);
 }
 
@@ -8422,8 +8233,7 @@ TEXRESULT Destroy_Graphics()
 
 //entry point to the extension
 //this functions purpose is to register everything with the application. One time only.
-__declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
-{
+__declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo) {
 #ifdef NDEBUG
 	ReturnInfo->BinType = Release;
 #else
@@ -8439,20 +8249,19 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 
 
 	//Config
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ExtensionsEnabled"), &Config.ExtensionsEnabled, Config.ExtensionsEnabledSize, sizeof(*Config.ExtensionsEnabled));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ExtensionsEnabledSize"), &Config.ExtensionsEnabledSize, 1, sizeof(Config.ExtensionsEnabledSize));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ValidationLayersEnabled"), &Config.ValidationLayersEnabled, Config.ValidationLayersEnabledSize, sizeof(*Config.ValidationLayersEnabled));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ValidationLayersEnabledSize"), &Config.ValidationLayersEnabledSize, 1, sizeof(Config.ValidationLayersEnabledSize));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ExtensionsEnabled"), &Utils.Config.ExtensionsEnabled, Utils.Config.ExtensionsEnabledSize, sizeof(*Utils.Config.ExtensionsEnabled));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ExtensionsEnabledSize"), &Utils.Config.ExtensionsEnabledSize, 1, sizeof(Utils.Config.ExtensionsEnabledSize));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ValidationLayersEnabled"), &Utils.Config.ValidationLayersEnabled, Utils.Config.ValidationLayersEnabledSize, sizeof(*Utils.Config.ValidationLayersEnabled));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ValidationLayersEnabledSize"), &Utils.Config.ValidationLayersEnabledSize, 1, sizeof(Utils.Config.ValidationLayersEnabledSize));
 
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::InitialHeadersMax"), &Config.InitialHeadersMax, 1, sizeof(Config.InitialHeadersMax));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::InitialElementsMax"), &Config.InitialElementsMax, 1, sizeof(Config.InitialElementsMax));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::InitialStagingGPUBufferSize"), &Utils.Config.InitialStagingGPUBufferSize, 1, sizeof(Utils.Config.InitialStagingGPUBufferSize));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::InitialNativeGPUBufferSize"), &Utils.Config.InitialNativeGPUBufferSize, 1, sizeof(Utils.Config.InitialNativeGPUBufferSize));
 
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::InitialStagingGPUBufferSize"), &Config.InitialStagingGPUBufferSize, 1, sizeof(Config.InitialStagingGPUBufferSize));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::InitialNativeGPUBufferSize"), &Config.InitialNativeGPUBufferSize, 1, sizeof(Config.InitialNativeGPUBufferSize));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::Samples"), &Utils.Config.Samples, 1, sizeof(Utils.Config.Samples));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::MaxAnisotropy"), &Utils.Config.MaxAnisotropy, 1, sizeof(Utils.Config.MaxAnisotropy));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::AnisotropicFiltering"), &Utils.Config.AnisotropicFiltering, 1, sizeof(Utils.Config.AnisotropicFiltering));
 
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::Samples"), &Config.Samples, 1, sizeof(Config.Samples));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::MaxAnisotropy"), &Config.MaxAnisotropy, 1, sizeof(Config.MaxAnisotropy));
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::AnisotropicFiltering"), &Config.AnisotropicFiltering, 1, sizeof(Config.AnisotropicFiltering));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ActiveGPUMemoryResizing"), &Utils.Config.ActiveGPUMemoryResizing, 1, sizeof(Utils.Config.ActiveGPUMemoryResizing));
 
 
 	//Resources
@@ -8497,7 +8306,4 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_DeviceIndex"), &GraphicsRes.pGet_DeviceIndex, &Get_DeviceIndex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_SwapChain"), &GraphicsRes.pDestroy_SwapChain, &Destroy_SwapChain, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::ReCreate_SwapChain"), &GraphicsRes.pReCreate_SwapChain, &ReCreate_SwapChain, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 }

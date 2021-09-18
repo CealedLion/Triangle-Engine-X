@@ -19,11 +19,9 @@ SPECIFICATION:
  * Utils can be imported. Network::Utils
 
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
-
 #define TEX_NETWORK_API
 
 #ifdef TEX_EXPOSE_NETWORK
@@ -34,10 +32,6 @@ SPECIFICATION:
 #include <ws2tcpip.h>
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 
-typedef struct NetworkUtils
-{
-    WSADATA wsa;
-}NetworkUtils;
 
 #else
 
@@ -46,8 +40,10 @@ typedef struct NetworkUtils
 #endif
 
 #endif
-
-typedef enum NetworkProtocol{
+/*
+* Added in 1.0.0
+*/
+typedef enum NetworkProtocol {
     Protocol_HOPOPTS = 0,          /* IPv6 Hop-by-Hop options*/
     Protocol_ICMP = 1,
     Protocol_IGMP = 2,
@@ -79,34 +75,52 @@ typedef enum NetworkProtocol{
     Protocol_RAW = 255,
     Protocol_MAX = 256,
 }NetworkProtocol;
-
-typedef enum SocketTypes{
+/*
+* Added in 1.0.0
+*/
+typedef enum SocketTypes {
     Socket_Stream = 1,           /* stream socket */
     Socket_DataGram = 2,           /* datagram socket */
     Socket_RAW = 3,           /* raw-protocol interface */
     Socket_RDM = 4,           /* reliably-delivered message */
     Socket_SeqPacket = 5,           /* sequenced packet stream */
 }SocketType;
-
-typedef enum SendFlagBits{
+/*
+* Added in 1.0.0
+*/
+typedef enum SendFlagBits {
     SendFlag_NormalBit = 0,
     SendFlag_OutOfBandBit = 0x1,
     SendFlag_DontRouteBit = 0x4
 }SendFlagBits;
-
-typedef enum RecieveFlagBits{
+/*
+* Added in 1.0.0
+*/
+typedef enum RecieveFlagBits {
     RecieveFlag_NormalBit = 0,
     RecieveFlag_OutOfBandBit = 0x1,
     RecieveFlag_PeekBit = 0x2,
     RecieveFlag_WaitAllBit = 0x8
 }RecieveFlagBits;
-
+/*
+* Added in 1.0.0
+*/
 typedef uint64_t Socket;
-
 typedef void AddressInfo; //pointer to native ADDERINFO //dont malloc
 
-struct NetworkResStruct{
-    void* pUtils;
+typedef struct NetworkUtils {
+    struct {
+        uint32_t pad;
+    }Config;
+#ifdef TEX_EXPOSE_NETWORK
+#ifdef _WIN32
+    WSADATA wsa;
+#endif
+#endif
+}NetworkUtils;
+
+struct NetworkResStruct {
+    NetworkUtils* pUtils;
 
     void* pInitialise_Network;
     void* pDestroy_Network;
@@ -126,8 +140,7 @@ struct NetworkResStruct{
     void* pAccept_Connection;
 }NetworkRes;
 
-void Network_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
-{
+void Network_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize) {
     memset(&NetworkRes, 0, sizeof(NetworkRes));
 
     ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Network::Utils"), &NetworkRes.pUtils);

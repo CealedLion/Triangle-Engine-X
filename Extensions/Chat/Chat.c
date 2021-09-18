@@ -16,17 +16,65 @@
 #include "Audio.h"
 #include "Network.h"
 #include "Formats.h"
-#define TEX_EXPOSE_GUI
 #include "GUI.h"
 #include "Chemistry.h"
 
-volatile struct{
-	UTF8* DefaultIP; // = (UTF8*)"216.58.223.255";
-}Config;
+//volatile struct {
+//	UTF8* DefaultIP; // = (UTF8*)"216.58.223.255";
+//}Config;
 
 const float speed = 0.001f;
 const float mouseSpeed = 0.00000001f;
 const float ScrollSpeed = 50.0f;
+
+ResourceHeaderAllocation iGraphicsWindow;
+
+/////////////////////////////////////////////
+//reactor shit
+/////////////////////////////////////////////
+
+float reactortemp = 0.0f;
+float reactorpercentage = 10.0f;
+const float coolingfactor = 10.0f;
+const float heatingfactor = 1.0f;
+
+typedef struct PID {
+	double SetPoint; // Desired Value
+
+	double Proportion; // Proportional Const
+	double Integral; // Integral Const
+	double Derivative; // Derivative Const
+
+	double LastError; // Error[-1]
+	double PrevError; // Error[-2]
+	double SumError; // Sums of Errors
+} PID;
+
+double PIDCalc(PID* pp, double NextPoint)
+{
+	double dError,
+		Error;
+
+	pp->SumError += (Error = pp->SetPoint - NextPoint);
+	dError = pp->LastError - pp->PrevError;
+	pp->PrevError = pp->LastError;
+	pp->LastError = Error;
+
+
+	return (pp->Proportion * Error
+		+ pp->Integral * pp->SumError
+		+ pp->Derivative * dError
+		);
+}
+
+PID sPID = {100, 0.2, 0.2, 0.0, 0.0, 0.0, 0.0}; // PID Control Structure
+double rOut = 0.0; // PID Response (Output)
+double rIn = 0.0; // PID Feedback (Input)
+
+/////////////////////////////////////////////
+/////////////////////////////////////////////
+
+
 
 double lasttime = 0.0;
 
@@ -63,7 +111,7 @@ uint64_t SelectedTextEndIndex1;
 //Macros
 //////////////////////////////////////////////////////////////////////////
 
-void ButtonClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocation ClickedResourceHeader, ObjectAllocation ClickedObject, RHeaderButton* pButton, GUIButtonCallbackState Action)
+void ButtonClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocation ClickedResourceHeader, ObjectAllocation ClickedObject, ResourceHeaderAllocation iButton, GUIButtonCallbackState Action)
 {
 	CurClickedElement = ClickedElement;
 	CurClickedResourceHeader = ClickedResourceHeader;
@@ -91,16 +139,15 @@ void Add_PrevText(GraphicsEffectText* pEffect)
 
 void Update_Cursor(RHeaderGraphicsWindow* pGraphicsWindow, GraphicsEffectText* pEffect, GPU_GraphicsEffectText* pTargetElement)
 {
-	ElementGraphics* pElementTextCursor = Object_Ref_Get_ElementPointer(iTextCursor);
+	ElementGraphics* pElementTextCursor = Object_Ref_Get_ElementPointer(iTextCursor, true, false, 0);
 	GraphicsEffectGeneric2D* pEffect2D = NULL;
 	Graphics_Effects_Ref_Get_GraphicsEffect(pElementTextCursor, GraphicsEffect_Generic2D, &pEffect2D);
 
-	RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElementTextCursor->iMaterial);
-	RHeaderTexture* pTexture0 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture);
-	RHeaderImageSource* pImageSource0 = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource);
-
+	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElementTextCursor->iMaterial, false, false, 0);
+	RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, 0);
+	RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, false, false, 0);
 	
-	float scalefactor = ((float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / (float)(pImageSource0->ImageData->Height) / 2);
+	float scalefactor = ((float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / (float)(pImageSource0->ImageData->Height) / 2);
 	pEffect2D->Size[0] = (((float)(pImageSource0->ImageData->Width * scalefactor) / 2) / (float)pGraphicsWindow->CurrentExtentWidth);
 	pEffect2D->Size[1] = (((float)(pImageSource0->ImageData->Height * scalefactor) / 2) / (float)pGraphicsWindow->CurrentExtentHeight);
 
@@ -108,16 +155,19 @@ void Update_Cursor(RHeaderGraphicsWindow* pGraphicsWindow, GraphicsEffectText* p
 	pEffect2D->Position[1] = (pEffect->Position[1] - pEffect->Size[1]) - pEffect2D->Size[1] + ((pTargetElement->AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
 	pEffect2D->Position[2] = pEffect->Position[2];
 
+
+	Object_Ref_End_ResourceHeaderPointer(pElementTextCursor->iMaterial, false, false, 0);
+	Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, 0);
+	Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, false, false, 0);
+
 	glm_vec2_copy(pEffect2D->Size, pEffect2D->BoundingBoxSize);
 	glm_vec2_copy(pEffect2D->Position, pEffect2D->BoundingBoxPosition);
+	Object_Ref_End_ElementPointer(iTextCursor, true, false, 0);
 }
 
 void InsertCodepoint(RHeaderGraphicsWindow* pGraphicsWindow, UTF32 codepoint)
 {
-	ElementInstance ElementInstance;
-	Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-	ElementGraphics* pElementGraphics = ElementInstance.pInstance;
-
+	ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 	GraphicsEffectText* pEffect = NULL;
 	Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -149,18 +199,16 @@ void InsertCodepoint(RHeaderGraphicsWindow* pGraphicsWindow, UTF32 codepoint)
 		InsertMember_Array(&UTF32_Text, UTF32strlen(UTF32_Text) + 1, CurClickedElementTextIterator, sizeof(*UTF32_Text), &codepoint, 1);
 		CurClickedElementTextIterator++;
 	}
-
 	free(pEffect->UTF8_Text);
 	UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
-	Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+	Object_Ref_ReCreate_Element(CurClickedElement, 0);
+	Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 	Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
 }
 
 void RemoveCodepoint(RHeaderGraphicsWindow* pGraphicsWindow)
 {
-	ElementInstance ElementInstance;
-	Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-	ElementGraphics* pElementGraphics = ElementInstance.pInstance;
+	ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 
 	GraphicsEffectText* pEffect = NULL;
 	Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
@@ -196,10 +244,10 @@ void RemoveCodepoint(RHeaderGraphicsWindow* pGraphicsWindow)
 			CurClickedElementTextIterator--;
 		}
 	}
-
 	free(pEffect->UTF8_Text);
 	UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
-	Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+	Object_Ref_ReCreate_Element(CurClickedElement, 0);
+	Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 	Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
 }
 
@@ -216,25 +264,16 @@ TEXRESULT Close_Callback()
 
 TEXRESULT Character_Callback()
 {
-	ResourceHeaderSignature* windowsignature;
-	ResourceHeaderBufferIndex BufferIndex1 = 0;
-	Object_Ref_Find_ResourceHeaderSignature(GraphicsHeader_GraphicsWindow, &windowsignature, &BufferIndex1);
-	RHeaderGraphicsWindow* pGraphicsWindow = ((RHeaderGraphicsWindow*)&windowsignature->Buffer->Buffer[0]);
-
-	
-	if (((EngineUtils*)EngineRes.pUtils)->Character_Callback_state.CodePoint == 'm')
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+	if (EngineRes.pUtils->Character_Callback_state.CodePoint == 'm')
 	{
 		Engine_Ref_Set_WindowFullScreen(pGraphicsWindow->pWindow, !pGraphicsWindow->pWindow->FullScreen);
 		return (Success);
 	}
-
 	//control keys
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_V == KeyPress)
+	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_V == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		ElementInstance ElementInstance;
-		Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-		ElementGraphics* pElementGraphics = ElementInstance.pInstance;
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -245,7 +284,6 @@ TEXRESULT Character_Callback()
 		Engine_Ref_Read_ClipboardUTF8(pGraphicsWindow->pWindow, NULL, &ClipboardTextSize);
 		ClipboardText = malloc(ClipboardTextSize);
 		Engine_Ref_Read_ClipboardUTF8(pGraphicsWindow->pWindow, ClipboardText, &ClipboardTextSize);
-
 
 		UTF32* UTF32_Text = NULL;
 		UTF8_To_UTF32(pEffect->UTF8_Text, &UTF32_Text);
@@ -268,7 +306,6 @@ TEXRESULT Character_Callback()
 				selecting = false;
 			}
 		}
-	
 		if (ClipboardText != NULL)
 		{
 			UTF32* UTF32_ClipboardText = NULL;
@@ -279,20 +316,18 @@ TEXRESULT Character_Callback()
 
 			free(UTF32_ClipboardText);
 		}
-
 		free(ClipboardText);
 		free(pEffect->UTF8_Text);
 		UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
-		Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+		Object_Ref_ReCreate_Element(CurClickedElement, 0);
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_X == KeyPress)
+	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_X == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		ElementInstance ElementInstance;
-		Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-		ElementGraphics* pElementGraphics = ElementInstance.pInstance;
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -331,22 +366,20 @@ TEXRESULT Character_Callback()
 		}
 		free(pEffect->UTF8_Text);
 		UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
-		Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+		Object_Ref_ReCreate_Element(CurClickedElement, 0);
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_C == KeyPress)
+	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_C == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
-
 		UTF32* UTF32_Text = NULL;
 		UTF8_To_UTF32(pEffect->UTF8_Text, &UTF32_Text);
-
 		uint64_t presize = UTF32strlen(UTF32_Text) + 1;
 		if (SelectedTextEndIndex - SelectedTextStartIndex != 0)
 		{
@@ -367,17 +400,15 @@ TEXRESULT Character_Callback()
 		}
 		free(pEffect->UTF8_Text);
 		UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_Z == KeyPress)
+	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_Z == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		ElementInstance ElementInstance;
-		Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-		ElementGraphics* pElementGraphics = ElementInstance.pInstance;
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
-
 		if (PreviousTextsIndex == 0)
 		{
 			Resize_Array(&PreviousTexts, PreviousTextsSize, PreviousTextsSize + 1, sizeof(*PreviousTexts));
@@ -394,19 +425,17 @@ TEXRESULT Character_Callback()
 			pEffect->UTF8_Text = CopyData(PreviousTexts[PreviousTextsSize - PreviousTextsIndex].Text);
 			CurClickedElementTextIterator = PreviousTexts[PreviousTextsSize - PreviousTextsIndex].CursorIndex;
 		}
-		Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+		Object_Ref_ReCreate_Element(CurClickedElement, 0);
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_Y == KeyPress)
+	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_Y == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		ElementInstance ElementInstance;
-		Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-		ElementGraphics* pElementGraphics = ElementInstance.pInstance;
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
-
 		if (PreviousTextsIndex == 0)
 		{
 			Resize_Array(&PreviousTexts, PreviousTextsSize, PreviousTextsSize + 1, sizeof(*PreviousTexts));
@@ -422,19 +451,20 @@ TEXRESULT Character_Callback()
 			pEffect->UTF8_Text = CopyData(PreviousTexts[PreviousTextsSize - PreviousTextsIndex].Text);
 			CurClickedElementTextIterator = PreviousTexts[PreviousTextsSize - PreviousTextsIndex].CursorIndex;
 		}
-		Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+		Object_Ref_ReCreate_Element(CurClickedElement, 0);
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
-
 	//typing
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_SHIFT == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_ENTER == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success))
+	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_SHIFT == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_ENTER == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		InsertCodepoint(pGraphicsWindow, 0x0D);
 		InsertCodepoint(pGraphicsWindow, 0x0A);
 		return (Success);
 	}
-	if (pGraphicsWindow->pWindow->STATE_KEY_TAB == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success))
+	if (pGraphicsWindow->pWindow->STATE_KEY_TAB == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		//4 indents
 		InsertCodepoint(pGraphicsWindow, 0x09);
@@ -443,44 +473,38 @@ TEXRESULT Character_Callback()
 		//InsertCodepoint(pGraphicsWindow, 0x20);
 		return (Success);
 	}
-	if (((EngineUtils*)EngineRes.pUtils)->Character_Callback_state.CodePoint == 0x08 && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success))
+	if (EngineRes.pUtils->Character_Callback_state.CodePoint == 0x08 && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		RemoveCodepoint(pGraphicsWindow);
 		return (Success);
 	}
-	if (((EngineUtils*)EngineRes.pUtils)->Character_Callback_state.CodePoint >= 32 && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success))
+	if (EngineRes.pUtils->Character_Callback_state.CodePoint >= 32 && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		InsertCodepoint(pGraphicsWindow, ((EngineUtils*)EngineRes.pUtils)->Character_Callback_state.CodePoint);
+		InsertCodepoint(pGraphicsWindow, EngineRes.pUtils->Character_Callback_state.CodePoint);
 		return (Success);
 	}
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	return (Success);
 }
 
 TEXRESULT Click_Callback()
 {
-	ResourceHeaderSignature* windowsignature;
-	ResourceHeaderBufferIndex BufferIndex1 = 0;
-	Object_Ref_Find_ResourceHeaderSignature(GraphicsHeader_GraphicsWindow, &windowsignature, &BufferIndex1);
-	RHeaderGraphicsWindow* pGraphicsWindow = ((RHeaderGraphicsWindow*)&windowsignature->Buffer->Buffer[0]);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 
-	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_SHIFT == KeyPress) && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success)) //get next closet character to the cursor
+	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_SHIFT == KeyPress) && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the cursor
 	{
-		ElementInstance ElementInstance;
-		Object_Ref_CreateInstance_Element(CurClickedElement, &ElementInstance, 0);
-		ElementGraphics* pElementGraphics = ElementInstance.pInstance;
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
 		GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 
-
 		vec2 pa;
 		glm_vec2_zero(pa);
-		pa[0] = ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position / pGraphicsWindow->CurrentExtentWidth;
-		pa[1] = ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position / pGraphicsWindow->CurrentExtentHeight;
-		float halffactor = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 4;
+		pa[0] = EngineRes.pUtils->MousePos_Callback_state.X_Position / pGraphicsWindow->CurrentExtentWidth;
+		pa[1] = EngineRes.pUtils->MousePos_Callback_state.Y_Position / pGraphicsWindow->CurrentExtentHeight;
+		float halffactor = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 4;
 		float max = FLT_MAX;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
@@ -498,7 +522,6 @@ TEXRESULT Click_Callback()
 			}
 		}
 		SelectedTextEndIndex = CurClickedElementTextIterator;
-
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
 			pEffect->GPU_GraphicsEffectInfos[i].selected = 0;
@@ -507,15 +530,15 @@ TEXRESULT Click_Callback()
 		{
 			pEffect->GPU_GraphicsEffectInfos[i].selected = 1;
 		}
-		Object_Ref_ReCreate_Element(CurClickedElement, &ElementInstance, 0);
+		Object_Ref_ReCreate_Element(CurClickedElement, 0);
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
-	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success)) //get next closet character to the cursor
+	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the cursor
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -524,9 +547,9 @@ TEXRESULT Click_Callback()
 
 		vec2 pa;
 		glm_vec2_zero(pa);
-		pa[0] = ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position / pGraphicsWindow->CurrentExtentWidth;
-		pa[1] = ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position / pGraphicsWindow->CurrentExtentHeight;
-		float halffactor = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 4;
+		pa[0] = EngineRes.pUtils->MousePos_Callback_state.X_Position / pGraphicsWindow->CurrentExtentWidth;
+		pa[1] = EngineRes.pUtils->MousePos_Callback_state.Y_Position / pGraphicsWindow->CurrentExtentHeight;
+		float halffactor = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 4;
 		float max = FLT_MAX;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
@@ -544,33 +567,30 @@ TEXRESULT Click_Callback()
 			}
 		}
 		SelectedTextStartIndex1 = CurClickedElementTextIterator;
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 		selecting = true;
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	return (Success);
 }
 
 TEXRESULT Key_Callback()
 {
-	ResourceHeaderSignature* windowsignature;
-	ResourceHeaderBufferIndex BufferIndex1 = 0;
-	Object_Ref_Find_ResourceHeaderSignature(GraphicsHeader_GraphicsWindow, &windowsignature, &BufferIndex1);
-	RHeaderGraphicsWindow* pGraphicsWindow = ((RHeaderGraphicsWindow*)&windowsignature->Buffer->Buffer[0]);
-
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	//navigation keys
-	if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success)) //get next closet character to the right
+	if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the right
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
 		GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 
-		float halffactor = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 8;
+		float halffactor = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 8;
 		float max = FLT_MAX;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
@@ -590,20 +610,19 @@ TEXRESULT Key_Callback()
 			CurClickedElementTextIterator++;
 			pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		}
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
-	if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success)) //get next closet character to the left
+	if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the left
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
 		GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 
-		float halffactor = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 8;
+		float halffactor = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 8;
 		float max = FLT_MAX;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
@@ -623,20 +642,19 @@ TEXRESULT Key_Callback()
 			CurClickedElementTextIterator--;
 			pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		}
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
-	if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success)) //get next closet character to the top
+	if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the top
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
 		GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 
-		float halffactor = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 8;
+		float halffactor = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 8;
 		float max = FLT_MAX;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
@@ -651,20 +669,19 @@ TEXRESULT Key_Callback()
 				pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 			}
 		}
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
-	if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress && Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success)) //get next closet character to the bototm
+	if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the bototm
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
 		GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 		GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 
-		float halffactor1 = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 8;
+		float halffactor1 = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 8;
 		float max = FLT_MAX;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
@@ -679,35 +696,32 @@ TEXRESULT Key_Callback()
 				pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 			}
 		}
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	return (Success);
 }
 
 TEXRESULT Scroll_Callback()
 {
-	ResourceHeaderSignature* windowsignature;
-	ResourceHeaderBufferIndex BufferIndex1 = 0;
-	Object_Ref_Find_ResourceHeaderSignature(GraphicsHeader_GraphicsWindow, &windowsignature, &BufferIndex1);
-	RHeaderGraphicsWindow* pGraphicsWindow = ((RHeaderGraphicsWindow*)&windowsignature->Buffer->Buffer[0]);
-
-	if (Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success))
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+	if (Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		ElementGraphics* pElementGraphics = NULL;
-		Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
-
-		pEffect->Position[1] += (((EngineUtils*)EngineRes.pUtils)->Scroll_Callback_state.Delta / (float)pGraphicsWindow->CurrentExtentHeight) * ScrollSpeed;
-
+		pEffect->Position[1] += (EngineRes.pUtils->Scroll_Callback_state.Delta / (float)pGraphicsWindow->CurrentExtentHeight) * ScrollSpeed;
 		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
-			pEffect->GPU_GraphicsEffectInfos[i].Position[1] += (((EngineUtils*)EngineRes.pUtils)->Scroll_Callback_state.Delta / (float)pGraphicsWindow->CurrentExtentHeight) * ScrollSpeed;
+			pEffect->GPU_GraphicsEffectInfos[i].Position[1] += (EngineRes.pUtils->Scroll_Callback_state.Delta / (float)pGraphicsWindow->CurrentExtentHeight) * ScrollSpeed;
 		}
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	return (Success);
 }
 
@@ -716,110 +730,139 @@ TEXRESULT Scroll_Callback()
 //////////////////////////////////////////////////////////////////////////
 
 TEXRESULT Update_Chat()
-{	
+{		
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	
-	ResourceHeaderSignature* windowsignature;
-	ResourceHeaderBufferIndex BufferIndex1 = 0;
-	Object_Ref_Find_ResourceHeaderSignature(GraphicsHeader_GraphicsWindow, &windowsignature, &BufferIndex1);
-	RHeaderGraphicsWindow* pGraphicsWindow = ((RHeaderGraphicsWindow*)&windowsignature->Buffer->Buffer[0]);
-	
-	ResourceHeaderSignature* camerasignature;
-	ResourceHeaderBufferIndex BufferIndex = 0;
-	Object_Ref_Find_ResourceHeaderSignature(GraphicsHeader_Camera, &camerasignature, &BufferIndex);
-	RHeaderCamera* pCameraHeader = ((RHeaderCamera*)&camerasignature->Buffer->Buffer[0]);
-	
+	uint32_t ThreadIndex = 0;
+	//RHeaderCamera* pCameraHeader = ((RHeaderCamera*)&camerasignature->Buffer->Buffer[0]);
+	/*
 	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyRelease)
 	{
 		selecting = false;
 	}
-	if (selecting == true)
+	if (selecting == true && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
-		if (Object_Ref_Get_ElementAllocationValidity(CurClickedElement) == (Success))
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+		GraphicsEffectText* pEffect = NULL;
+		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
+
+		GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
+		GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
+
+		vec2 pa;
+		glm_vec2_zero(pa);
+		pa[0] = EngineRes.pUtils->MousePos_Callback_state.X_Position / pGraphicsWindow->CurrentExtentWidth;
+		pa[1] = EngineRes.pUtils->MousePos_Callback_state.Y_Position / pGraphicsWindow->CurrentExtentHeight;
+		float halffactor = (float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / 4;
+		float max = FLT_MAX;
+		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
 		{
-			ElementGraphics* pElementGraphics = NULL;
-			Object_Ref_StartThread_Element(CurClickedElement, 0, &pElementGraphics);
-
-			GraphicsEffectText* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
-
-			GPU_GraphicsEffectText* pGPU_oldEffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
-			GPU_GraphicsEffectText* pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
-
-			vec2 pa;
-			glm_vec2_zero(pa);
-			pa[0] = ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position / pGraphicsWindow->CurrentExtentWidth;
-			pa[1] = ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position / pGraphicsWindow->CurrentExtentHeight;
-			float halffactor = (float)((pEffect->FontSize * ((GUIUtils*)GUIRes.pUtils)->DPI) / 72) / 4;
-			float max = FLT_MAX;
-			for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
+			GPU_GraphicsEffectText* pGPU_Effect = &pEffect->GPU_GraphicsEffectInfos[i];
+			vec2 pb;
+			glm_vec2_zero(pb);
+			pb[0] = ((pEffect->Position[0] - pEffect->Size[0]) + ((pGPU_Effect->AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth));
+			pb[1] = ((pEffect->Position[1] - pEffect->Size[1]) + ((pGPU_Effect->AdvanceY - halffactor) / (float)pGraphicsWindow->CurrentExtentHeight));
+			float distance = glm_vec2_distance(pa, pb);
+			if (distance < max)
 			{
-				GPU_GraphicsEffectText* pGPU_Effect = &pEffect->GPU_GraphicsEffectInfos[i];
-				vec2 pb;
-				glm_vec2_zero(pb);
-				pb[0] = ((pEffect->Position[0] - pEffect->Size[0]) + ((pGPU_Effect->AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth));
-				pb[1] = ((pEffect->Position[1] - pEffect->Size[1]) + ((pGPU_Effect->AdvanceY - halffactor) / (float)pGraphicsWindow->CurrentExtentHeight));
-				float distance = glm_vec2_distance(pa, pb);
-				if (distance < max)
-				{
-					max = distance;
-					CurClickedElementTextIterator = i;
-					pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
-				}
+				max = distance;
+				CurClickedElementTextIterator = i;
+				pGPU_EffectClosest = &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator];
 			}
-			SelectedTextEndIndex1 = CurClickedElementTextIterator;
-
-			if (CurClickedElementTextIterator < SelectedTextStartIndex1)
-			{
-				SelectedTextStartIndex = SelectedTextEndIndex1;
-				SelectedTextEndIndex = SelectedTextStartIndex1;
-			}
-			else
-			{
-				SelectedTextStartIndex = SelectedTextStartIndex1;
-				SelectedTextEndIndex = SelectedTextEndIndex1;
-			}
-			for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
-			{
-				pEffect->GPU_GraphicsEffectInfos[i].selected = 0;
-			}
-			for (size_t i = SelectedTextStartIndex; i < SelectedTextEndIndex; i++)
-			{
-				pEffect->GPU_GraphicsEffectInfos[i].selected = 1;
-			}
-			Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 		}
+		SelectedTextEndIndex1 = CurClickedElementTextIterator;
+
+		if (CurClickedElementTextIterator < SelectedTextStartIndex1)
+		{
+			SelectedTextStartIndex = SelectedTextEndIndex1;
+			SelectedTextEndIndex = SelectedTextStartIndex1;
+		}
+		else
+		{
+			SelectedTextStartIndex = SelectedTextStartIndex1;
+			SelectedTextEndIndex = SelectedTextEndIndex1;
+		}
+		for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
+		{
+			pEffect->GPU_GraphicsEffectInfos[i].selected = 0;
+		}
+		for (size_t i = SelectedTextStartIndex; i < SelectedTextEndIndex; i++)
+		{
+			pEffect->GPU_GraphicsEffectInfos[i].selected = 1;
+		}
+		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
+		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
-	/**/
-	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0)//fps counter shit
-	{	
+	*/
+	
+	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0) {	
 		double FPS = ((double)pGraphicsWindow->FramesDone);
 		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
 		pGraphicsWindow->FramesDone = 0;
 		
 		lasttime = ((double)clock() / (double)CLOCKS_PER_SEC);
 
-		ElementInstance ElementInstance;
-		Object_Ref_CreateInstance_Element(iFPS_DisplayText, &ElementInstance, 0);
-		ElementGraphics* pElementGraphics = ElementInstance.pInstance;
+		ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
+
+		GraphicsEffectText* pEffect = NULL;
+		Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
+
+		//free(pEffect->UTF8_Text);
+
+		char buffer[128 + 19];
+		snprintf(&buffer, 128 + 19, "FPS: %f | MSPF: %f", ((float)FPS), ((float)MSPF));
+
+		pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
+		Object_Ref_ReCreate_Element(iFPS_DisplayText, 0);
+
+		Object_Ref_End_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
+	}
+	/*
+	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0)//fps counter shit
+	{
+		double FPS = ((double)pGraphicsWindow->FramesDone);
+		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
+		pGraphicsWindow->FramesDone = 0;
+
+		lasttime = ((double)clock() / (double)CLOCKS_PER_SEC);
+
+		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(iFPS_DisplayText, true, false, 0);
 
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
 		free(pEffect->UTF8_Text);
 
+
+		reactortemp += reactorpercentage * heatingfactor;
+		reactortemp -= reactortemp / coolingfactor;
+
+		rIn = reactortemp; // Read Input
+		rOut = PIDCalc(&sPID, rIn); // Perform PID Interation
+		reactorpercentage = ((rOut < 10.0) ? 10.0f : rOut); // Effect Needed Changes
+
+
+
 		char buffer[128 + 19];
-		snprintf(&buffer, 128 + 19, "FPS: %f | MSPF: %f", ((float)FPS), ((float)MSPF));
+		snprintf(&buffer, 128 + 19, "TEMP: %f PERCENT: %f", reactortemp, reactorpercentage);
 
 
 		pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
-		Object_Ref_ReCreate_Element(iFPS_DisplayText, &ElementInstance, 0);
+		Object_Ref_ReCreate_Element(iFPS_DisplayText, 0);
+		Object_Ref_End_ElementPointer(iFPS_DisplayText, true, false, 0);
 	}
-	
-	
-	RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pCameraHeader->Header.iParents[0], (uint32_t)GraphicsHeader_Position);
-	
-	float framehorizontalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentWidth / 2.0f - ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position);
-	float frameverticalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentHeight / 2.0f - ((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position);
+	if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && reactorpercentage < 99.999)
+	{
+		reactorpercentage += 0.01f;
+	}
+	if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && reactorpercentage > 10.00)
+	{
+		reactorpercentage -= 0.01f;
+	}
+	*/
+	//RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pCameraHeader->Header.iParents[0], (uint32_t)GraphicsHeader_Position);	
+	float framehorizontalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentWidth / 2.0f - EngineRes.pUtils->MousePos_Callback_state.X_Position);
+	float frameverticalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentHeight / 2.0f - EngineRes.pUtils->MousePos_Callback_state.Y_Position);
 
 	//framehorizontalAngle = 0;
 	//frameverticalAngle = 0;
@@ -831,7 +874,7 @@ TEXRESULT Update_Chat()
 	vec3 Scale;
 	glm_vec3_one(Scale);
 
-	glm_decompose(pPositionHeader->Matrix, Translation, Rotation, Scale);
+	//glm_decompose(pPositionHeader->Matrix, Translation, Rotation, Scale);
 
 	vec3 right;
 	glm_vec3_zero(right);
@@ -929,17 +972,17 @@ TEXRESULT Update_Chat()
 	glm_scale(scalem, Scale);
 
 
-	glm_mul_sse2(translationm, rotationm, pPositionHeader->Matrix);
-	glm_mul_sse2(pPositionHeader->Matrix, scalem, pPositionHeader->Matrix);
-	glm_mul_sse2(pPositionHeader->Matrix, identitym, pPositionHeader->Matrix);
+	//glm_mul_sse2(translationm, rotationm, pPositionHeader->Matrix);
+	//glm_mul_sse2(pPositionHeader->Matrix, scalem, pPositionHeader->Matrix);
+	//glm_mul_sse2(pPositionHeader->Matrix, identitym, pPositionHeader->Matrix);
 
 	//glm_rotate(pPositionHeader->Matrix, frameverticalAngle, horiz);
-	glm_rotate(pPositionHeader->Matrix, framehorizontalAngle, vertic);
+	//glm_rotate(pPositionHeader->Matrix, framehorizontalAngle, vertic);
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	return (Success);
 }
 
-TEXRESULT Initialise_Chat()
-{
+TEXRESULT Initialise_Chat() {
 	for (size_t i = 0; i < 1; i++)
 	{
 		ObjectAllocation iObject;
@@ -950,7 +993,6 @@ TEXRESULT Initialise_Chat()
 			MainCreateInfo.Name = NULL;
 			Object_Ref_Create_Object(&iObject, MainCreateInfo, NULL, 0);
 		}
-		ResourceHeaderAllocation iGraphicsWindow;
 		{
 			RHeaderGraphicsWindowCreateInfo CreateInfo;
 			memset(&CreateInfo, 0, sizeof(CreateInfo));
@@ -962,9 +1004,8 @@ TEXRESULT Initialise_Chat()
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
 			MainCreateInfo.Name = "Triangle Engine X";
 			Object_Ref_Create_ResourceHeader(&iGraphicsWindow, MainCreateInfo, &CreateInfo, 0);
-			Object_Ref_Add_Object_ResourceHeaderChild(iGraphicsWindow, iObject);
+			Object_Ref_Add_Object_ResourceHeaderChild(iGraphicsWindow, iObject, 0);
 		}
-
 		ResourceHeaderAllocation iScene;
 		{
 			RHeaderSceneCreateInfo CreateInfo;
@@ -972,17 +1013,16 @@ TEXRESULT Initialise_Chat()
 			CreateInfo.InitialActive = true;
 			ResourceHeaderCreateInfo MainCreateInfo;
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Scene;
+			MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Scene;
 			MainCreateInfo.Name = NULL;
 			Object_Ref_Create_ResourceHeader(&iScene, MainCreateInfo, &CreateInfo, 0);
-			Object_Ref_Add_Object_ResourceHeaderChild(iScene, iObject);
+			Object_Ref_Add_Object_ResourceHeaderChild(iScene, iObject, 0);
 		}
 
-		Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json",
-			(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
+		Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json", iGraphicsWindow, iScene, 0);
 
-		//TEXRESULT ress = Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\z-23\\scene.gltf",
-		//	(RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow), Object_Ref_Get_ResourceHeaderPointer(iScene), 0);
+		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\nuclear_power_plant_game_asset\\scene.gltf", iGraphicsWindow, iScene, 0);
+
 
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
@@ -992,323 +1032,19 @@ TEXRESULT Initialise_Chat()
 				MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
 				MainCreateInfo.Name = NULL;
 				Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
-				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject);
-			}
+				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject, 0);
 
+			}
 			ResourceHeaderAllocation iMaterial;
 			{
 				RHeaderMaterialCreateInfo CreateInfoMaterial;
 				memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
-
-				CreateInfoMaterial.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-
-				CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
-				CreateInfoMaterial.BaseColourFactor[1] = 1.0f;
-				CreateInfoMaterial.BaseColourFactor[2] = 1.0f;
-				CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
-
-				CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
-
-
-				{
-					ResourceHeaderAllocation iImageSource;
-					{
-						RHeaderImageSourceCreateInfo Info;
-						memset(&Info, 0, sizeof(Info));
-						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
-						free(Info.ImageData);
-					}
-					ResourceHeaderAllocation iTextureHeader;
-					{
-						RHeaderTextureCreateInfo Info;
-						memset(&Info, 0, sizeof(Info));
-						Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-						Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
-						Info.AllocationType = AllocationType_Discrite;
-						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
-					}
-					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
-				}
-
-				{
-					ResourceHeaderAllocation iImageSource;
-					{
-						RHeaderImageSourceCreateInfo Info;
-						memset(&Info, 0, sizeof(Info));
-						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
-						free(Info.ImageData);
-					}
-					ResourceHeaderAllocation iTextureHeader;
-					{
-						RHeaderTextureCreateInfo Info;
-						memset(&Info, 0, sizeof(Info));
-						Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-						Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
-						Info.AllocationType = AllocationType_Discrite;
-						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
-						ResourceHeaderCreateInfo MainCreateInfo;
-						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
-						MainCreateInfo.Name = NULL;
-						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
-					}
-					CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
-				}
-
-				ResourceHeaderCreateInfo MainCreateInfo;
-				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
-				MainCreateInfo.Name = NULL;
-				Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
-				Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject);
-			}
-
-			{
-				RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(iMaterial);
-				ElementGraphicsCreateInfo CreateInfo;
-				memset(&CreateInfo, 0, sizeof(CreateInfo));
-				CreateInfo.pMaterial = pMaterial;
-				CreateInfo.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-
-				CreateInfo.EffectCreateInfosSize = 1;
-				CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
-
-				ChemistryEffectCreateInfoFundamental Info;
-				memset(&Info, 0, sizeof(Info));
-
-				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
-				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
-
-				Info.ChunkSize = 1;
-				Info.Resolution = 5096;
-
-				Info.ParticlesSize = (3000);
-				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
-
-				uint64_t it = 0;	
-				
-				/*
-				for (size_t i1 = 0; i1 < 4; i1++)
-				{
-					for (size_t i = 0; i < 32; i++)
-					{
-						Info.Particles[it].Position[0] = -(-0.0f + (-0.8 * i1)) + (i * 0.1);
-						Info.Particles[it].Position[1] = -(-5.0f + (0.8 * i1)) + (i * 0.1);
-						Info.Particles[it].Position[2] = 0;
-						Info.Particles[it].Position[3] = i1 % 2 ? -1 : 1;
-						Info.Particles[it].PositionVelocity[0] = -1.0f;
-						Info.Particles[it].PositionVelocity[1] = 1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0;
-						glm_vec3_normalize(Info.Particles[it].PositionVelocity);
-						it++;
-					}
-				}
-			
-				for (size_t ix = 0; ix < 16; ix++)
-				{
-					for (size_t iy = 0; iy < 16; iy++)
-					{
-						for (size_t iz = 0; iz < 16; iz++)
-						{
-							Info.Particles[it].Position[0] = ix;
-							Info.Particles[it].Position[1] = iy;
-							Info.Particles[it].Position[2] = iz;
-							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = 1.0f;
-							Info.Particles[it].PositionVelocity[1] = 0.0f;
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-							it++;
-						}
-					}
-				}
-				
-				
-				for (size_t i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 0; i < 25; i++)
-					{
-						Info.Particles[it].Position[0] = 0.0f;
-						Info.Particles[it].Position[1] = 0.0f;
-						Info.Particles[it].Position[2] = (0.0f + i);
-						Info.Particles[it].Position[3] = 1.0f;
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
-						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = -1;
-
-						Info.Particles[it].Position[1] += 10.0f;
-						it++;
-					}
-				}
-			*/
-				
-		
-				uint64_t val = 0;
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 5; i < 6; i++)
-					{
-						float height = i;
-
-						val = (M_PI * 2 * height);
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[2] = 0.0f;
-							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[1]);
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[1] += 10.0f;
-
-							it++;
-						}
-					}
-				}
-				
-				
-				/*
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 0; i < 20; i++)
-					{
-						val = (M_PI * 2 * (i));
-						val = 500;
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[2] = i0;
-							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
-							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] += 40;
-
-							it++;
-						}
-					}
-				}
-
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 0; i < 20; i++)
-					{
-						val = (M_PI * 2 * (i));
-						val = 500;
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[2] = i0;
-							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
-							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] -= 40;
-
-							it++;
-						}
-					}
-				}
-			
-				
-				uint64_t ringc = 24;
-				
-				for (size_t i0 = 0; i0 < ringc; i0++)
-				{
-					for (size_t i = 1; i < 5; i++)
-					{
-						float height = i * 0.5;
-						val = (M_PI * 2 * height) * 4;
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
-							Info.Particles[it].Position[1] = 0.0f;
-							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = 0.0f;
-							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
-
-							Info.Particles[it].Position[0] += height;
-
-							vec3 axis = {0.0f, 0.0f, 1.0f};
-
-
-							glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
-							glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
-
-							Info.Particles[it].Position[1] += 20.0f;
-
-							it++;
-						}
-					}
-				}	
-				*/
-
-				Engine_Ref_FunctionError("PARTICLES SIZE", "AAA", it);
-
-				ElementCreateInfo MainCreateInfo;
-				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
-				MainCreateInfo.Name = NULL;
-				Object_Ref_Create_Element(&iMolecularSimulation, MainCreateInfo, &CreateInfo, 0);
-				Object_Ref_Add_ResourceHeader_ElementChild(iMolecularSimulation, iResourceHeaderParent);
-				free(CreateInfo.EffectCreateInfos);
-				free(Info.Particles);
-			}
-		}
-		
-		{
-			ResourceHeaderAllocation iResourceHeaderParent;
-			{
-				ResourceHeaderCreateInfo MainCreateInfo;
-				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
-				MainCreateInfo.Name = NULL;
-				Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
-				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject);
-
-			}
-
-
-			ResourceHeaderAllocation iMaterial;
-			{
-				RHeaderMaterialCreateInfo CreateInfoMaterial;
-				memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
-
-				CreateInfoMaterial.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-
+				CreateInfoMaterial.iGraphicsWindow = iGraphicsWindow;
 				CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
 				CreateInfoMaterial.BaseColourFactor[1] = 0.0f;
 				CreateInfoMaterial.BaseColourFactor[2] = 0.0f;
 				CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
-
 				CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
-
 				{
 					ResourceHeaderAllocation iImageSource;
 					{
@@ -1320,15 +1056,15 @@ TEXRESULT Initialise_Chat()
 						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
 						MainCreateInfo.Name = NULL;
 						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
+						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
 						free(Info.ImageData);
 					}
 					ResourceHeaderAllocation iTextureHeader;
 					{
 						RHeaderTextureCreateInfo Info;
 						memset(&Info, 0, sizeof(Info));
-						Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-						Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
+						Info.iGraphicsWindow = iGraphicsWindow;
+						Info.iImageSource = iImageSource;
 						Info.AllocationType = AllocationType_Linear;
 						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
 						ResourceHeaderCreateInfo MainCreateInfo;
@@ -1336,7 +1072,7 @@ TEXRESULT Initialise_Chat()
 						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
 						MainCreateInfo.Name = NULL;
 						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
+						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
 					}
 					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
 				}
@@ -1352,15 +1088,15 @@ TEXRESULT Initialise_Chat()
 						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
 						MainCreateInfo.Name = NULL;
 						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject);
+						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
 						free(Info.ImageData);
 					}
 					ResourceHeaderAllocation iTextureHeader;
 					{
 						RHeaderTextureCreateInfo Info;
 						memset(&Info, 0, sizeof(Info));
-						Info.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
-						Info.pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(iImageSource);
+						Info.iGraphicsWindow = iGraphicsWindow;
+						Info.iImageSource = iImageSource;
 						Info.AllocationType = AllocationType_Linear;
 						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
 						ResourceHeaderCreateInfo MainCreateInfo;
@@ -1368,7 +1104,7 @@ TEXRESULT Initialise_Chat()
 						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
 						MainCreateInfo.Name = NULL;
 						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject);
+						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
 					}
 					CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
 				}
@@ -1378,31 +1114,34 @@ TEXRESULT Initialise_Chat()
 				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
 				MainCreateInfo.Name = NULL;
 				Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
-				Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject);
+				Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject, 0);
 			}
 
 			{
-				RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(iMaterial);
+				RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(iMaterial, true, false, 0);
+				pMaterial->BaseColourMode = MaterialMode_Alpha;
+				Object_Ref_End_ResourceHeaderPointer(iMaterial, true, false, 0);
+
 				ElementGraphicsCreateInfo CreateInfo;
 				memset(&CreateInfo, 0, sizeof(CreateInfo));
-				CreateInfo.pMaterial = pMaterial;
-				CreateInfo.pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow);
+				CreateInfo.iMaterial = iMaterial;
+				CreateInfo.iGraphicsWindow = iGraphicsWindow;
 
 				CreateInfo.EffectCreateInfosSize = 1;
 				CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
 
-				pMaterial->BaseColourMode = MaterialMode_Alpha;
+
 				GraphicsEffectCreateInfoText InfoText;
 				memset(&InfoText, 0, sizeof(InfoText));
 
 				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)GUIEffect_Text;
 				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &InfoText;
 
-				InfoText.Text = (UTF8*)"FPS:";
+				InfoText.Text = (UTF8*)".";
 				InfoText.FontSize = 100;
 
-				InfoText.pFontsSize = 2;
-				InfoText.pFonts = (RHeaderFont**)calloc(InfoText.pFontsSize, sizeof(*InfoText.pFonts));
+				InfoText.iFontsSize = 2;
+				InfoText.iFonts = (RHeaderFont**)calloc(InfoText.iFontsSize, sizeof(*InfoText.iFonts));
 				{
 					ResourceHeaderAllocation iFont;
 					RHeaderFontCreateInfo CreateInfoFont;
@@ -1413,8 +1152,8 @@ TEXRESULT Initialise_Chat()
 					MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
 					MainCreateInfo.Name = NULL;
 					Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject);
-					InfoText.pFonts[0] = (RHeaderFont*)Object_Ref_Get_ResourceHeaderPointer(iFont);
+					Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject, 0);
+					InfoText.iFonts[0] = iFont;
 					free(CreateInfoFont.Data.pData);
 				}
 				{
@@ -1427,8 +1166,8 @@ TEXRESULT Initialise_Chat()
 					MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
 					MainCreateInfo.Name = NULL;
 					Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject);
-					InfoText.pFonts[1] = (RHeaderFont*)Object_Ref_Get_ResourceHeaderPointer(iFont);
+					Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject, 0);
+					InfoText.iFonts[1] = iFont;
 					free(CreateInfoFont.Data.pData);
 				}
 
@@ -1449,13 +1188,12 @@ TEXRESULT Initialise_Chat()
 				MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
 				MainCreateInfo.Name = NULL;
 				Object_Ref_Create_Element(&iFPS_DisplayText, MainCreateInfo, &CreateInfo, 0);
-				Object_Ref_Add_ResourceHeader_ElementChild(iFPS_DisplayText, iResourceHeaderParent);
+				Object_Ref_Add_ResourceHeader_ElementChild(iFPS_DisplayText, iResourceHeaderParent, 0);
 				free(CreateInfo.EffectCreateInfos);
-				free(InfoText.pFonts);
+				free(InfoText.iFonts);
 			}
-		}	
-	}
-		
+		}
+	}	
 	/*
 	for (size_t i = 0; i < 1; i++)
 	{
@@ -1661,11 +1399,397 @@ TEXRESULT Initialise_Chat()
 		Audio_Ref_Start_OutputStream(pAudioElement);
 		*/
 	//Object_Ref_Write_TEIF((const UTF8*)"BIN.teif", 0);	
-	//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
+		//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
 
-	return (TEXRESULT)((Success));
+return (Success);
+}
+/*
+void bro()
+{
+	{
+		ResourceHeaderAllocation iResourceHeaderParent;
+		{
+			ResourceHeaderCreateInfo MainCreateInfo;
+			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+			MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
+			MainCreateInfo.Name = NULL;
+			Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
+			Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject, 0);
+		}
+		ResourceHeaderAllocation iMaterial;
+		{
+			RHeaderMaterialCreateInfo CreateInfoMaterial;
+			memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
+			CreateInfoMaterial.iGraphicsWindow = iGraphicsWindow;
+			CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
+			CreateInfoMaterial.BaseColourFactor[1] = 1.0f;
+			CreateInfoMaterial.BaseColourFactor[2] = 1.0f;
+			CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
+			CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
+			{
+				ResourceHeaderAllocation iImageSource;
+				{
+					RHeaderImageSourceCreateInfo Info;
+					memset(&Info, 0, sizeof(Info));
+					Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+					free(Info.ImageData);
+				}
+				ResourceHeaderAllocation iTextureHeader;
+				{
+					RHeaderTextureCreateInfo Info;
+					memset(&Info, 0, sizeof(Info));
+					Info.iGraphicsWindow = iGraphicsWindow;
+					Info.iImageSource = iImageSource;
+					Info.AllocationType = AllocationType_Discrite;
+					Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+				}
+				CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
+			}
+
+			{
+				ResourceHeaderAllocation iImageSource;
+				{
+					RHeaderImageSourceCreateInfo Info;
+					memset(&Info, 0, sizeof(Info));
+					Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+					free(Info.ImageData);
+				}
+				ResourceHeaderAllocation iTextureHeader;
+				{
+					RHeaderTextureCreateInfo Info;
+					memset(&Info, 0, sizeof(Info));
+					Info.iGraphicsWindow = iGraphicsWindow;
+					Info.iImageSource = iImageSource;
+					Info.AllocationType = AllocationType_Discrite;
+					Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+				}
+				CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
+			}
+
+			ResourceHeaderCreateInfo MainCreateInfo;
+			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
+			MainCreateInfo.Name = NULL;
+			Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
+			Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject, 0);
+		}
+
+		{
+			ElementGraphicsCreateInfo CreateInfo;
+			memset(&CreateInfo, 0, sizeof(CreateInfo));
+			CreateInfo.iMaterial = iMaterial;
+			CreateInfo.iGraphicsWindow = iGraphicsWindow;
+
+			CreateInfo.EffectCreateInfosSize = 1;
+			CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
+
+			ChemistryEffectCreateInfoFundamental Info;
+			memset(&Info, 0, sizeof(Info));
+
+			CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
+			CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
+
+			Info.ChunkSize = 1;
+			Info.Resolution = 5096;
+
+			Info.ParticlesSize = (5000);
+			Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
+
+			uint64_t it = 0;
+
+			/*
+				for (size_t i1 = 0; i1 < 1; i1++)
+				{
+					for (size_t i = 0; i < 32; i++)
+					{
+						Info.Particles[it].Position[0] = -(-0.0f + (-1.8 * i1)) + (i * 0.1);
+						Info.Particles[it].Position[1] = -(-5.0f + (1.8 * i1)) + (i * 0.1);
+						Info.Particles[it].Position[2] = 0;
+						Info.Particles[it].Position[3] = i1 % 2 ? -1 : 1;
+						Info.Particles[it].PositionVelocity[0] = -1.0f;
+						Info.Particles[it].PositionVelocity[1] = 1.0f;
+						Info.Particles[it].PositionVelocity[2] = 0;
+
+						it++;
+					}
+				}
+				*/
+				/*
+				for (size_t ix = 0; ix < 16; ix++)
+				{
+					for (size_t iy = 0; iy < 16; iy++)
+					{
+						for (size_t iz = 0; iz < 16; iz++)
+						{
+							Info.Particles[it].Position[0] = ix;
+							Info.Particles[it].Position[1] = iy;
+							Info.Particles[it].Position[2] = iz;
+							Info.Particles[it].Position[3] = 1.0f;
+							Info.Particles[it].PositionVelocity[0] = 1.0f;
+							Info.Particles[it].PositionVelocity[1] = 0.0f;
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+							it++;
+						}
+					}
+				}
+
+
+				for (size_t i0 = 0; i0 < 2; i0++)
+				{
+					for (size_t i = 0; i < 40; i++)
+					{
+						Info.Particles[it].Position[0] = 0.0f;
+						Info.Particles[it].Position[1] = 0.0f + (i0 * 0.9);
+						Info.Particles[it].Position[2] = (0.0f + i);
+						Info.Particles[it].Position[3] = (((i % 40) < 20) ? ((i0 % 2 ? -1 : 1)) : (-(i0 % 2 ? -1 : 1)));
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = -1;
+
+						Info.Particles[it].Position[1] += 20.0f;
+						it++;
+					}
+				}
+
+				for (size_t i0 = 0; i0 < 30; i0++)
+				{
+					for (size_t i = 0; i < 50; i++)
+					{
+						Info.Particles[it].Position[0] = 0.0f;
+						Info.Particles[it].Position[1] = (0.0f + (i * 1.0));
+						Info.Particles[it].Position[2] = -0.0001f + (i0 * 1.0);
+						Info.Particles[it].Position[3] = 1;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = -1.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+						Info.Particles[it].Position[1] += 40.0f;
+						Info.Particles[it].Position[2] -= 20.0f;
+						it++;
+
+						Info.Particles[it].Position[0] = 0.0f;
+						Info.Particles[it].Position[1] = (0.0f + (i * 1.0));
+						Info.Particles[it].Position[2] = 0.0001f + (i0 * 1.0);
+						Info.Particles[it].Position[3] = -1;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = -1.0f;
+						Info.Particles[it].PositionVelocity[2] = -0.0f;
+
+						Info.Particles[it].Position[1] += 40.0f;
+						Info.Particles[it].Position[2] -= 20.0f;
+						it++;
+					}
+				}
+
+				Info.Particles[it].Position[0] = 0.0f;
+				Info.Particles[it].Position[1] = -2.0f;
+				Info.Particles[it].Position[2] = -10.0f;
+				Info.Particles[it].Position[3] = 1;
+				Info.Particles[it].PositionVelocity[0] = 0.0f;
+				Info.Particles[it].PositionVelocity[1] = -0.5f;
+				Info.Particles[it].PositionVelocity[2] = 0.5f;
+
+				Info.Particles[it].Position[1] += 40.0f;
+				Info.Particles[it].Position[2] -= 20.0f;
+				it++;
+				
+
+			Info.Particles[it].Position[0] = -1.0f;
+			Info.Particles[it].Position[1] = 0.0f;
+			Info.Particles[it].Position[2] = 0.0f;
+			Info.Particles[it].Position[3] = 1;
+			Info.Particles[it].PositionVelocity[0] = 1.0f;
+			Info.Particles[it].PositionVelocity[1] = 0.1f;
+			Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+			Info.Particles[it].Position[1] += 40.0f;
+			Info.Particles[it].Position[2] -= 20.0f;
+			it++;
+
+			Info.Particles[it].Position[0] = 0.0f;
+			Info.Particles[it].Position[1] = 0.9f;
+			Info.Particles[it].Position[2] = 0.0f;
+			Info.Particles[it].Position[3] = 1;
+			Info.Particles[it].PositionVelocity[0] = -1.0f;
+			Info.Particles[it].PositionVelocity[1] = 0.0f;
+			Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+			Info.Particles[it].Position[1] += 40.0f;
+			Info.Particles[it].Position[2] -= 20.0f;
+			it++;
+
+
+
+
+			Info.Particles[it].Position[0] = -5.0f;
+			Info.Particles[it].Position[1] = 0.0f;
+			Info.Particles[it].Position[2] = 0.0f;
+			Info.Particles[it].Position[3] = 1;
+			Info.Particles[it].PositionVelocity[0] = 1.0f;
+			Info.Particles[it].PositionVelocity[1] = 0.1f;
+			Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+			Info.Particles[it].Position[1] += 40.0f;
+			Info.Particles[it].Position[2] -= 20.0f;
+			it++;
+
+			Info.Particles[it].Position[0] = -5.0f;
+			Info.Particles[it].Position[1] = 0.9f;
+			Info.Particles[it].Position[2] = 0.0f;
+			Info.Particles[it].Position[3] = 1;
+			Info.Particles[it].PositionVelocity[0] = 1.0f;
+			Info.Particles[it].PositionVelocity[1] = 0.0f;
+			Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+			Info.Particles[it].Position[1] += 40.0f;
+			Info.Particles[it].Position[2] -= 20.0f;
+			it++;
+
+
+			/*
+
+			uint64_t val = 0;
+			for (int i0 = 0; i0 < 1; i0++)
+			{
+				for (size_t i = 1; i < 2; i++)
+				{
+					float height = i * 2;
+
+					val = (M_PI * 2 * height) * 2;
+					for (size_t i1 = 0; i1 < val; i1++)
+					{
+						Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * height;
+						Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * height;
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].Position[3] = 1.0f;
+						Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[0]);
+						Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[1]);
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+						Info.Particles[it].Position[1] += 20.0f;
+
+						it++;
+					}
+				}
+			}
+				*/	/*
+			uint64_t ringc = 6;
+
+			for (size_t i0 = 0; i0 < ringc; i0++)
+			{
+				for (size_t i = 1; i < 2; i++)
+				{
+					float height = i * 0.5;
+					val = (M_PI * 2 * height) * 2;
+					for (size_t i1 = 0; i1 < val; i1++)
+					{
+						Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
+						Info.Particles[it].Position[1] = 0.0f;
+						Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
+						Info.Particles[it].Position[3] = 1.0f;
+						Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
+
+						Info.Particles[it].Position[0] += height;
+
+						vec3 axis = {0.0f, 0.0f, 1.0f};
+
+
+						glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
+						glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
+
+						Info.Particles[it].Position[1] += 20.0f;
+
+						it++;
+					}
+				}
+			}
+			*/
+			/*
+for (int i0 = 0; i0 < 1; i0++)
+{
+	for (size_t i = 0; i < 20; i++)
+	{
+		val = (M_PI * 2 * (i));
+		val = 500;
+		for (size_t i1 = 0; i1 < val; i1++)
+		{
+			Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+			Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+			Info.Particles[it].Position[2] = i0;
+			Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+			Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+			Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+			Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+			Info.Particles[it].Position[0] += 40;
+
+			it++;
+		}
+	}
 }
 
+for (int i0 = 0; i0 < 1; i0++)
+{
+	for (size_t i = 0; i < 20; i++)
+	{
+		val = (M_PI * 2 * (i));
+		val = 500;
+		for (size_t i1 = 0; i1 < val; i1++)
+		{
+			Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+			Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+			Info.Particles[it].Position[2] = i0;
+			Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+			Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+			Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+			Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+			Info.Particles[it].Position[0] -= 40;
+
+			it++;
+		}
+	}
+}
+
+
+			ElementCreateInfo MainCreateInfo;
+			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+			MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
+			MainCreateInfo.Name = NULL;
+			Object_Ref_Create_Element(&iMolecularSimulation, MainCreateInfo, &CreateInfo, 0);
+			Object_Ref_Add_ResourceHeader_ElementChild(iMolecularSimulation, iResourceHeaderParent, 0);
+			free(CreateInfo.EffectCreateInfos);
+			free(Info.Particles);
+		}
+	}
+}
+*/
 TEXRESULT Destroy_Chat()
 {
 
@@ -1711,6 +1835,9 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	//exports
 	//resources
 	//functions
+	//ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData("Formats::Utils"), &FormatsRes.pUtils, &Utils);
+
+
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Initialise_Chat"), &ChatRes.pInitialise_Chat, &Initialise_Chat, Construct, 10000.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Destroy_Chat"), &ChatRes.pDestroy_Chat, &Destroy_Chat, Destruct, 0.001f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chat::Update_Chat"), &ChatRes.pUpdate_Chat, &Update_Chat, EveryFrame, 0.1f, 0, NULL);

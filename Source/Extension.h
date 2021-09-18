@@ -11,8 +11,11 @@ SPECIFICATION:
 * All Functions in this game engine if have a array in their arguments will copy it if 
 it needs to.
 
+* ALL IMPORTS AND EXPORTS WILL BE RESET AFTER DESTROYING THE MAIN ENGINE
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 #pragma once
+#define TEX_ENGINE_API
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Enums
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,7 +24,7 @@ it needs to.
 * Added in 1.0.0
 * Triangle Engine X Result
 */
-typedef enum TEXRESULT{
+typedef enum TEXRESULT {
 	Success = 0x0,
 	Failure = 0x1,
 	Invalid_Format = 0x2,
@@ -31,12 +34,11 @@ typedef enum TEXRESULT{
 	Timeout = 0x800,
 	Busy = 0x1000,
 }TEXRESULT;
-
 /*
 * Added in 1.0.0
 * Specify When a function is called.
 */
-typedef enum CallFlagBits{
+typedef enum CallFlagBits {
 	NoCall =			0x00000000, //nocall duh
 	Construct =			0x00000001, //called in initialisation
 	Destruct =			0x00000002, //called in desctrucion
@@ -64,31 +66,28 @@ typedef enum CallFlagBits{
 	//end
 	CallFlags_MAX =		0x00400000
 }CallFlagBits;
-
 /*
 * Added in 1.0.0
 * Engine Binary Type, Used to make sure all extensions are compiled with the same setting.
 */
-typedef enum BinaryType{
-	Debug =		1,
-	Release =	2
+typedef enum BinaryType {
+	Debug = 1,
+	Release = 2
 }BinaryType;
-
 /*
 * Added in 1.0.0
 * Keys State
 */
-typedef enum KeyState{
+typedef enum KeyState {
 	KeyRelease = 0,
 	KeyPress = 1,
 	KeyRepeat = 2 //when a key is pressed for more then 1 frames
 }KeyState;
-
 /*
 * Added in 1.0.0
 * Key Indexes
 */
-typedef enum Keys{
+typedef enum Keys {
 	//The unknown key
 	KEY_UNKNOWN,
 	//Printable keys
@@ -215,11 +214,10 @@ typedef enum Keys{
 
 	KEY_LAST = KEY_MENU
 }Key;
-
 /*
 * Added in 1.0.0
 */
-typedef enum MouseButtons{
+typedef enum MouseButtons {
 	MOUSE_BUTTON_1 = 0,
 	MOUSE_BUTTON_2 = 1,
 	MOUSE_BUTTON_3 = 2,
@@ -240,7 +238,7 @@ typedef enum MouseButtons{
 * Specifies the index of the joystick
 * 16 max concurrent joysticks.
 */
-typedef enum Joystick{
+typedef enum Joystick {
 	JOYSTICK_1 = 0,
 	JOYSTICK_2 = 1,
 	JOYSTICK_3 = 2,
@@ -259,13 +257,11 @@ typedef enum Joystick{
 	JOYSTICK_16 = 15,
 	JOYSTICK_LAST = JOYSTICK_16
 }Joystick;
-
 /*
 * Added in 1.0.0
 * Connected and disconnected physically from the PC (usually).
 */
-typedef enum ConnectionEvents
-{
+typedef enum ConnectionEvents {
 	CONNECTED = 0x00040001,
 	DISCONNECTED = 0x00040002
 }ConnectionEvent;
@@ -308,21 +304,27 @@ typedef enum ConnectionEvents
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
-typedef struct FileData
-{
+/*
+* Added in 1.0.0
+* Universal way of transfering data.
+*/
+typedef struct FileData {
 	uint64_t LinearSize;
 	void* pData;
 }FileData;
-
-typedef enum DataType
-{
+/*
+* Added in 1.0.0
+*/
+typedef enum DataType {
 	Undefined,
 	SignedInt,
 	UnsignedInt,
 	SignedFloat,
 	UnsignedFloat
 }DataType;
-
+/*
+* Added in 1.0.0
+*/
 typedef enum AccessorType { //acessor type enum = size of element in elements
 	AccessorType_SCALAR = 1,
 	AccessorType_VEC2 = 2,
@@ -332,21 +334,23 @@ typedef enum AccessorType { //acessor type enum = size of element in elements
 	AccessorType_MAT3 = 9,
 	AccessorType_MAT4 = 16,
 }AccessorType;
-
 /*
+* Added in 1.0.0
 * Unicode UTF8 string, the standard encoding for Triangle Engine X.
 */
 typedef unsigned char UTF8;
 /*
+* Added in 1.0.0
 * Unicode UTF16 Little Endian string, Standard in Microsoft Windows.
 */
 typedef uint16_t UTF16;
 /*
+* Added in 1.0.0
 * Unicode UTF32 Little Endian string.
 */
 typedef uint32_t UTF32;
-
 /*
+* Added in 1.0.0
 * Mutex types 
 */
 typedef enum MutexType {
@@ -355,14 +359,16 @@ typedef enum MutexType {
 	MutexType_Recursive = 2,
 }MutexType;
 
-
-typedef char Mutex[56];//big enough to fit windows and linux Mutex
-typedef char Condition[64]; //big enough to fit windows and linux Condition
-typedef char OnceFlag[48]; //big enough to fit windows and linux OnceFlag
+typedef struct Mutex { char pad[56]; }Mutex;//big enough to fit windows and linux Mutex
+typedef struct Condition { char pad[64]; }Condition; //big enough to fit windows and linux Condition
+typedef struct SharedMutex { char pad[64]; }SharedMutex;//big enough to fit windows and linux sharedMutex
+typedef struct OnceFlag { char pad[48]; }OnceFlag; //big enough to fit windows and linux OnceFlag
 
 typedef void Thread;
 
-/** Thread start function.
+/*
+* Added in 1.0.0
+* Thread start function.
 * Any thread that is started with the @ref thrd_create() function must be
 * started through a function of this type.
 * @param arg The thread argument (the @c arg argument of the corresponding
@@ -372,15 +378,18 @@ typedef void Thread;
 */
 typedef int (*thrd_start_t)(void* arg);
 
-/** Destructor function for a thread-specific storage.
+/*
+* Added in 1.0.0
+* Destructor function for a thread-specific storage.
 * @param val The value of the destructed thread-specific storage.
 */
 typedef void (*tss_dtor_t)(void* val);
 
-
-
-typedef struct FormatDetails
-{
+/*
+* Added in 1.0.0
+* Universal way to describe data formats.
+*/
+typedef struct FormatDetails {
 	uint64_t ChannelCount;
 	uint64_t Stride; //amount of bits in total from 1 element to the next
 
@@ -391,14 +400,24 @@ typedef struct FormatDetails
 	uint8_t* BitsPerChannel; //pointer to bits per channel object
 }FormatDetails;
 
-uint64_t AlignNumber(uint64_t number, uint64_t alignment)
-{
-	return (number & -(int64_t)alignment) < number ?
-		(number & -(int64_t)alignment) + alignment : (number & -(int64_t)alignment);
+/*
+* Added in 1.0.0
+* Aligns number to nearest multiple of alignment.
+* @param Number to align.
+* @param Alignment to.
+* @return Aligned number
+*/ 
+uint64_t AlignNumber(uint64_t Number, uint64_t Alignment) {
+	return (Number & -(int64_t)Alignment) < Number ?
+		(Number & -(int64_t)Alignment) + Alignment : (Number & -(int64_t)Alignment);
 }
-
-int memsize(int i)
-{
+/*
+* Added in 1.0.0
+* Retrieves amount of bytes needed for given number i.
+* @param i number.
+* @return bytecount.
+*/
+int memsize(int i) {
 	int size = 1;
 
 	if (i > 255)
@@ -409,9 +428,11 @@ int memsize(int i)
 		size = 4;
 	return size;
 }
-
-void memset64(void* dest, uint64_t value, uintptr_t size)
-{
+/*
+* Added in 1.0.0
+* i honestly have no idea what this does. But its a relic.
+*/
+void memset64(void* dest, uint64_t value, uintptr_t size) {
 	uintptr_t i;
 	for (i = 0; i < (size & (~7)); i += 8)
 	{
@@ -422,76 +443,101 @@ void memset64(void* dest, uint64_t value, uintptr_t size)
 		((char*)dest)[i] = ((char*)&value)[i & 7];
 	}
 }
-
-uint16_t swap_uint16(uint16_t val)
-{
-	return (val << 8) | (val >> 8);
-}
-
-//! Byte swap short
-int16_t swap_int16(int16_t val)
-{
-	return (val << (int16_t)8) | ((val >> (int16_t)8) & 0xFF);
-}
-
-//! Byte swap int
-int32_t swap_int32(int32_t val)
-{
-	val = ((val << (int32_t)8) & 0xFF00FF00) | ((val >> (int32_t)8) & 0xFF00FF);
-	return (val << (int32_t)16) | ((val >> (int32_t)16) & 0xFFFF);
-}
-
-//! Byte swap unsigned int
-uint32_t swap_uint32(uint32_t val)
-{
-	val = ((val << (uint32_t)8) & 0xFF00FF00) | ((val >> (uint32_t)8) & 0xFF00FF);
-	return (val << (uint32_t)16) | (val >> (uint32_t)16);
-}
-
-int64_t swap_int64(int64_t val)
-{
-	val = ((val << (int64_t)8) & 0xFF00FF00FF00FF00ULL) | ((val >> (int64_t)8) & 0x00FF00FF00FF00FFULL);
-	val = ((val << (int64_t)16) & 0xFFFF0000FFFF0000ULL) | ((val >> (int64_t)16) & 0x0000FFFF0000FFFFULL);
-	return (val << (int64_t)32) | ((val >> (int64_t)32) & 0xFFFFFFFFULL);
-}
-
-uint64_t swap_uint64(uint64_t val)
-{
-	val = ((val << (uint64_t)8) & 0xFF00FF00FF00FF00ULL) | ((val >> (uint64_t)8) & 0x00FF00FF00FF00FFULL);
-	val = ((val << (uint64_t)16) & 0xFFFF0000FFFF0000ULL) | ((val >> (uint64_t)16) & 0x0000FFFF0000FFFFULL);
-	return (val << (uint64_t)32) | (val >> (uint64_t)32);
-}
-
 /*
- * bit shifts entire array
- * amount of bits shift must be less then array size.
+* Added in 1.0.0
+* byte swap.
+* @param val number to swap.
+* @return aligned number.
 */
-void bitshiftR_array(uint8_t* pData, const uint32_t datasize, const uint32_t bits)
-{
-	int64_t bytes = bits / 8;
-	int64_t bitsp = bits % 8;
+uint16_t swap_uint16(uint16_t Number) {
+	return (Number << 8) | (Number >> 8);
+}
+/*
+* Added in 1.0.0
+* byte swap.
+* @param val number to swap.
+* @return aligned number.
+*/
+int16_t swap_int16(int16_t Number) {
+	return (Number << (int16_t)8) | ((Number >> (int16_t)8) & 0xFF);
+}
+/*
+* Added in 1.0.0
+* byte swap.
+* @param val number to swap.
+* @return aligned number.
+*/
+int32_t swap_int32(int32_t Number) {
+	Number = ((Number << (int32_t)8) & 0xFF00FF00) | ((Number >> (int32_t)8) & 0xFF00FF);
+	return (Number << (int32_t)16) | ((Number >> (int32_t)16) & 0xFFFF);
+}
+/*
+* Added in 1.0.0
+* byte swap.
+* @param val number to swap.
+* @return aligned number.
+*/
+uint32_t swap_uint32(uint32_t Number) {
+	Number = ((Number << (uint32_t)8) & 0xFF00FF00) | ((Number >> (uint32_t)8) & 0xFF00FF);
+	return (Number << (uint32_t)16) | (Number >> (uint32_t)16);
+}
+/*
+* Added in 1.0.0
+* byte swap.
+* @param val number to swap.
+* @return aligned number.
+*/
+int64_t swap_int64(int64_t Number) {
+	Number = ((Number << (int64_t)8) & 0xFF00FF00FF00FF00ULL) | ((Number >> (int64_t)8) & 0x00FF00FF00FF00FFULL);
+	Number = ((Number << (int64_t)16) & 0xFFFF0000FFFF0000ULL) | ((Number >> (int64_t)16) & 0x0000FFFF0000FFFFULL);
+	return (Number << (int64_t)32) | ((Number >> (int64_t)32) & 0xFFFFFFFFULL);
+}
+/*
+* Added in 1.0.0
+* byte swap.
+* @param val number to swap.
+* @return aligned number.
+*/
+uint64_t swap_uint64(uint64_t Number) {
+	Number = ((Number << (uint64_t)8) & 0xFF00FF00FF00FF00ULL) | ((Number >> (uint64_t)8) & 0x00FF00FF00FF00FFULL);
+	Number = ((Number << (uint64_t)16) & 0xFFFF0000FFFF0000ULL) | ((Number >> (uint64_t)16) & 0x0000FFFF0000FFFFULL);
+	return (Number << (uint64_t)32) | (Number >> (uint64_t)32);
+}
+/*
+* Added in 1.0.0
+* Bit shifts entire array
+* amount of bits shift must be less then array size.
+* @param pData pointer to data to shift.
+* @param pDataSize size of data to shift.
+* @param Bits Amount of bits to shift.
+*/
+void bitshiftR_array(uint8_t* pData, const uint32_t pDataSize, const uint32_t Bits) {
+	int64_t bytes = Bits / 8;
+	int64_t bitsp = Bits % 8;
 
-	for (int64_t i = 0; i < (int64_t)(datasize - (2 + bytes)); i++)
+	for (int64_t i = 0; i < (int64_t)(pDataSize - (2 + bytes)); i++)
 	{
 		pData[i] = (uint8_t)(pData[(int64_t)i + (int64_t)(bytes)] >> bitsp | pData[(int64_t)i + (int64_t)(1 + bytes)] << ((int64_t)8 - (int64_t)bitsp));
 	}
-	pData[(int64_t)datasize - (int64_t)(1 + bytes)] = pData[(int64_t)datasize - (int64_t)(1)] >> bitsp;
+	pData[(int64_t)pDataSize - (int64_t)(1 + bytes)] = pData[(int64_t)pDataSize - (int64_t)(1)] >> bitsp;
 	for (size_t i = 0; i < (uint64_t)bytes; i++)
 	{
-		pData[(int64_t)datasize - (int64_t)(1 + i)] = 0;
+		pData[(int64_t)pDataSize - (int64_t)(1 + i)] = 0;
 	}
 }
-
 /*
- * bit shifts entire array
- * amount of bits shift must be less then array size.
+* Added in 1.0.0
+* Bit shifts entire array
+* amount of bits shift must be less then array size.
+* @param pData pointer to data to shift.
+* @param pDataSize size of data to shift.
+* @param Bits Amount of bits to shift.
 */
-void bitshiftL_array(uint8_t* pData, const uint32_t datasize, const uint32_t bits)
-{
-	uint64_t bytes = bits / 8;
-	uint64_t bitsp = bits % 8;
+void bitshiftL_array(uint8_t* pData, const uint32_t pDataSize, const uint32_t Bits) {
+	uint64_t bytes = Bits / 8;
+	uint64_t bitsp = Bits % 8;
 
-	for (int64_t i = datasize - 1; i >= (int64_t)((int64_t)1 + (int64_t)bytes); i--)
+	for (int64_t i = pDataSize - 1; i >= (int64_t)((int64_t)1 + (int64_t)bytes); i--)
 	{
 		pData[i] = (uint8_t)(pData[(int64_t)i - (int64_t)(bytes)] << bitsp | pData[(int64_t)i - (int64_t)(1 + bytes)] >> ((int64_t)8 - (int64_t)bitsp));
 	}
@@ -501,119 +547,121 @@ void bitshiftL_array(uint8_t* pData, const uint32_t datasize, const uint32_t bit
 		pData[(int64_t)i] = 0;
 	}
 }
-
-TEXRESULT Open_Data(FileData* filedata, const UTF8* path)
-{
-	FILE* file = fopen((char*)path, "rb"); //open file
+/*
+* Added in 1.0.0
+* opens file and puts into buffer.
+* @param pFileData pointer to filedata to store result.
+* @param Path path of file to open. (C format).
+* @return Result.
+*/
+TEXRESULT Open_Data(FileData* pFileData, const UTF8* Path) {
+	FILE* file = fopen((char*)Path, "rb"); //open file
 	if (file == NULL)
-	{
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
+		return (Invalid_Parameter | Failure);
 	fseek(file, 0, SEEK_END); //find end of file
-	filedata->LinearSize = ftell(file); //ftell returns position of seeker and hence size of file
+	pFileData->LinearSize = ftell(file); //ftell returns position of seeker and hence size of file
 	rewind(file); //back to start
-	filedata->pData = malloc(filedata->LinearSize + (uint64_t)1); //allocate enough memory +1 for file ending
-	if (filedata->pData == NULL)
-	{
-		return (TEXRESULT)(Out_Of_Memory_Result | Failure);
-	}
-	fread(filedata->pData, (size_t)filedata->LinearSize, 1, file); //insert pData into memory
-
-	((char*)filedata->pData)[filedata->LinearSize] = '\0'; //add line ending
-
-	filedata->LinearSize += 1;
+	pFileData->pData = malloc(pFileData->LinearSize + (uint64_t)1); //allocate enough memory +1 for file ending
+	if (pFileData->pData == NULL)
+		return (Out_Of_Memory_Result | Failure);
+	fread(pFileData->pData, (size_t)pFileData->LinearSize, 1, file); //insert pData into memory
+	((char*)pFileData->pData)[pFileData->LinearSize] = '\0'; //add line ending
+	pFileData->LinearSize += 1;
 	fclose(file);
-
-	return Success;
+	return (Success);
 }
-
-TEXRESULT Save_data(FileData* filedata, const UTF8* path)
-{
-	FILE* file = fopen((char*)path, "wb"); //open file
+/*
+* Added in 1.0.0
+* Saves filedata to file.
+* @param pFileData pointer to filedata to save.
+* @param Path path of file to save to. (C format).
+* @return Result.
+*/
+TEXRESULT Save_data(FileData* pFileData, const UTF8* Path) {
+	FILE* file = fopen((char*)Path, "wb"); //open file
 	if (file == NULL)
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-
-	fwrite(filedata->pData, sizeof(unsigned char), filedata->LinearSize, file);
-
+		return (Invalid_Parameter | Failure);
+	fwrite(pFileData->pData, sizeof(unsigned char), pFileData->LinearSize, file);
 	fclose(file);
-	return Success;
+	return (Success);
 }
-
-void Resize_Array(void** buffer, uint64_t oldsize, uint64_t newsize, uint64_t membersize)
-{
-	void* oldarray = *buffer;
-	void* TempArray = calloc(newsize, membersize);
+/*
+* Added in 1.0.0
+* Resizes specified array from (OldSize * MemberSize) to (NewSize * MemberSize) cutting off anything that doesnt fit.
+* @param pBuffer pointer to array to resize. 
+* @param OldSize old size of the array in (totalbytes / MemberSize).
+* @param NewSize new size of the array in (totalbytes / MemberSize).
+* @param MemberSize byte count of each member of the array.
+*/
+void Resize_Array(void** pBuffer, uint64_t OldSize, uint64_t NewSize, uint64_t MemberSize) {
+	void* oldarray = *pBuffer;
+	void* TempArray = calloc(NewSize, MemberSize);
 	if (oldarray != NULL)
 	{	
-		memcpy(TempArray, oldarray, membersize * min(newsize, oldsize)); //only copy amount of smaller to keep from overflows
+		memcpy(TempArray, oldarray, MemberSize * min(NewSize, OldSize)); //only copy amount of smaller to keep from overflows
 		free(oldarray);
 	}
 	//assign new array to old array
-	*buffer = TempArray;
+	*pBuffer = TempArray;
 }
-
-void RemoveMember_Array(void** buffer, uint64_t oldsize, uint64_t memberindex, uint64_t membersize, uint64_t membercount)
-{
-	void* oldarray = *buffer;
-
-	uint64_t newsize = oldsize - membercount;
-
-
-	if (newsize != 0)
-	{
-		void* TempArray = calloc(newsize, membersize);
-
-		if (memberindex != NULL) //copy first part of array
-			memcpy(TempArray, oldarray, membersize * memberindex);
-
+/*
+* Added in 1.0.0
+* Removes member from specified array, size changes by -MemberCount.
+* @param pBuffer pointer to array to resize.
+* @param OldSize old size of the array in (totalbytes / MemberSize).
+* @param MemberIndex index of the member to remove, MemberIndex = (bytepositontoremove / MemberSize).
+* @param MemberCount amount of members to remove, amount of bytes removed is (MemberCount * MemberSize).
+* @param NewSize new size of the array in (totalbytes / MemberSize).
+* @param MemberSize byte count of each member of the array.
+*/
+void RemoveMember_Array(void** pBuffer, uint64_t OldSize, uint64_t MemberIndex, uint64_t MemberSize, uint64_t MemberCount) {
+	void* oldarray = *pBuffer;
+	uint64_t newsize = OldSize - MemberCount;
+	if (newsize != 0) {
+		void* TempArray = calloc(newsize, MemberSize);
+		if (MemberIndex != NULL) //copy first part of array
+			memcpy(TempArray, oldarray, MemberSize * MemberIndex);
 		if (oldarray != NULL) //copy second part of array and offset it
-		{
-			memcpy((void*)((uint64_t)TempArray + (uint64_t)(memberindex * membersize)), (void*)((uint64_t)oldarray + (uint64_t)((memberindex + membercount) * membersize)), membersize * (newsize - memberindex));
-		}
-
+			memcpy((void*)((uint64_t)TempArray + (uint64_t)(MemberIndex * MemberSize)), (void*)((uint64_t)oldarray + (uint64_t)((MemberIndex + MemberCount) * MemberSize)), MemberSize * (newsize - MemberIndex));
 		//assign new array to old array
-		*buffer = TempArray;
+		*pBuffer = TempArray;
 	}
 	if (oldarray != NULL)
-	{
 		free(oldarray);
-	}
 }
-
-void InsertMember_Array(void** buffer, uint64_t oldsize, uint64_t memberindex, uint64_t membersize, void* members, uint64_t membercount)
-{
-	void* oldarray = *buffer;
-	void* TempArray = calloc(oldsize + membercount, membersize);
-
-
-	if (memberindex != NULL) //copy first part of array
-		memcpy(TempArray, oldarray, membersize * memberindex);
-
+/*
+* Added in 1.0.0
+* adds member to specified array, size changes by MemberCount.
+* @param pBuffer pointer to array to resize.
+* @param OldSize old size of the array in (totalbytes / MemberSize).
+* @param MemberIndex index to insert to, MemberIndex = (bytepositontoinsertto / MemberSize).
+* @param MemberCount amount of members to add, amount of bytes added is (MemberCount * MemberSize).
+* @param NewSize new size of the array in (totalbytes / MemberSize).
+* @param pMembers pointer to the array or single member to add.
+* @param MemberSize byte count of each member of the array.
+*/
+void InsertMember_Array(void** pBuffer, uint64_t OldSize, uint64_t MemberIndex, uint64_t MemberSize, void* pMembers, uint64_t MemberCount) {
+	void* oldarray = *pBuffer;
+	void* TempArray = calloc(OldSize + MemberCount, MemberSize);
+	if (MemberIndex != NULL) //copy first part of array
+		memcpy(TempArray, oldarray, MemberSize * MemberIndex);
 	if (oldarray != NULL)  //copy second part of array and offset it
 	{
-		memcpy((void*)((uint64_t)TempArray + (uint64_t)((memberindex + membercount) * membersize)), (void*)((uint64_t)oldarray + (uint64_t)(memberindex * membersize)), membersize * (oldsize - memberindex));
+		memcpy((void*)((uint64_t)TempArray + (uint64_t)((MemberIndex + MemberCount) * MemberSize)), (void*)((uint64_t)oldarray + (uint64_t)(MemberIndex * MemberSize)), MemberSize * (OldSize - MemberIndex));
 		free(oldarray);
 	}
-
-	if (members != NULL)
-		memcpy((void*)((uint64_t)TempArray + (uint64_t)(memberindex * membersize)), members, membersize * membercount);
-
+	if (pMembers != NULL)
+		memcpy((void*)((uint64_t)TempArray + (uint64_t)(MemberIndex * MemberSize)), pMembers, MemberSize * MemberCount);
 	//assign new array to old array
-	*buffer = TempArray;
+	*pBuffer = TempArray;
 }
-
-
-
 /*
-typedef struct Palette
-{
+typedef struct Palette {
 	const char* pData;
 	uint32_t size; // size in bytes
 	VkFormat format;
 }Palette;
 */
-
-
 /*
  * src is the paletted image.
  * srcformatbits is the bit precision of the src, can be anything.
@@ -622,8 +670,7 @@ typedef struct Palette
  * supports everything but compressed formats where you should decompress first.
 */
 /*
-uint32_t Decompress_PalettedData(FileData* src, FileData* dst, uint32_t srcformatbits, Palette* palette)
-{
+uint32_t Decompress_PalettedData(FileData* src, FileData* dst, uint32_t srcformatbits, Palette* palette) {
 	uint32_t paletteStride = Resolve_VKFormatStride(palette->format);
 
 	uint32_t srcComponents = ((src->LinearSize * 8) / srcformatbits);
@@ -637,7 +684,6 @@ uint32_t Decompress_PalettedData(FileData* src, FileData* dst, uint32_t srcforma
 		mask = mask | (uint64_t)pow(2, i);
 
 	uint32_t srciter = 0; //srciterator in bits
-
 
 	uint64_t* index = (uint64_t*)malloc(sizeof(uint64_t));
 
@@ -660,41 +706,35 @@ uint32_t Decompress_PalettedData(FileData* src, FileData* dst, uint32_t srcforma
 
 		srciter += srcformatbits;
 	}
-
 	free(index);
-
 	return 0;
 }
-
-uint32_t Decompress_Data()
-{
-
+uint32_t Decompress_Data() {
 	return 0;
 }
-
-uint32_t Recompress_Data()
-{
-
+uint32_t Recompress_Data() {
 	return 0;
 }
 */
-
-
 /*
- * Can Convert ALL datatypes, float to int, etc whatever.
- * Can convert packed formats too. and pack them back.
- * Cannot do compressed formats, decompress first.
- * max value per channel 64 bit
+* Added in 1.0.0
+* Converts src filedata from src format to dst format.
+* Can Convert ALL datatypes, float to int, etc whatever.
+* Can convert packed formats too. and pack them back.
+* Cannot do compressed formats, decompress first.
+* max value per channel 64 bit
+* @param src data to convert.
+* @param srcdetails format of data to convert.
+* @param dstdetails format to convert data to.
+* @return Result.
 */
-TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* dstdetails)
-{
+TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* dstdetails) {
 	uint8_t srcstridebytes = srcdetails->Stride / 8;
 	uint8_t srcstridebits = srcdetails->Stride % 8;
 	uint8_t dststridebytes = dstdetails->Stride / 8;
 	uint8_t dststridebits = dstdetails->Stride % 8;
 
 	uint64_t srcComponents = ((src->LinearSize * 8) / (srcdetails->Stride)); //we care about all the channels
-
 
 	FileData dst = { 0, 0 };
 	dst.LinearSize = ((uint64_t)srcComponents * ((uint64_t)dstdetails->Stride / ((uint64_t)8))) + ((uint64_t)1);
@@ -711,7 +751,6 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 
 	uint8_t* channelindex = (uint8_t*)calloc(sizeof(uint8_t), srcdetails->ChannelCount);
 
-
 	for (size_t i = 0; i < srcdetails->ChannelCount; i++)
 	{
 		bitshiftRs[i] = ((srcdetails->BitsPerChannel[i] - dstdetails->BitsPerChannel[i]) > 0) ? (srcdetails->BitsPerChannel[i] - dstdetails->BitsPerChannel[i]) : 0;
@@ -726,11 +765,10 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 			srcmasks[i] = 0;
 			break;
 		case SignedFloat:
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		case UnsignedFloat:
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
-
 		for (size_t i1 = 0; i1 < dstdetails->ChannelCount; i1++)
 		{
 			if (srcdetails->ChannelNames[i] == dstdetails->ChannelNames[i1])
@@ -745,8 +783,6 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 		}
 		channelindex[i] = i;
 	}
-
-
 	//channelindex[0] = 3;
 	//channelindex[1] = 2;
 	//channelindex[2] = 1;
@@ -763,9 +799,9 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 			dstmasks[i] = 0;
 			break;
 		case SignedFloat:
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		case UnsignedFloat:
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			return (Invalid_Parameter | Failure);
 		}
 	}
 
@@ -807,7 +843,6 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 	free(srcmasks);
 	free(dstmasks);
 
-
 	free(bitshiftLs);
 	free(bitshiftRs);
 
@@ -820,122 +855,154 @@ TEXRESULT Convert_Data(FileData* src, FormatDetails* srcdetails, FormatDetails* 
 	free(src->pData);
 	src->pData = dst.pData;
 	src->LinearSize = dst.LinearSize;
-
-	return Success;
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* tests if data is null.
+* @param pData to check.
+* @param pDataSize size of data to check in bytes
+* @return @ref Success if null. @ref Failure if not null.
+*/
+TEXRESULT TestNULL(void* pData, uint64_t pDataSize) {
+	for (size_t i = 0; i < pDataSize; i++)
+		if (((uint8_t*)pData)[i] != NULL)
+			return (Failure);
+	return (Success);
 }
 
-
-void* CopyData(void* src)
-{
-	uint64_t len = strlen((char*)src);
-
+/*
+* Added in 1.0.0
+* Copies data to new malloced buffer, size is determined by strlen.
+* @param Source data to copy.
+* @return pointer to resulting data (malloced). NULL on failure.
+*/
+void* CopyData(const void* Source) {
+	uint64_t len = strlen((char*)Source);
 	void* newalloc = (char*)malloc(len + (uint64_t)1);
-	memcpy(newalloc, src, len);
+	if (newalloc == NULL)
+		return NULL;
+	memcpy(newalloc, Source, len);
 	((char*)newalloc)[len] = '\0';
-
 	return newalloc;
 }
-
-
-
-uint64_t Find_first_of(const UTF8* src, const UTF8* tofind)
-{
-	uint64_t lastpos = 0;
-	uint64_t srclen = strlen((char*)src);
-	uint64_t tofindlen = strlen((char*)tofind);
-
+/*
+* Added in 1.0.0
+* Copies data to new malloced buffer, size is determined by size
+* @param Source data to copy.
+* @return pointer to resulting data (malloced). NULL on failure.
+*/
+void* CopyDataN(const void* Source, uint64_t len) {
+	void* newalloc = (char*)malloc(len);
+	if (newalloc == NULL)
+		return NULL;
+	memcpy(newalloc, Source, len);
+	return newalloc;
+}
+/*
+* Added in 1.0.0
+* finds index of first occurance of specified key.
+* @param Source data to search through.
+* @param Key data to find.
+* @return index of first occurance, UINT64_MAX on failure.
+*/
+uint64_t Find_First_Of(const UTF8* Source, const UTF8* Key) {
+	uint64_t srclen = strlen((char*)Source);
+	uint64_t tofindlen = strlen((char*)Key);
 	for (size_t i = 0; i < srclen; i++)
-		if (strncmp((char*)(src + i), (char*)tofind, tofindlen) == 0)
+		if (strncmp((char*)(Source + i), (char*)Key, tofindlen) == 0)
 			return i;
-
 	return UINT64_MAX;
 }
-
-
-uint64_t Find_last_of(const UTF8* src, const UTF8* tofind)
-{
-	uint64_t lastpos = 0;
-	uint64_t srclen = strlen((char*)src);
-	uint64_t tofindlen = strlen((char*)tofind);
-
+/*
+* Added in 1.0.0
+* finds index of last occurance of specified key.
+* @param Source data to search through.
+* @param Key data to find.
+* @return index of last occurance, UINT64_MAX on failure.
+*/
+uint64_t Find_Last_Of(const UTF8* Source, const UTF8* Key) {
+	uint64_t lastpos = UINT64_MAX;
+	uint64_t srclen = strlen((char*)Source);
+	uint64_t tofindlen = strlen((char*)Key);
 	for (size_t i = 0; i < srclen; i++)
-		if (strncmp((char*)(src + i), (char*)tofind, tofindlen) == 0)
+		if (strncmp((char*)(Source + i), (char*)Key, tofindlen) == 0)
 			lastpos = i;
-
 	return lastpos;
 }
-
-const UTF8* Get_FilePathExtension(const UTF8* filename)
-{
-	uint64_t lastof = Find_last_of(filename, (UTF8*)".");
-	uint64_t filenamelen = strlen((char*)filename);
-
-	if (lastof < filenamelen)
-	{
+/*
+* Added in 1.0.0
+* gets file extension of standard C file path.
+* @param FileName to get extension of.
+* @return malloced string with result.
+*/
+const UTF8* Get_FilePathExtension(const UTF8* FileName) {
+	uint64_t lastof = Find_Last_Of(FileName, (UTF8*)".");
+	uint64_t filenamelen = strlen((char*)FileName);
+	if (lastof < filenamelen) {
 		UTF8* newstring = (UTF8*)malloc(sizeof(UTF8) * ((filenamelen - lastof) + (uint64_t)1));
-		memcpy((void*)newstring, filename + lastof, sizeof(UTF8) * ((filenamelen - lastof) + (uint64_t)1));
+		memcpy((void*)newstring, FileName + lastof, sizeof(UTF8) * ((filenamelen - lastof) + (uint64_t)1));
 		newstring[(filenamelen - lastof)] = '\0';
 		return  newstring;
 	}
-
 	return (UTF8*)" ";
 }
-
-const UTF8* Get_FilePathRoot(const UTF8* filename)
-{
-	uint64_t lastof = Find_last_of(filename, (UTF8*)"\\") + (uint64_t)1;
-	uint64_t filenamelen = strlen((char*)filename);
-
-	if (lastof < filenamelen)
-	{
+/*
+* Added in 1.0.0
+* gets file root of standard C file path.
+* @param FileName to get root of.
+* @return malloced string with result.
+*/
+const UTF8* Get_FilePathRoot(const UTF8* FileName) {
+	uint64_t lastof = Find_Last_Of(FileName, (UTF8*)"\\") + (uint64_t)1;
+	uint64_t filenamelen = strlen((char*)FileName);
+	if (lastof < filenamelen) {
 		UTF8* newstring = (UTF8*)malloc(sizeof(UTF8) * (lastof + (uint64_t)1));
-		memcpy((void*)newstring, filename, sizeof(UTF8) * (lastof + (uint64_t)1));
+		memcpy((void*)newstring, FileName, sizeof(UTF8) * (lastof + (uint64_t)1));
 		newstring[lastof] = '\0';
 		return  newstring;
 	}
-
 	return (UTF8*)" ";
 }
-
-
-const UTF8* FindAndReplace(const UTF8* src, const UTF8* toreplace, const UTF8* replacement)
-{
-	//dont compute it more then once lol
-	uint64_t srclen = strlen((char*)src);
-	uint64_t toreplacelen = strlen((char*)toreplace);
-	uint64_t replacementlen = strlen((char*)replacement);
-
-	UTF8* temp = (UTF8*)malloc(sizeof(UTF8) * (srclen * replacementlen));
-
+/*
+* Added in 1.0.0
+* finds and replaces all instances of Key with the Replacement, not really efficient but oh well..
+* @param Source string to modify.
+* @param Key to replace.
+* @param Replacement to replace key with.
+* @return malloced string with result.
+*/
+const UTF8* FindAndReplace(const UTF8* Source, const UTF8* Key, const UTF8* Replacement) {
+	uint64_t SourceLength = strlen((char*)Source);
+	uint64_t KeyLength = strlen((char*)Key);
+	uint64_t ReplacementLength = strlen((char*)Replacement);
+	UTF8* temp = (UTF8*)malloc(sizeof(UTF8) * (SourceLength * ReplacementLength));
 	uint64_t trueit = 0;
 	uint64_t srcit = 0;
-
-	while (srcit < srclen)
+	while (srcit < SourceLength)
 	{
-		if (strncmp((char*)(src + srcit), (char*)toreplace, toreplacelen) == 0)
+		if (strncmp((char*)(Source + srcit), (char*)Key, KeyLength) == 0)
 		{
-			memcpy((void*)(temp + trueit), replacement, replacementlen);
-			trueit += replacementlen;
-			srcit += toreplacelen;
+			memcpy((void*)(temp + trueit), Key, ReplacementLength);
+			trueit += ReplacementLength;
+			srcit += KeyLength;
 		}
 		else
 		{
-			temp[trueit] = src[srcit];
+			temp[trueit] = Source[srcit];
 			srcit++;
 			trueit++;
 		}
 	}
-
 	UTF8* finalal = (UTF8*)malloc(sizeof(UTF8) * (srcit + 1));
 	memcpy(finalal, temp, sizeof(UTF8) * (srcit));
 	finalal[srcit] = '\0';
-
 	free(temp);
-
 	return finalal;
 }
-
-
+/*
+* Added in 1.0.0
+*/
 static const char trailingBytesForUTF8[256] = {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -955,18 +1022,24 @@ static const UTF8 firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC 
 #define UNI_MAX_UTF16 (UTF32)0x0010FFFF
 #define UNI_MAX_UTF32 (UTF32)0x7FFFFFFF
 #define UNI_MAX_LEGAL_UTF32 (UTF32)0x0010FFFF
-
-static bool isLegalUTF8(const UTF8* source, uint64_t length) {
+/*
+* Added in 1.0.0
+* checks if string is legal UTF8.
+* @param Source string to check.
+* @param Length size of string.
+* @return true if legal.
+*/
+static bool isLegalUTF8(const UTF8* Source, uint64_t Length) {
 	UTF8 a;
-	const UTF8* srcptr = source + length;
-	switch (length) {
+	const UTF8* srcptr = Source + Length;
+	switch (Length) {
 	default: return false;
 		/* Everything else falls through when "true"... */
 	case 4: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
 	case 3: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
 	case 2: if ((a = (*--srcptr)) > 0xBF) return false;
 
-		switch ((unsigned char)*source) {
+		switch ((unsigned char)*Source) {
 			/* no fall-through in this inner switch */
 		case 0xE0: if (a < 0xA0) return false; break;
 		case 0xED: if (a > 0x9F) return false; break;
@@ -975,23 +1048,31 @@ static bool isLegalUTF8(const UTF8* source, uint64_t length) {
 		default:   if (a < 0x80) return false;
 		}
 
-	case 1: if (*source >= 0x80 && *source < 0xC2) return false;
+	case 1: if (*Source >= 0x80 && *Source < 0xC2) return false;
 	}
-	if (*source > 0xF4) return false;
+	if (*Source > 0xF4) return false;
 	return true;
 }
-
-uint64_t UTF32strlen(UTF32* UTF32_Text)
-{
+/*
+* Added in 1.0.0
+* gets length of UTF32 string in characters.
+* @param UTF32_Text string to get length.
+* @return length of string in characters.
+*/
+uint64_t UTF32strlen(UTF32* UTF32_Text) {
 	uint64_t i = NULL;
 	while (UTF32_Text[i] != '\0')
 		i++;
 	return i;
 }
-
-
-TEXRESULT UTF8_To_UTF32(UTF8* src, UTF32** dst)
-{
+/*
+* Added in 1.0.0
+* converts UTF8 string to UTF32.
+* @param src string to convert.
+* @param dst pointer to store string.
+* @return Result.
+*/
+TEXRESULT UTF8_To_UTF32(UTF8* src, UTF32** dst) {
 	uint64_t srclen = strlen((char*)src) + 1;
 
 	UTF8* source = src;
@@ -1022,9 +1103,14 @@ TEXRESULT UTF8_To_UTF32(UTF8* src, UTF32** dst)
 
 	return Success;
 }
-
-TEXRESULT UTF32_To_UTF8(UTF32* src, UTF8** dst)
-{
+/*
+* Added in 1.0.0
+* converts UTF32 string to UTF8.
+* @param src string to convert.
+* @param dst pointer to store string.
+* @return Result.
+*/
+TEXRESULT UTF32_To_UTF8(UTF32* src, UTF8** dst) {
 	uint64_t i11 = NULL;
 	while (src[i11] != '\0')
 	{
@@ -1073,27 +1159,23 @@ TEXRESULT UTF32_To_UTF8(UTF32* src, UTF8** dst)
 	*target = '\0';
 	return Success;
 }
-
-
-
 /*
 * Added in 1.0.0
 * exports or imports a resource
 * If *ppResource == NULL it will be a import and the resolver will try to fill it with a valid item.
 * If *ppResource is valid then it will send the item to the gameengine and can be used universally across all extensions.
 */
-typedef struct ResourceInfo{
+typedef struct ResourceInfo {
 	const UTF8* Name; //name of the resource 
 	void** ppResource; //pointer to the pointer of a resource
 }ResourceInfo;
-
 /*
 * Added in 1.0.0
 * exports or imports a function
 * If *ppFunction == NULL it will be a import and the resolver will try to fill it with a valid item.
 * If *ppFunction is valid then it will send the item to the gameengine and can be used universally across all extensions.
 */
-typedef struct FunctionInfo{
+typedef struct FunctionInfo {
 	const UTF8* Name; //name of the function
 	void** ppFunction; //pointer to a pointer of a function
 
@@ -1103,31 +1185,26 @@ typedef struct FunctionInfo{
 	uint64_t NumArgs; //param size
 	ResourceInfo* Args; //pointer to a array of requests
 }FunctionInfo;
-
-
 /*
 * Added in 1.0.0
 * to export for universal config system
 * Can be updated with Apply_Config()
 */
-typedef struct ConfigParameterInfo{
+typedef struct ConfigParameterInfo {
 	void* pParameter;
 	uint64_t ByteLength; //byte length per array element
 	uint64_t ArrayElementsCount;
 	const UTF8* Name;
 }ConfigParameterInfo;
-
 /*
 * Added in 1.0.0
 */
 typedef uint64_t ExtensionAllocation;
-
 /*
 * Added in 1.0.0
 * Used in the extension to create one from a DLL
 */
-typedef struct ExtensionCreateInfo
-{
+typedef struct ExtensionCreateInfo {
 	FunctionInfo** pFunctions; //array of pointers to functioninfos  //do not destroy it will be used directly in engine //destructed by engine automatically
 	uint64_t pFunctionsSize;
 	ResourceInfo** pResources; //array of pointers to resourceinfos //do not destroy it will be used directly in engine //destructed by engine automatically
@@ -1176,8 +1253,7 @@ typedef struct ExtensionData
 * Added in 1.0.0
 * Used internally by the game engine to store extensions
 */
-typedef struct ExtensionDataBuffer
-{
+typedef struct ExtensionDataBuffer {
 	Mutex mutex;
 	uint64_t PrevPointer;
 	uint64_t Max;
@@ -1187,7 +1263,7 @@ typedef struct ExtensionDataBuffer
 /*
 * Added in 1.0.0
 */
-typedef struct MonitorInfo{
+typedef struct MonitorInfo {
 	uint32_t Width; //The width, in screen coordinates, of the video mode.
 	uint32_t Height; //The height, in screen coordinates, of the video mode.
 	uint32_t RedBits; //The bit depth of the red channel of the video mode.
@@ -1201,7 +1277,6 @@ typedef struct MonitorInfo{
 	//the position, in screen coordinates, of the upper - left corner of the specified monitor.
 	uint32_t Xpos;  //position of the monitor's viewport on the virtual screen.
 	uint32_t Ypos;
-
 
 	uint32_t DPI; //dpi :))
 }MonitorInfo;
@@ -1222,7 +1297,7 @@ typedef void Monitor;
 * Added in 1.0.0
 * Window
 */
-typedef struct Window{
+typedef struct Window {
 	void* Window; //native window handle
 
 	union OSDATA
@@ -1373,104 +1448,97 @@ typedef struct Window{
 	KeyState STATE_MOUSE_BUTTON_7;
 	KeyState STATE_MOUSE_BUTTON_8;
 }Window;
-
-//various input types
-typedef struct Key_Callback_struct
-{
+/*
+* Added in 1.0.0
+* various input types.
+*/
+typedef struct Key_Callback_struct {
 	Window* pWindow;
 	Key KeyCode; //virtual key code
 	uint32_t ScanCode; //scancode, per keyboard/system OEM dependant
 	KeyState State; //press state
 }Key_Callback_struct;
-typedef struct Character_Callback_struct
-{
+typedef struct Character_Callback_struct {
 	Window* pWindow;
 	UTF32 CodePoint; //utf32 codepoint 
 }Character_Callback_struct;
-typedef struct MouseButton_Callback_struct
-{
+typedef struct MouseButton_Callback_struct {
 	Window* pWindow;
 	MouseButton Button;
 	KeyState State;
 }MouseButton_Callback_struct;
-typedef struct MousePos_Callback_struct
-{
+typedef struct MousePos_Callback_struct {
 	Window* pWindow;
 	double X_Position;
 	double Y_Position;
 }MousePos_Callback_struct;
-typedef struct MouseEnter_Callback_struct
-{
+typedef struct MouseEnter_Callback_struct {
 	Window* pWindow;
 	bool Entered; //true == entered, false == left.
 }MouseEnter_Callback_struct;
-typedef struct Scroll_Callback_struct
-{
+typedef struct Scroll_Callback_struct {
 	Window* pWindow;
 	double X_Offset;
 	double Y_Offset;
 	double Delta;
 }Scroll_Callback_struct;
-//connection callback types
-typedef struct Joystick_Connect_Callback_struct
-{
+/*
+* Added in 1.0.0
+* connection callback types
+*/
+typedef struct Joystick_Connect_Callback_struct {
 	Joystick Joystick;
 	ConnectionEvent Action;
 }Joystick_Connect_Callback_struct;
-typedef struct Monitor_Connect_Callback_struct
-{
+typedef struct Monitor_Connect_Callback_struct {
 	Monitor* pMonitor;
 	ConnectionEvent Action;
 }Monitor_Connect_Callback_struct;
-//window callback types
-typedef struct Drop_Callback_struct
-{
+/*
+* Added in 1.0.0
+* window callback types
+*/
+typedef struct Drop_Callback_struct {
 	Window* pWindow;
 	uint32_t PathsSize;
 	const UTF8** Paths; //array of paths
 }Drop_Callback_struct;
-typedef struct Window_Resize_Callback_struct
-{
+typedef struct Window_Resize_Callback_struct {
 	Window* pWindow;
 	uint32_t NewWidth;
 	uint32_t NewHeight;
 }Window_Resize_Callback_struct;
-typedef struct FrameBuffer_Resize_Callback_struct
-{
+typedef struct FrameBuffer_Resize_Callback_struct {
 	Window* pWindow;
 	uint32_t NewWidth;
 	uint32_t NewHeight;
 }FrameBuffer_Resize_Callback_struct;
-typedef struct Window_Refresh_Callback_struct
-{
+typedef struct Window_Refresh_Callback_struct {
 	Window* pWindow;
 }Window_Refresh_Callback_struct;
-typedef struct Window_Move_Callback_struct
-{
+typedef struct Window_Move_Callback_struct {
 	Window* pWindow; 
 	double X_Position;//The new x-coordinate, in screen coordinates, of the upper - left corner of the client area of the window.
 	double Y_Position;//The new y-coordinate, in screen coordinates, of the upper - left corner of the client area of the window.
 }Window_Move_Callback_struct;
-typedef struct Window_Minimise_Callback_struct
-{
+typedef struct Window_Minimise_Callback_struct {
 	Window* pWindow;
 	bool Iconified; //iconified true if the window was iconified, or false if it was restored.
 }Window_Minimise_Callback_struct;
-typedef struct Window_Focused_Callback_struct
-{
+typedef struct Window_Focused_Callback_struct {
 	Window* pWindow;
 	bool Focus; //true if the window was focus, or false if it was removed focus.
 }Window_Focused_Callback_struct;
-typedef struct Window_Close_Callback_struct
-{
+typedef struct Window_Close_Callback_struct {
 	Window* pWindow;
 }Window_Close_Callback_struct;
-typedef struct Window_Open_Callback_struct
-{
+typedef struct Window_Open_Callback_struct {
 	Window* pWindow;
 }Window_Open_Callback_struct;
 
-//main
+/*
+* Added in 1.0.0
+*/
 typedef struct EngineUtils{
 	bool ApplicationClose;
 
@@ -1573,14 +1641,10 @@ typedef struct EngineUtils{
 //Import/Export macros
 ///////////////////////////////////////////////////////////////////
 
-
-//////////////////ALL IMPORTS AND EXPORTS WILL BE RESET AFTER DESTROYING THE MAIN ENGINE
-
 /*
 * Added in 1.0.0
 */
-void ResourceImport(ResourceInfo*** ppResourceInfos, uint64_t* pResourceInfosSize, const UTF8* Name, void** ppResource)
-{
+void ResourceImport(ResourceInfo*** ppResourceInfos, uint64_t* pResourceInfosSize, const UTF8* Name, void** ppResource) {
 	uint64_t ResourceInfosSize = *pResourceInfosSize;
 	Resize_Array((void**)ppResourceInfos, ResourceInfosSize, ResourceInfosSize + 1, sizeof(ResourceInfo*));
 	ResourceInfo** pResourceInfos = *ppResourceInfos;
@@ -1590,12 +1654,10 @@ void ResourceImport(ResourceInfo*** ppResourceInfos, uint64_t* pResourceInfosSiz
 	pResourceInfos[ResourceInfosSize]->ppResource = ppResource;
 	*pResourceInfosSize += 1;
 }
-
 /*
 * Added in 1.0.0
 */
-void ResourceExport(ResourceInfo*** ppResourceInfos, uint64_t* pResourceInfosSize, const UTF8* Name, void** ppResource, void* pResource)
-{
+void ResourceExport(ResourceInfo*** ppResourceInfos, uint64_t* pResourceInfosSize, const UTF8* Name, void** ppResource, void* pResource) {
 	uint64_t ResourceInfosSize = *pResourceInfosSize;
 	Resize_Array((void**)ppResourceInfos, ResourceInfosSize, ResourceInfosSize + 1, sizeof(ResourceInfo*));
 	ResourceInfo** pResourceInfos = *ppResourceInfos;
@@ -1606,12 +1668,10 @@ void ResourceExport(ResourceInfo*** ppResourceInfos, uint64_t* pResourceInfosSiz
 	*pResourceInfos[ResourceInfosSize]->ppResource = pResource;
 	*pResourceInfosSize += 1;
 }
-
 /*
 * Added in 1.0.0
 */
-void FunctionImport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSize, const UTF8* Name, void** ppFunction)
-{
+void FunctionImport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSize, const UTF8* Name, void** ppFunction) {
 	uint64_t FunctionInfosSize = *pFunctionInfosSize;
 	Resize_Array((void**)ppFunctionInfos, FunctionInfosSize, FunctionInfosSize + 1, sizeof(FunctionInfo*));
 	FunctionInfo** pFunctionInfos = *ppFunctionInfos;
@@ -1625,13 +1685,11 @@ void FunctionImport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSiz
 	pFunctionInfos[FunctionInfosSize]->Args = NULL;
 	*pFunctionInfosSize += 1;
 }
-
 /*
 * Added in 1.0.0
 */
 void FunctionExport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSize, const UTF8* Name, void** ppFunction, void* pFunction,
-	CallFlagBits CallFlags, float Priority, uint64_t NumArguments, ResourceInfo* pArguments)
-{
+	CallFlagBits CallFlags, float Priority, uint64_t NumArguments, ResourceInfo* pArguments) {
 	uint64_t FunctionInfosSize = *pFunctionInfosSize;
 	Resize_Array((void**)ppFunctionInfos, FunctionInfosSize, FunctionInfosSize + 1, sizeof(FunctionInfo*));
 	FunctionInfo** pFunctionInfos = *ppFunctionInfos;
@@ -1646,12 +1704,10 @@ void FunctionExport(FunctionInfo*** ppFunctionInfos, uint64_t* pFunctionInfosSiz
 	pFunctionInfos[FunctionInfosSize]->Args = pArguments;
 	*pFunctionInfosSize += 1;
 }
-
 /*
 * Added in 1.0.0
 */
-void ConfigParameterExport(ConfigParameterInfo** pConfigParameterInfos, uint64_t* pConfigParameterInfosSize, const UTF8* Name, void* pParameter, uint64_t ArrayElementsCount, uint64_t ByteLength)
-{
+void ConfigParameterExport(ConfigParameterInfo** pConfigParameterInfos, uint64_t* pConfigParameterInfosSize, const UTF8* Name, void* pParameter, uint64_t ArrayElementsCount, uint64_t ByteLength) {
 	uint64_t ConfigParameterInfosSize = *pConfigParameterInfosSize;
 	Resize_Array((void**)pConfigParameterInfos, ConfigParameterInfosSize, ConfigParameterInfosSize + 1, sizeof(ConfigParameterInfo));
 	ConfigParameterInfo* ConfigParameterInfos = *pConfigParameterInfos;
@@ -1662,16 +1718,16 @@ void ConfigParameterExport(ConfigParameterInfo** pConfigParameterInfos, uint64_t
 	*pConfigParameterInfosSize += 1;
 }
 
-
-
+/*
+* Added in 1.0.0
+*/
 #define MakeVersion(Version, Major, Minor, Patch)\
 Version[0] = Major;\
 Version[1] = Minor;\
 Version[2] = Patch;
 
-struct EngineResStruct
-{
-	void* pUtils;
+struct EngineResStruct {
+	EngineUtils* pUtils;
 
 	void* pResize_ExtensionDataBuffer;
 
@@ -1702,13 +1758,25 @@ struct EngineResStruct
 	void* pExit_Application;
 	void* pApply_Config;
 
-
+	void* pCompare_Mutex;
 	void* pCreate_Mutex;
 	void* pDestroy_Mutex;
 	void* pLock_Mutex;
 	void* pTimedLock_Mutex;
 	void* pTryLock_Mutex;
 	void* pUnlock_Mutex;
+
+	void* pCompare_SharedMutex;
+	void* pCreate_SharedMutex;
+	void* pDestroy_SharedMutex;
+	void* pLockWrite_SharedMutex;
+	void* pTimedLockWrite_SharedMutex;
+	void* pTryLockWrite_SharedMutex;
+	void* pUnlockWrite_SharedMutex;
+	void* pLockRead_SharedMutex;
+	void* pTimedLockRead_SharedMutex;
+	void* pTryLockRead_SharedMutex;
+	void* pUnlockRead_SharedMutex;
 
 	void* pCreate_Condition;
 	void* pDestroy_Condition;
@@ -1721,6 +1789,7 @@ struct EngineResStruct
 	void* pCurrent_Thread;
 	void* pDetach_Thread;
 	void* pThreadEqual;
+	void* pGet_ThreadIndex;
 	void* pExit_Thread;
 	void* pJoin_Thread;
 	void* pSleep_Thread;
@@ -1735,8 +1804,7 @@ struct EngineResStruct
 }EngineRes;
 
 //Initialise_Resources MUST be called to use the library in your extension
-void Engine_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
-{
+void Engine_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize) {
 	memset(&EngineRes, 0, sizeof(EngineRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Engine::Utils"), &EngineRes.pUtils);
@@ -1770,12 +1838,26 @@ void Engine_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pEx
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Exit_Application"), &EngineRes.pExit_Application);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Apply_Config"), &EngineRes.pApply_Config);
 
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Compare_Mutex"), &EngineRes.pCompare_Mutex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Create_Mutex"), &EngineRes.pCreate_Mutex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Destroy_Mutex"), &EngineRes.pDestroy_Mutex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Lock_Mutex"), &EngineRes.pLock_Mutex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::TimedLock_Mutex"), &EngineRes.pTimedLock_Mutex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::TryLock_Mutex"), &EngineRes.pTryLock_Mutex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Unlock_Mutex"), &EngineRes.pUnlock_Mutex);
+
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Compare_SharedMutex"), &EngineRes.pCompare_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Create_SharedMutex"), &EngineRes.pCreate_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Destroy_SharedMutex"), &EngineRes.pDestroy_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::LockWrite_SharedMutex"), &EngineRes.pLockWrite_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::TimedLockWrite_SharedMutex"), &EngineRes.pTimedLockWrite_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::TryLockWrite_SharedMutex"), &EngineRes.pTryLockWrite_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::UnlockWrite_SharedMutex"), &EngineRes.pUnlockWrite_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::LockRead_SharedMutex"), &EngineRes.pLockRead_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::TimedLockRead_SharedMutex"), &EngineRes.pTimedLockRead_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::TryLockRead_SharedMutex"), &EngineRes.pTryLockRead_SharedMutex);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::UnlockRead_SharedMutex"), &EngineRes.pUnlockRead_SharedMutex);
+
 
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Create_Condition"), &EngineRes.pCreate_Condition);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Destroy_Condition"), &EngineRes.pDestroy_Condition);
@@ -1789,6 +1871,7 @@ void Engine_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pEx
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Current_Thread"), &EngineRes.pCurrent_Thread);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Detach_Thread"), &EngineRes.pDetach_Thread);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::ThreadEqual"), &EngineRes.pThreadEqual);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Get_ThreadIndex"), &EngineRes.pGet_ThreadIndex);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Exit_Thread"), &EngineRes.pExit_Thread);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Join_Thread"), &EngineRes.pJoin_Thread);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Engine::Sleep_Thread"), &EngineRes.pSleep_Thread);
@@ -1939,6 +2022,13 @@ void Engine_Ref_Apply_Config(const UTF8* ConfigParameterName, void* pConfigParam
 	function(ConfigParameterName, pConfigParameterToApply, ArrayElementsCount, ElementArrayIndex);
 }
 
+TEXRESULT Engine_Ref_Compare_Mutex(Mutex* pMutex0, Mutex* pMutex1)
+{
+	TEXRESULT(*function)(Mutex* pMutex0, Mutex* pMutex1) =
+		(TEXRESULT(*)(Mutex * pMutex0, Mutex * pMutex1))EngineRes.pCompare_Mutex;
+	return function(pMutex0, pMutex1);
+}
+
 TEXRESULT Engine_Ref_Create_Mutex(Mutex* pMutex, MutexType Type)
 {
 	TEXRESULT(*function)(Mutex * pMutex, MutexType Type) =
@@ -1978,6 +2068,85 @@ TEXRESULT Engine_Ref_Unlock_Mutex(Mutex* pMutex)
 {
 	TEXRESULT(*function)(Mutex * pMutex) =
 		(TEXRESULT(*)(Mutex * pMutex))EngineRes.pUnlock_Mutex;
+	return function(pMutex);
+}
+
+
+TEXRESULT Engine_Ref_Compare_SharedMutex(SharedMutex* pMutex0, SharedMutex* pMutex1)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex0, SharedMutex * pMutex1) =
+		(TEXRESULT(*)(SharedMutex * pMutex0, SharedMutex * pMutex1))EngineRes.pCompare_SharedMutex;
+	return function(pMutex0, pMutex1);
+}
+
+TEXRESULT Engine_Ref_Create_SharedMutex(SharedMutex* pMutex, MutexType Type)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex, MutexType Type) =
+		(TEXRESULT(*)(SharedMutex * pMutex, MutexType Type))EngineRes.pCreate_SharedMutex;
+	return function(pMutex, Type);
+}
+
+void Engine_Ref_Destroy_SharedMutex(SharedMutex* pMutex)
+{
+	void(*function)(SharedMutex * pMutex) =
+		(void(*)(SharedMutex * pMutex))EngineRes.pDestroy_SharedMutex;
+	function(pMutex);
+}
+
+TEXRESULT Engine_Ref_LockWrite_SharedMutex(SharedMutex* pMutex)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex) =
+		(TEXRESULT(*)(SharedMutex * pMutex))EngineRes.pLockWrite_SharedMutex;
+	return function(pMutex);
+}
+
+TEXRESULT Engine_Ref_TimedLockWrite_SharedMutex(SharedMutex* pMutex, const struct timespec* ts)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex, const struct timespec* ts) =
+		(TEXRESULT(*)(SharedMutex * pMutex, const struct timespec* ts))EngineRes.pTimedLockWrite_SharedMutex;
+	return function(pMutex, ts);
+}
+
+TEXRESULT Engine_Ref_TryLockWrite_SharedMutex(SharedMutex* pMutex)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex) =
+		(TEXRESULT(*)(SharedMutex * pMutex))EngineRes.pTryLockWrite_SharedMutex;
+	return function(pMutex);
+}
+
+TEXRESULT Engine_Ref_UnlockWrite_SharedMutex(SharedMutex* pMutex)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex) =
+		(TEXRESULT(*)(SharedMutex * pMutex))EngineRes.pUnlockWrite_SharedMutex;
+	return function(pMutex);
+}
+
+
+TEXRESULT Engine_Ref_LockRead_SharedMutex(SharedMutex* pMutex)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex) =
+		(TEXRESULT(*)(SharedMutex * pMutex))EngineRes.pLockRead_SharedMutex;
+	return function(pMutex);
+}
+
+TEXRESULT Engine_Ref_TimedLockRead_SharedMutex(SharedMutex* pMutex, const struct timespec* ts)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex, const struct timespec* ts) =
+		(TEXRESULT(*)(SharedMutex * pMutex, const struct timespec* ts))EngineRes.pTimedLockRead_SharedMutex;
+	return function(pMutex, ts);
+}
+
+TEXRESULT Engine_Ref_TryLockRead_SharedMutex(SharedMutex* pMutex)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex) =
+		(TEXRESULT(*)(SharedMutex * pMutex))EngineRes.pTryLockRead_SharedMutex;
+	return function(pMutex);
+}
+
+TEXRESULT Engine_Ref_UnlockRead_SharedMutex(SharedMutex* pMutex)
+{
+	TEXRESULT(*function)(SharedMutex * pMutex) =
+		(TEXRESULT(*)(SharedMutex * pMutex))EngineRes.pUnlockRead_SharedMutex;
 	return function(pMutex);
 }
 
@@ -2049,6 +2218,13 @@ TEXRESULT Engine_Ref_ThreadEqual(Thread* pThread0, Thread* pThread1)
 	TEXRESULT(*function)(Thread * pThread, Thread * pThread1) =
 		(TEXRESULT(*)(Thread * pThread, Thread * pThread1))EngineRes.pThreadEqual;
 	return function(pThread0, pThread1);
+}
+
+uint32_t Engine_Ref_Get_ThreadIndex(Thread* pThread)
+{
+	uint32_t(*function)(Thread * pThread) =
+		(uint32_t(*)(Thread * pThread))EngineRes.pGet_ThreadIndex;
+	return function(pThread);
 }
 
 void Engine_Ref_Exit_Thread(int res)

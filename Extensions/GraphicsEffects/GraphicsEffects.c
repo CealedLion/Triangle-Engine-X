@@ -19,9 +19,7 @@
 #define TEX_EXPOSE_GRAPHICSEFFECTS
 #include "GraphicsEffects.h"
 
-volatile struct{
-	uint64_t InitialHeadersMax;
-}Config;
+
 
 volatile GraphicsEffectsUtils Utils;
 
@@ -1925,7 +1923,7 @@ TEXRESULT Create_WaterTexture(GPU_Texture* pGPU_Texture, LogicalDevice* pLogical
 	return (Success);
 }
 
-unsigned char reverse(unsigned char n, size_t b){
+unsigned char reverse(unsigned char n, size_t b) {
 	unsigned char rv = 0;
 	for (size_t i = 0; i < b; ++i, n >>= 1) {
 		rv = (rv << 1) | (n & 0x01);
@@ -1937,63 +1935,124 @@ unsigned char reverse(unsigned char n, size_t b){
 //Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Full, uint32_t ThreadIndex)
-{
-	Engine_Ref_Lock_Mutex(pResourceHeader->mutex);
+TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderWaterRender* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 
-	//every reinit
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
+	//if they are different its safe to destruct.	
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->AllocationBitReversedIndices, &pResourceHeaderOverlay->AllocationBitReversedIndices, sizeof(pResourceHeader->AllocationBitReversedIndices)) != 0) : true) && TestNULL(&pResourceHeader->AllocationBitReversedIndices, sizeof(pResourceHeader->AllocationBitReversedIndices)) != Success) {
+		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pResourceHeader->AllocationBitReversedIndices);
+		memset(&pResourceHeader->AllocationBitReversedIndices, 0, sizeof(pResourceHeader->AllocationBitReversedIndices));
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->Textureh0k, &pResourceHeaderOverlay->Textureh0k, sizeof(pResourceHeader->Textureh0k)) != 0) : true) && TestNULL(&pResourceHeader->Textureh0k, sizeof(pResourceHeader->Textureh0k)) != Success) {
+		Graphics_Ref_Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->Textureh0k);
+		memset(&pResourceHeader->Textureh0k, 0, sizeof(pResourceHeader->Textureh0k));
+	}
 
-	LogicalDevice* pLogicalDevice = pGraphicsWindow->pLogicalDevice;
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->TextureTwiddleFactors, &pResourceHeaderOverlay->TextureTwiddleFactors, sizeof(pResourceHeader->TextureTwiddleFactors)) != 0) : true) && TestNULL(&pResourceHeader->TextureTwiddleFactors, sizeof(pResourceHeader->TextureTwiddleFactors)) != Success) {
+		Graphics_Ref_Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->TextureTwiddleFactors);
+		memset(&pResourceHeader->TextureTwiddleFactors, 0, sizeof(pResourceHeader->TextureTwiddleFactors));
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->Texturehkt_dy, &pResourceHeaderOverlay->Texturehkt_dy, sizeof(pResourceHeader->Texturehkt_dy)) != 0) : true) && TestNULL(&pResourceHeader->Texturehkt_dy, sizeof(pResourceHeader->Texturehkt_dy)) != Success) {
+		Graphics_Ref_Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->Texturehkt_dy);
+		memset(&pResourceHeader->Texturehkt_dy, 0, sizeof(pResourceHeader->Texturehkt_dy));
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->Texturehkt_dx, &pResourceHeaderOverlay->Texturehkt_dx, sizeof(pResourceHeader->Texturehkt_dx)) != 0) : true) && TestNULL(&pResourceHeader->Texturehkt_dx, sizeof(pResourceHeader->Texturehkt_dx)) != Success) {
+		Graphics_Ref_Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->Texturehkt_dx);
+		memset(&pResourceHeader->Texturehkt_dx, 0, sizeof(pResourceHeader->Texturehkt_dx));
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->Texturehkt_dz, &pResourceHeaderOverlay->Texturehkt_dz, sizeof(pResourceHeader->Texturehkt_dz)) != 0) : true) && TestNULL(&pResourceHeader->Texturehkt_dz, sizeof(pResourceHeader->Texturehkt_dz)) != Success) {
+		Graphics_Ref_Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->Texturehkt_dz);
+		memset(&pResourceHeader->Texturehkt_dz, 0, sizeof(pResourceHeader->Texturehkt_dz));
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->TexturePingPong, &pResourceHeaderOverlay->TexturePingPong, sizeof(pResourceHeader->TexturePingPong)) != 0) : true) && TestNULL(&pResourceHeader->TexturePingPong, sizeof(pResourceHeader->TexturePingPong)) != Success) {
+		Graphics_Ref_Destroy_GPU_Texture(pGraphicsWindow->pLogicalDevice, &pResourceHeader->TexturePingPong);
+		memset(&pResourceHeader->TexturePingPong, 0, sizeof(pResourceHeader->TexturePingPong));
+	}
 
-	Graphics_Ref_GPUfree(pLogicalDevice, &pResourceHeader->AllocationBitReversedIndices);
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderh0k != pResourceHeaderOverlay->VkShaderh0k) : true) && pResourceHeader->VkShaderh0k != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderh0k, NULL);
+		pResourceHeader->VkShaderh0k = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderTwiddleFactors != pResourceHeaderOverlay->VkShaderTwiddleFactors) : true) && pResourceHeader->VkShaderTwiddleFactors != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderTwiddleFactors, NULL);
+		pResourceHeader->VkShaderTwiddleFactors = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderhkt != pResourceHeaderOverlay->VkShaderhkt) : true) && pResourceHeader->VkShaderhkt != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderhkt, NULL);
+		pResourceHeader->VkShaderhkt = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderButterfly != pResourceHeaderOverlay->VkShaderButterfly) : true) && pResourceHeader->VkShaderButterfly != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderButterfly, NULL);
+		pResourceHeader->VkShaderButterfly = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkShaderInversion != pResourceHeaderOverlay->VkShaderInversion) : true) && pResourceHeader->VkShaderInversion != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderInversion, NULL);
+		pResourceHeader->VkShaderInversion = NULL;
+	}
 
-	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Textureh0k);
-	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->TextureTwiddleFactors);
-	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Texturehkt_dy);
-	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Texturehkt_dx);
-	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->Texturehkt_dz);
-	Graphics_Ref_Destroy_GPU_Texture(pLogicalDevice, &pResourceHeader->TexturePingPong);
-	if (pResourceHeader->VkShaderh0k != NULL)
-		vkDestroyShaderModule(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderh0k, NULL);
-	if (pResourceHeader->VkShaderTwiddleFactors != NULL)
-		vkDestroyShaderModule(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderTwiddleFactors, NULL);
-	if (pResourceHeader->VkShaderhkt != NULL)
-		vkDestroyShaderModule(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderhkt, NULL);
-	if (pResourceHeader->VkShaderButterfly != NULL)
-		vkDestroyShaderModule(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderButterfly, NULL);
-	if (pResourceHeader->VkShaderInversion != NULL)
-		vkDestroyShaderModule(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkShaderInversion, NULL);
-	if (pResourceHeader->VkDescriptorSetLayouth0k != NULL)
-		vkDestroyDescriptorSetLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayouth0k, NULL);
-	if (pResourceHeader->VkDescriptorSetLayoutTwiddleFactors != NULL)
-		vkDestroyDescriptorSetLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutTwiddleFactors, NULL);
-	if (pResourceHeader->VkDescriptorSetLayouthkt != NULL)
-		vkDestroyDescriptorSetLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayouthkt, NULL);
-	if (pResourceHeader->VkDescriptorSetLayoutButterfly != NULL)
-		vkDestroyDescriptorSetLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutButterfly, NULL);
-	if (pResourceHeader->VkDescriptorSetLayoutInversion != NULL)
-		vkDestroyDescriptorSetLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutInversion, NULL);
-	if (pResourceHeader->VkPipelineLayouth0k != NULL)
-		vkDestroyPipelineLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayouth0k, NULL);
-	if (pResourceHeader->VkPipelineLayoutTwiddleFactors != NULL)
-		vkDestroyPipelineLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutTwiddleFactors, NULL);
-	if (pResourceHeader->VkPipelineLayouthkt != NULL)
-		vkDestroyPipelineLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayouthkt, NULL);
-	if (pResourceHeader->VkPipelineLayoutButterfly != NULL)
-		vkDestroyPipelineLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutButterfly, NULL);
-	if (pResourceHeader->VkPipelineLayoutInversion != NULL)
-		vkDestroyPipelineLayout(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutInversion, NULL);
-	if (pResourceHeader->VkPipelineh0k != NULL)
-		vkDestroyPipeline(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineh0k, NULL);
-	if (pResourceHeader->VkPipelineTwiddleFactors != NULL)
-		vkDestroyPipeline(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineTwiddleFactors, NULL);
-	if (pResourceHeader->VkPipelinehkt != NULL)
-		vkDestroyPipeline(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelinehkt, NULL);
-	if (pResourceHeader->VkPipelineButterfly != NULL)
-		vkDestroyPipeline(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineButterfly, NULL);
-	if (pResourceHeader->VkPipelineInversion != NULL)
-		vkDestroyPipeline(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineInversion, NULL);
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetLayouth0k != pResourceHeaderOverlay->VkDescriptorSetLayouth0k) : true) && pResourceHeader->VkDescriptorSetLayouth0k != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayouth0k, NULL);
+		pResourceHeader->VkDescriptorSetLayouth0k = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetLayoutTwiddleFactors != pResourceHeaderOverlay->VkDescriptorSetLayoutTwiddleFactors) : true) && pResourceHeader->VkDescriptorSetLayoutTwiddleFactors != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutTwiddleFactors, NULL);
+		pResourceHeader->VkDescriptorSetLayoutTwiddleFactors = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetLayouthkt != pResourceHeaderOverlay->VkDescriptorSetLayouthkt) : true) && pResourceHeader->VkDescriptorSetLayouthkt != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayouthkt, NULL);
+		pResourceHeader->VkDescriptorSetLayouthkt = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetLayoutButterfly != pResourceHeaderOverlay->VkDescriptorSetLayoutButterfly) : true) && pResourceHeader->VkDescriptorSetLayoutButterfly != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutButterfly, NULL);
+		pResourceHeader->VkDescriptorSetLayoutButterfly = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorSetLayoutInversion != pResourceHeaderOverlay->VkDescriptorSetLayoutInversion) : true) && pResourceHeader->VkDescriptorSetLayoutInversion != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorSetLayoutInversion, NULL);
+		pResourceHeader->VkDescriptorSetLayoutInversion = NULL;
+	}
+
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineLayouth0k != pResourceHeaderOverlay->VkPipelineLayouth0k) : true) && pResourceHeader->VkPipelineLayouth0k != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayouth0k, NULL);
+		pResourceHeader->VkPipelineLayouth0k = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineLayoutTwiddleFactors != pResourceHeaderOverlay->VkPipelineLayoutTwiddleFactors) : true) && pResourceHeader->VkPipelineLayoutTwiddleFactors != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutTwiddleFactors, NULL);
+		pResourceHeader->VkPipelineLayoutTwiddleFactors = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineLayouthkt != pResourceHeaderOverlay->VkPipelineLayouthkt) : true) && pResourceHeader->VkPipelineLayouthkt != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayouthkt, NULL);
+		pResourceHeader->VkPipelineLayouthkt = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineLayoutButterfly != pResourceHeaderOverlay->VkPipelineLayoutButterfly) : true) && pResourceHeader->VkPipelineLayoutButterfly != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutButterfly, NULL);
+		pResourceHeader->VkPipelineLayoutButterfly = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineLayoutInversion != pResourceHeaderOverlay->VkPipelineLayoutInversion) : true) && pResourceHeader->VkPipelineLayoutInversion != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineLayoutInversion, NULL);
+		pResourceHeader->VkPipelineLayoutInversion = NULL;
+	}
+
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineh0k != pResourceHeaderOverlay->VkPipelineh0k) : true) && pResourceHeader->VkPipelineh0k != NULL) {
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineh0k, NULL);
+		pResourceHeader->VkPipelineh0k = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineTwiddleFactors != pResourceHeaderOverlay->VkPipelineTwiddleFactors) : true) && pResourceHeader->VkPipelineTwiddleFactors != NULL) {
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineTwiddleFactors, NULL);
+		pResourceHeader->VkPipelineTwiddleFactors = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelinehkt != pResourceHeaderOverlay->VkPipelinehkt) : true) && pResourceHeader->VkPipelinehkt != NULL) {
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelinehkt, NULL);
+		pResourceHeader->VkPipelinehkt = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineButterfly != pResourceHeaderOverlay->VkPipelineButterfly) : true) && pResourceHeader->VkPipelineButterfly != NULL) {
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineButterfly, NULL);
+		pResourceHeader->VkPipelineButterfly = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkPipelineInversion != pResourceHeaderOverlay->VkPipelineInversion) : true) && pResourceHeader->VkPipelineInversion != NULL) {
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkPipelineInversion, NULL);
+		pResourceHeader->VkPipelineInversion = NULL;
+	}
+
 	//if (pResourceHeader->VkDescriptorSeth0k != NULL)
 	//	free(pResourceHeader->VkDescriptorSeth0k);
 	//if (pResourceHeader->VkDescriptorSetTwiddleFactors != NULL)
@@ -2004,10 +2063,19 @@ TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Fu
 	//	free(pResourceHeader->VkDescriptorSetButterfly);
 	//if (pResourceHeader->VkDescriptorSetInversion != NULL)
 	//	free(pResourceHeader->VkDescriptorSetInversion);
-	if (pResourceHeader->VkDescriptorPoolWater != NULL)
-		vkDestroyDescriptorPool(pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorPoolWater, NULL);
 
-	Engine_Ref_Destroy_Mutex(pResourceHeader->mutex);
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->VkDescriptorPoolWater != pResourceHeaderOverlay->VkDescriptorPoolWater) : true) && pResourceHeader->VkDescriptorPoolWater != NULL) {
+		vkDestroyDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkDescriptorPoolWater, NULL);
+		pResourceHeader->VkDescriptorPoolWater = NULL;
+	}
+
+	if (((pResourceHeaderOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pResourceHeader->mutex, &pResourceHeaderOverlay->mutex) != Success) : true) && TestNULL(&pResourceHeader->mutex, sizeof(pResourceHeader->mutex)) != Success) {
+		Engine_Ref_Destroy_Mutex(&pResourceHeader->mutex);
+		memset(&pResourceHeader->mutex, 0, sizeof(pResourceHeader->mutex));
+	}
+
+
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -2018,30 +2086,28 @@ TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, bool Fu
 TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t ThreadIndex)
 {
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iGraphicsWindow) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iGraphicsWindow) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iGraphicsWindow Invalid");
 		return (Invalid_Parameter | Failure);
 	}
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iTextureTarget) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iTextureTarget) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iTextureTarget Invalid");
 		return (Invalid_Parameter | Failure);
 	}
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pResourceHeader->iNoise) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iNoise) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iNoise Invalid");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-	RHeaderTexture* pTexture = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget);
-	RHeaderTexture* pNoise = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iNoise);
-
-	RHeaderImageSource* pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource);
-
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
+	RHeaderTexture* pNoise = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iNoise, false, false, ThreadIndex);
+	RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pTexture->iImageSource) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture->iImageSource) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pTexture->iImageSource Invalid");
 		return (Invalid_Parameter | Failure);
@@ -2062,7 +2128,7 @@ TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32
 	TEXRESULT tres = Success;
 	VkResult res = VK_SUCCESS;
 
-	Engine_Ref_Create_Mutex(pResourceHeader->mutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&pResourceHeader->mutex, MutexType_Plain);
 
 	const SPIRV Shaderh0k[] = ComputeShaderh0k();
 	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pResourceHeader->VkShaderh0k, Shaderh0k, ComputeShaderh0kSize, "ReCreate_WaterRenderHeader()");
@@ -2551,9 +2617,9 @@ TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	{	
-		VkMemoryRequirements requirements;
+		VkMemoryRequirements requirements = { sizeof(requirements) };
 		requirements.size = AlignNumber(pResourceHeader->WaterResolution * sizeof(int), pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minStorageBufferOffsetAlignment);
-		requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
+		//requirements.alignment = pGraphicsWindow->pLogicalDevice->SrcBuffer.Alignment;
 		requirements.memoryTypeBits = NULL;
 		pResourceHeader->AllocationBitReversedIndices = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, requirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
 		if (pResourceHeader->AllocationBitReversedIndices.SizeBytes == NULL)
@@ -2875,7 +2941,7 @@ TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32
 		{
 			for (size_t i = 0; i < pGraphicsWindow->pLogicalDevice->ComputeQueueFamilySize; i++)
 			{
-				if (Engine_Ref_TryLock_Mutex(pGraphicsWindow->pLogicalDevice->ComputeQueueMutexes[i]) == Success)
+				if (Engine_Ref_TryLock_Mutex(&pGraphicsWindow->pLogicalDevice->ComputeQueueMutexes[i]) == Success)
 				{
 					QueueIndex = i;
 					found = true;
@@ -2900,10 +2966,15 @@ TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32
 	}
 
 	vkQueueWaitIdle(Queue);
-	Engine_Ref_Unlock_Mutex(pGraphicsWindow->pLogicalDevice->ComputeQueueMutexes[QueueIndex]);
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->pLogicalDevice->ComputeQueueMutexes[QueueIndex]);
 
 	vkFreeCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 	vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
+
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iNoise, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2993,17 +3064,15 @@ TEXRESULT Create_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderW
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		pResourceHeader->iGraphicsWindow = pCreateInfo->pGraphicsWindow->Header.Allocation;
-		pResourceHeader->iTextureTarget = pCreateInfo->pTextureTarget->Header.Allocation;
+		pResourceHeader->iGraphicsWindow = pCreateInfo->iGraphicsWindow;
+		pResourceHeader->iTextureTarget = pCreateInfo->iTextureTarget;
+		pResourceHeader->iNoise = pCreateInfo->iNoise;
 		pResourceHeader->WaterResolution = pCreateInfo->WaterResolution;
 		pResourceHeader->WaterL = pCreateInfo->WaterL;
 		pResourceHeader->WaterAmplitude = pCreateInfo->WaterAmplitude;
 		pResourceHeader->WaterIntensity = pCreateInfo->WaterIntensity;
 		pResourceHeader->Waterl = pCreateInfo->Waterl;
-
 		glm_vec2_copy(pCreateInfo->FlowDirection, pResourceHeader->FlowDirection);
-
-		pResourceHeader->iNoise = pCreateInfo->pNoise->Header.Allocation;
 
 		ReCreate_WaterRenderHeader(pResourceHeader, ThreadIndex);
 	}
@@ -3015,256 +3084,33 @@ TEXRESULT Create_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderW
 //Graphics Effects
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
-{
-	for (size_t i = 0; i < Utils.RHeaderWaterRenderBuffer.Size;)
-	{
-		RHeaderWaterRender* pResourceHeader = (RHeaderWaterRender*)&Utils.RHeaderWaterRenderBuffer.Buffer[i];
-		if (pResourceHeader->Header.AllocationSize != NULL && pResourceHeader->Header.Allocation.Identifier == (uint32_t)GraphicsEffectsHeader_WaterRender)
-		{
-			RHeaderGraphicsWindow* pGraphicsWindow1 = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow);
-			if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pGraphicsWindow1->Header.Allocation) == Success)
-			{
-				Engine_Ref_Lock_Mutex(pResourceHeader->mutex);
+void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex) {
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsEffectsHeader_WaterRender) {
+			RHeaderWaterRender* pWaterRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+			if (pWaterRenderHeader != NULL) {
+				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pWaterRenderHeader->iGraphicsWindow) == Success) {
+					RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pWaterRenderHeader->iTextureTarget, false, false, ThreadIndex);
+					RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, false, false, ThreadIndex);
 
-				pResourceHeader->Time = ((double)clock() / (double)CLOCKS_PER_SEC);
+					uint32_t PingPongIndex = 0;
 
-				RHeaderTexture* pTexture = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget);
-				RHeaderImageSource* pImageSource = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource);
-
-				VkResult res = VK_SUCCESS;
-
-				////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				//Rendering
-				////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-				uint8_t PingPongIndex = 0;
-				{//hkt
+					Engine_Ref_Lock_Mutex(&pWaterRenderHeader->mutex);
+					pWaterRenderHeader->Time = ((double)clock() / (double)CLOCKS_PER_SEC);	
 					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
+						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+						//Rendering
+						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+						VkResult res = VK_SUCCESS;
 
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->Texturehkt_dx.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->Texturehkt_dz.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-
-					vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pResourceHeader->VkPipelinehkt);
-
-					uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
-					WaterPushConstants PushConstants;
-					memset(&PushConstants, 0, sizeof(PushConstants));
-					glm_vec2_copy(pResourceHeader->FlowDirection, PushConstants.FlowDirection);
-					PushConstants.WaterResolution = pResourceHeader->WaterResolution;
-					PushConstants.WaterL = pResourceHeader->WaterL;
-					PushConstants.WaterAmplitude = pResourceHeader->WaterAmplitude;
-					PushConstants.WaterIntensity = pResourceHeader->WaterIntensity;
-					PushConstants.Waterl = pResourceHeader->Waterl;
-					PushConstants.Time = pResourceHeader->Time;
-					PushConstants.ButterflyStage = 0;
-					PushConstants.ButterflyDirection = 0;
-					PushConstants.PingPongIndex = 0;
-
-					memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
-					vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
-						pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
-
-					vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-						pResourceHeader->VkPipelineLayouthkt, 0, 1, &pResourceHeader->VkDescriptorSethkt, 0, NULL);
-					vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->WaterResolution / 16, pResourceHeader->WaterResolution / 16, 1);
-
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->Texturehkt_dx.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->Texturehkt_dz.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-				}
-				{//butterfly		
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pResourceHeader->TexturePingPong.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-
-					vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pResourceHeader->VkPipelineButterfly);
-					vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-						pResourceHeader->VkPipelineLayoutButterfly, 0, 1, &pResourceHeader->VkDescriptorSetButterfly, 0, NULL);
-
-					uint64_t log_2_N = (int)(log(pResourceHeader->WaterResolution) / log(2));
-					for (size_t i = 0; i < log_2_N; i++)
-					{
-						for (size_t i1 = 0; i1 < 2; i1++)
-						{					
+						{//hkt
 							{
 								VkImageMemoryBarrier Barrier;
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
+								Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3272,23 +3118,13 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.subresourceRange.layerCount = 1;
 								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-								switch (PingPongIndex)
-								{
-								case 0:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									break;
-								case 1:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-									break;
-								}
+								Barrier.srcAccessMask = 0;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 								Barrier.pNext = NULL;
-
 
 								vkCmdPipelineBarrier(
 									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-									VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+									VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 									0,
 									0, NULL,
 									0, NULL,
@@ -3298,9 +3134,9 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 							{
 								VkImageMemoryBarrier Barrier;
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pResourceHeader->TexturePingPong.VkImage;
+								Barrier.image = pWaterRenderHeader->Texturehkt_dx.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3308,23 +3144,39 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.subresourceRange.layerCount = 1;
 								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-								switch (PingPongIndex)
-								{
-								case 0:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-									break;
-								case 1:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									break;
-								}
+								Barrier.srcAccessMask = 0;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 								Barrier.pNext = NULL;
-
 
 								vkCmdPipelineBarrier(
 									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-									VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+									VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+									0,
+									0, NULL,
+									0, NULL,
+									1, &Barrier
+								);
+							}
+							{
+								VkImageMemoryBarrier Barrier;
+								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.image = pWaterRenderHeader->Texturehkt_dz.VkImage;
+								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+								Barrier.subresourceRange.baseMipLevel = 0;
+								Barrier.subresourceRange.levelCount = 1;
+								Barrier.subresourceRange.baseArrayLayer = 0;
+								Barrier.subresourceRange.layerCount = 1;
+								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.srcAccessMask = 0;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+								Barrier.pNext = NULL;
+
+								vkCmdPipelineBarrier(
+									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+									VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 									0,
 									0, NULL,
 									0, NULL,
@@ -3332,37 +3184,36 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								);
 							}
 
-							
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pWaterRenderHeader->VkPipelinehkt);
 
 							uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
 							WaterPushConstants PushConstants;
 							memset(&PushConstants, 0, sizeof(PushConstants));
-							glm_vec2_copy(pResourceHeader->FlowDirection, PushConstants.FlowDirection);
-							PushConstants.WaterResolution = pResourceHeader->WaterResolution;
-							PushConstants.WaterL = pResourceHeader->WaterL;
-							PushConstants.WaterAmplitude = pResourceHeader->WaterAmplitude;
-							PushConstants.WaterIntensity = pResourceHeader->WaterIntensity;
-							PushConstants.Waterl = pResourceHeader->Waterl;
-							PushConstants.Time = pResourceHeader->Time;
-							PushConstants.ButterflyStage = i;
-							PushConstants.ButterflyDirection = i1;
-							PushConstants.PingPongIndex = PingPongIndex;
+							glm_vec2_copy(pWaterRenderHeader->FlowDirection, PushConstants.FlowDirection);
+							PushConstants.WaterResolution = pWaterRenderHeader->WaterResolution;
+							PushConstants.WaterL = pWaterRenderHeader->WaterL;
+							PushConstants.WaterAmplitude = pWaterRenderHeader->WaterAmplitude;
+							PushConstants.WaterIntensity = pWaterRenderHeader->WaterIntensity;
+							PushConstants.Waterl = pWaterRenderHeader->Waterl;
+							PushConstants.Time = pWaterRenderHeader->Time;
+							PushConstants.ButterflyStage = 0;
+							PushConstants.ButterflyDirection = 0;
+							PushConstants.PingPongIndex = 0;
 
 							memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
-							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
 								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
 
-							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->WaterResolution / 16, pResourceHeader->WaterResolution / 16, 1);
-
-							PingPongIndex++;
-							PingPongIndex %= 2;
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+								pWaterRenderHeader->VkPipelineLayouthkt, 0, 1, &pWaterRenderHeader->VkDescriptorSethkt, 0, NULL);
+							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->WaterResolution / 16, pWaterRenderHeader->WaterResolution / 16, 1);
 
 							{
 								VkImageMemoryBarrier Barrier;
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
+								Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3370,19 +3221,9 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.subresourceRange.layerCount = 1;
 								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-								switch (PingPongIndex)
-								{
-								case 0:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									break;
-								case 1:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									break;
-								}
+								Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 								Barrier.pNext = NULL;
-
 
 								vkCmdPipelineBarrier(
 									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
@@ -3398,7 +3239,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pResourceHeader->TexturePingPong.VkImage;
+								Barrier.image = pWaterRenderHeader->Texturehkt_dx.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3406,19 +3247,35 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.subresourceRange.layerCount = 1;
 								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-								switch (PingPongIndex)
-								{
-								case 0:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									break;
-								case 1:
-									Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									break;
-								}
+								Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 								Barrier.pNext = NULL;
 
+								vkCmdPipelineBarrier(
+									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+									VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+									0,
+									0, NULL,
+									0, NULL,
+									1, &Barrier
+								);
+							}
+							{
+								VkImageMemoryBarrier Barrier;
+								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.image = pWaterRenderHeader->Texturehkt_dz.VkImage;
+								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+								Barrier.subresourceRange.baseMipLevel = 0;
+								Barrier.subresourceRange.levelCount = 1;
+								Barrier.subresourceRange.baseArrayLayer = 0;
+								Barrier.subresourceRange.layerCount = 1;
+								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+								Barrier.pNext = NULL;
 
 								vkCmdPipelineBarrier(
 									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
@@ -3430,97 +3287,304 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								);
 							}
 						}
+						{//butterfly		
+							{
+								VkImageMemoryBarrier Barrier;
+								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.image = pWaterRenderHeader->TexturePingPong.VkImage;
+								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+								Barrier.subresourceRange.baseMipLevel = 0;
+								Barrier.subresourceRange.levelCount = 1;
+								Barrier.subresourceRange.baseArrayLayer = 0;
+								Barrier.subresourceRange.layerCount = 1;
+								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.srcAccessMask = 0;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+								Barrier.pNext = NULL;
+
+								vkCmdPipelineBarrier(
+									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+									VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+									0,
+									0, NULL,
+									0, NULL,
+									1, &Barrier
+								);
+							}
+
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pWaterRenderHeader->VkPipelineButterfly);
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+								pWaterRenderHeader->VkPipelineLayoutButterfly, 0, 1, &pWaterRenderHeader->VkDescriptorSetButterfly, 0, NULL);
+
+							uint64_t log_2_N = (int)(log(pWaterRenderHeader->WaterResolution) / log(2));
+							for (size_t i = 0; i < log_2_N; i++)
+							{
+								for (size_t i1 = 0; i1 < 2; i1++)
+								{
+									{
+										VkImageMemoryBarrier Barrier;
+										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
+										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+										Barrier.subresourceRange.baseMipLevel = 0;
+										Barrier.subresourceRange.levelCount = 1;
+										Barrier.subresourceRange.baseArrayLayer = 0;
+										Barrier.subresourceRange.layerCount = 1;
+										Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										switch (PingPongIndex)
+										{
+										case 0:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											break;
+										case 1:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+											break;
+										}
+										Barrier.pNext = NULL;
+
+
+										vkCmdPipelineBarrier(
+											pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+											VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+											0,
+											0, NULL,
+											0, NULL,
+											1, &Barrier
+										);
+									}
+									{
+										VkImageMemoryBarrier Barrier;
+										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.image = pWaterRenderHeader->TexturePingPong.VkImage;
+										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+										Barrier.subresourceRange.baseMipLevel = 0;
+										Barrier.subresourceRange.levelCount = 1;
+										Barrier.subresourceRange.baseArrayLayer = 0;
+										Barrier.subresourceRange.layerCount = 1;
+										Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										switch (PingPongIndex)
+										{
+										case 0:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+											break;
+										case 1:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											break;
+										}
+										Barrier.pNext = NULL;
+
+
+										vkCmdPipelineBarrier(
+											pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+											VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+											0,
+											0, NULL,
+											0, NULL,
+											1, &Barrier
+										);
+									}
+
+
+
+									uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
+									WaterPushConstants PushConstants;
+									memset(&PushConstants, 0, sizeof(PushConstants));
+									glm_vec2_copy(pWaterRenderHeader->FlowDirection, PushConstants.FlowDirection);
+									PushConstants.WaterResolution = pWaterRenderHeader->WaterResolution;
+									PushConstants.WaterL = pWaterRenderHeader->WaterL;
+									PushConstants.WaterAmplitude = pWaterRenderHeader->WaterAmplitude;
+									PushConstants.WaterIntensity = pWaterRenderHeader->WaterIntensity;
+									PushConstants.Waterl = pWaterRenderHeader->Waterl;
+									PushConstants.Time = pWaterRenderHeader->Time;
+									PushConstants.ButterflyStage = i;
+									PushConstants.ButterflyDirection = i1;
+									PushConstants.PingPongIndex = PingPongIndex;
+
+									memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
+									vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+										pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
+
+									vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->WaterResolution / 16, pWaterRenderHeader->WaterResolution / 16, 1);
+
+									PingPongIndex++;
+									PingPongIndex %= 2;
+
+									{
+										VkImageMemoryBarrier Barrier;
+										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
+										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+										Barrier.subresourceRange.baseMipLevel = 0;
+										Barrier.subresourceRange.levelCount = 1;
+										Barrier.subresourceRange.baseArrayLayer = 0;
+										Barrier.subresourceRange.layerCount = 1;
+										Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										switch (PingPongIndex)
+										{
+										case 0:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											break;
+										case 1:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											break;
+										}
+										Barrier.pNext = NULL;
+
+
+										vkCmdPipelineBarrier(
+											pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+											VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+											0,
+											0, NULL,
+											0, NULL,
+											1, &Barrier
+										);
+									}
+									{
+										VkImageMemoryBarrier Barrier;
+										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+										Barrier.image = pWaterRenderHeader->TexturePingPong.VkImage;
+										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+										Barrier.subresourceRange.baseMipLevel = 0;
+										Barrier.subresourceRange.levelCount = 1;
+										Barrier.subresourceRange.baseArrayLayer = 0;
+										Barrier.subresourceRange.layerCount = 1;
+										Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+										switch (PingPongIndex)
+										{
+										case 0:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											break;
+										case 1:
+											Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+											break;
+										}
+										Barrier.pNext = NULL;
+
+										vkCmdPipelineBarrier(
+											pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+											VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+											0,
+											0, NULL,
+											0, NULL,
+											1, &Barrier
+										);
+									}
+								}
+							}
+						}
+						{//inversion
+							{
+								VkImageMemoryBarrier Barrier;
+								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.image = pTexture->GPU_Texture.VkImage;
+								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+								Barrier.subresourceRange.baseMipLevel = 0;
+								Barrier.subresourceRange.levelCount = 1;
+								Barrier.subresourceRange.baseArrayLayer = 0;
+								Barrier.subresourceRange.layerCount = 1;
+								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+								Barrier.pNext = NULL;
+
+								vkCmdPipelineBarrier(
+									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+									VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+									0,
+									0, NULL,
+									0, NULL,
+									1, &Barrier
+								);
+							}
+
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pWaterRenderHeader->VkPipelineInversion);
+
+							uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
+							WaterPushConstants PushConstants;
+							memset(&PushConstants, 0, sizeof(PushConstants));
+							glm_vec2_copy(pWaterRenderHeader->FlowDirection, PushConstants.FlowDirection);
+							PushConstants.WaterResolution = pWaterRenderHeader->WaterResolution;
+							PushConstants.WaterL = pWaterRenderHeader->WaterL;
+							PushConstants.WaterAmplitude = pWaterRenderHeader->WaterAmplitude;
+							PushConstants.WaterIntensity = pWaterRenderHeader->WaterIntensity;
+							PushConstants.Waterl = pWaterRenderHeader->Waterl;
+							PushConstants.Time = pWaterRenderHeader->Time;
+							PushConstants.ButterflyStage = 0;
+							PushConstants.ButterflyDirection = 0;
+							PushConstants.PingPongIndex = PingPongIndex;
+
+							memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->VkPipelineLayouth0k, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
+
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+								pWaterRenderHeader->VkPipelineLayoutInversion, 0, 1, &pWaterRenderHeader->VkDescriptorSetInversion, 0, NULL);
+							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->WaterResolution / 16, pWaterRenderHeader->WaterResolution / 16, 1);
+
+							{
+								VkImageMemoryBarrier Barrier;
+								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+								Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+								Barrier.image = pTexture->GPU_Texture.VkImage;
+								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+								Barrier.subresourceRange.baseMipLevel = 0;
+								Barrier.subresourceRange.levelCount = 1;
+								Barrier.subresourceRange.baseArrayLayer = 0;
+								Barrier.subresourceRange.layerCount = 1;
+								Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+								Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+								Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+								Barrier.pNext = NULL;
+
+								vkCmdPipelineBarrier(
+									pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+									VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+									0,
+									0, NULL,
+									0, NULL,
+									1, &Barrier
+								);
+							}
+
+
+						}
 					}
+					Engine_Ref_Unlock_Mutex(&pWaterRenderHeader->mutex);
+
+					Object_Ref_End_ResourceHeaderPointer(pWaterRenderHeader->iTextureTarget, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, false, false, ThreadIndex);
 				}
-				{//inversion
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pTexture->GPU_Texture.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-
-					vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pResourceHeader->VkPipelineInversion);
-
-					uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
-					WaterPushConstants PushConstants;
-					memset(&PushConstants, 0, sizeof(PushConstants));
-					glm_vec2_copy(pResourceHeader->FlowDirection, PushConstants.FlowDirection);
-					PushConstants.WaterResolution = pResourceHeader->WaterResolution;
-					PushConstants.WaterL = pResourceHeader->WaterL;
-					PushConstants.WaterAmplitude = pResourceHeader->WaterAmplitude;
-					PushConstants.WaterIntensity = pResourceHeader->WaterIntensity;
-					PushConstants.Waterl = pResourceHeader->Waterl;
-					PushConstants.Time = pResourceHeader->Time;
-					PushConstants.ButterflyStage = 0;
-					PushConstants.ButterflyDirection = 0;
-					PushConstants.PingPongIndex = PingPongIndex;
-
-					memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
-					vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->VkPipelineLayouth0k, VK_SHADER_STAGE_COMPUTE_BIT, 0,
-						pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
-
-					vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-						pResourceHeader->VkPipelineLayoutInversion, 0, 1, &pResourceHeader->VkDescriptorSetInversion, 0, NULL);
-					vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->WaterResolution / 16, pResourceHeader->WaterResolution / 16, 1);
-
-					{
-						VkImageMemoryBarrier Barrier;
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-						Barrier.image = pTexture->GPU_Texture.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-
-					
-				}
-				Engine_Ref_Unlock_Mutex(pResourceHeader->mutex);
+				Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 			}
-
-			i += pResourceHeader->Header.AllocationSize;
-		}
-		else
-		{
-			i++;
 		}
 	}
 }
@@ -3529,24 +3593,18 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 //Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Update_GraphicsEffects()
-{
+TEXRESULT Update_GraphicsEffects() {
 	return Success;
 }
 
-TEXRESULT Initialise_GraphicsEffects()
-{
+TEXRESULT Initialise_GraphicsEffects() {
 	memset(&Utils, 0, sizeof(Utils));
-	memset(&Config, 0, sizeof(Config));
 
-	//Config
-	Config.InitialHeadersMax = 512;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Utils.RHeaderWaterRenderSig.Buffer = &Utils.RHeaderWaterRenderBuffer;
 	Utils.RHeaderWaterRenderSig.ByteLength = sizeof(RHeaderWaterRender);
 	Utils.RHeaderWaterRenderSig.Identifier = (uint32_t)GraphicsEffectsHeader_WaterRender;
 	Utils.RHeaderWaterRenderSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_WaterRenderHeader;
@@ -3554,7 +3612,6 @@ TEXRESULT Initialise_GraphicsEffects()
 	Utils.RHeaderWaterRenderSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_WaterRenderHeader;
 	Utils.RHeaderWaterRenderSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_WaterRenderHeader;
 	Utils.RHeaderWaterRenderSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_WaterRenderHeader;
-	Object_Ref_Create_ResourceHeaderBuffer(&Utils.RHeaderWaterRenderBuffer, Config.InitialHeadersMax);
 	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -3570,7 +3627,7 @@ TEXRESULT Initialise_GraphicsEffects()
 	//Utils.WaterSig.Update = (Update_GraphicsEffectTemplate*)&Update_Text;
 	//Utils.WaterSig.UpdateSignature = &UpdateSignature_Water;
 	//Utils.WaterSig.Draw = (Draw_GraphicsEffectTemplate*)&Draw_Text;
-	Utils.WaterSig.DrawSignature = &DrawSignature_Water;
+	Utils.WaterSig.DrawSignature = (DrawSignature_GraphicsEffectTemplate*)&DrawSignature_Water;
 	Utils.WaterSig.SignatureGPUBuffersSize = 0;
 	Graphics_Effects_Ref_Register_GraphicsEffectSignature(&Utils.WaterSig);
 
@@ -3581,16 +3638,14 @@ TEXRESULT Initialise_GraphicsEffects()
 	return (Success);
 }
 
-TEXRESULT Destroy_GraphicsEffects()
-{
+TEXRESULT Destroy_GraphicsEffects() {
 	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "START DESTROYING", 0);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	//Object_Ref_Destroy_ResourceHeaderBuffer(&Utils.RHeaderWaterRenderBuffer);
-	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//other
@@ -3599,7 +3654,6 @@ TEXRESULT Destroy_GraphicsEffects()
 	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.WaterSig);
 
 	//memset(&Utils, 0, sizeof(Utils));
-	//memset(&Config, 0, sizeof(Config));
 
 	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
 	return Success;
@@ -3627,8 +3681,6 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	Object_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 	Graphics_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 
-	//Config
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"GraphicsEffects::InitialHeadersMax"), &Config.InitialHeadersMax, 1, sizeof(Config.InitialHeadersMax));
 
 	//Resources
 	ResourceExport(&ReturnInfo->pResources, &ReturnInfo->pResourcesSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Utils"), &GraphicsEffectsRes.pUtils, &Utils);

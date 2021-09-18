@@ -8,54 +8,721 @@
 //Third-Party
 #include <atomic\atomic.h>
 //Ours
+#include "Common.h"
 #include "Extension.h"
+#define TEX_EXPOSE_OBJECTS
 #include "Object.h"
-
-volatile struct {
-	uint64_t InitialParametersMax;
-}Config;
 
 volatile ObjectUtils Utils;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Check Allocation Validatey Functions
+//Arena Allocater Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
 * Added in 1.0.0
-* Tests is allocation is valid or not.
-* Returns Success when allocation is valid. Failure otherwise.
-* @param Allocation, allocation of the desired object to get pointer of.
-* @note Thread Safe always.
+* Creates a object arena allocater.
+* @param pArenaAllocater pointer to the allocater to create.
+* @param StartPtr offset from the start of the gpu buffer to reserve for this arena, arena size = (EndPtr - StartPtr)
+* @param EndPtr offset from the start of the gpu buffer to reserve for this arena, arena size = (EndPtr - StartPtr)
+* @note Always Thread safe.
 * @note Externally Synchronized.
 */
-TEXRESULT Get_ObjectAllocationValidity(ObjectAllocation Allocation)
-{
-	return (Allocation.Identifier != 0) ? Success : Failure;
+TEXRESULT Create_ArenaAllocater(ArenaAllocater* pArenaAllocater, uint64_t StartPtr, uint64_t EndPtr) {
+#ifndef NDEBUG
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_ArgsError("Create_ArenaAllocater()", "pArenaAllocater == NULLPTR");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
+	memset(pArenaAllocater, 0, sizeof(*pArenaAllocater));
+	Engine_Ref_Create_Mutex(&pArenaAllocater->Mutex, MutexType_Plain);
+	pArenaAllocater->StartPtr = StartPtr;
+	pArenaAllocater->EndPtr = EndPtr;
+	return (Success);
 }
 /*
 * Added in 1.0.0
-* Tests is allocation is valid or not.
-* Returns Success when allocation is valid. Failure otherwise.
-* @param Allocation, allocation of the desired object to get pointer of.
-* @note Thread Safe always.
+* Destroys a object arena allocater.
+* @param pArenaAllocater pointer to the allocater to destroy.
+* @note Always Thread safe.
 * @note Externally Synchronized.
 */
-TEXRESULT Get_ResourceHeaderAllocationValidity(ResourceHeaderAllocation Allocation)
-{
-	return (Allocation.Identifier != 0) ? Success : Failure;
+void Destroy_ArenaAllocater(ArenaAllocater* pArenaAllocater) {
+#ifndef NDEBUG
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_ArgsError("Destroy_ArenaAllocater()", "pArenaAllocater == NULLPTR");
+		return;
+	}
+#endif
+	if (TestNULL(&pArenaAllocater->Mutex, sizeof(pArenaAllocater->Mutex)))
+		Engine_Ref_Destroy_Mutex(&pArenaAllocater->Mutex);
+	pArenaAllocater->StartPtr = 0;
+	pArenaAllocater->EndPtr = 0;
+	memset(pArenaAllocater, 0, sizeof(*pArenaAllocater));
+	return;
 }
 /*
 * Added in 1.0.0
-* Tests is allocation is valid or not.
-* Returns Success when allocation is valid. Failure otherwise.
-* @param Allocation, allocation of the desired object to get pointer of.
-* @note Thread Safe always.
+* ReCreates a object arena allocater, destroys previous and then creates again.
+* @param pArenaAllocater pointer to the allocater to recreate.
+* @param StartPtr offset from the start of the gpu buffer to reserve for this arena, arena size = (EndPtr - StartPtr)
+* @param EndPtr offset from the start of the gpu buffer to reserve for this arena, arena size = (EndPtr - StartPtr)
+* @note Always Thread safe.
 * @note Externally Synchronized.
 */
-TEXRESULT Get_ElementAllocationValidity(ElementAllocation Allocation)
+TEXRESULT ReCreate_ArenaAllocater(ArenaAllocater* pArenaAllocater, uint64_t StartPtr, uint64_t EndPtr) {
+#ifndef NDEBUG
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_ArenaAllocater()", "pArenaAllocater == NULLPTR");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
+	Destroy_ArenaAllocater(pArenaAllocater);
+	Create_ArenaAllocater(pArenaAllocater, StartPtr, EndPtr);
+	return (Success);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Allocate Allocation
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TEXRESULT Allocate_ObjectAllocationData(ObjectSignature* pSignature, uint32_t Identifier, ObjectAllocation* pAllocation, uint32_t ThreadIndex) {
+	ArenaAllocater* pArenaAllocater = NULL;
+	uint64_t Pointer = 0;
+	uint64_t SizeOfBlock = 0;
+	uint64_t ResetCount = 0;
+	uint64_t i = 0;
+	while (true)
+	{
+		if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
+		{
+			if (Engine_Ref_TryLock_Mutex(&Utils.InternalObjectBuffer.AllocationDatas.ArenaAllocaters[Utils.InternalObjectBuffer.AllocationDatas.Indexes[ThreadIndex]].Mutex) == Success)
+			{
+				pArenaAllocater = &Utils.InternalObjectBuffer.AllocationDatas.ArenaAllocaters[Utils.InternalObjectBuffer.AllocationDatas.Indexes[ThreadIndex]];
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_ArenaAllocater(pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+				uint64_t prevendindex = pArenaAllocater->StartPtr;
+				for (i = pArenaAllocater->StartPtr; i < pArenaAllocater->EndPtr;)
+				{
+					SizeOfBlock = i - prevendindex;
+					Pointer = prevendindex;
+					if (!(SizeOfBlock < 1)) //if is large enough break out of loop
+						break;
+					if (Utils.InternalObjectBuffer.AllocationDatas.Buffer[i].Allocation.Object.Identifier != 0)
+					{
+						i++;
+						prevendindex = i;
+					}
+					else
+					{
+						i++;
+					}
+				}
+				if (!(SizeOfBlock < 1)) //if is large enough break out of loop
+					break;
+				else
+					Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+			}
+			Utils.InternalObjectBuffer.AllocationDatas.Indexes[ThreadIndex] = (Utils.InternalObjectBuffer.AllocationDatas.Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+			ResetCount++;
+		}
+		else
+		{
+			if (Utils.Config.ActiveMemoryResizing == true)
+			{
+				Engine_Ref_FunctionError("Allocate_ObjectAllocationData()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+				//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+				//ResetCount = 0;
+			}
+			else
+			{
+				Engine_Ref_FunctionError("Allocate_ObjectAllocationData()", "Not Enough Space In Allocation Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
+				return (Failure);
+			}
+		}
+	}
+	//Engine_Ref_FunctionError("Allocate_ObjectAllocationData()", "PTR == ", Pointer);
+	AllocationData* pAllocationData = &Utils.InternalObjectBuffer.AllocationDatas.Buffer[Pointer];
+	memset(pAllocationData, 0, sizeof(*pAllocationData));
+	//set all internal data to invalid number
+	for (size_t i = 0; i < maxthreads; i++)
+	{
+		c89atomic_store_32(&pAllocationData->Threads[i].Pointer, UINT32_MAX);
+		c89atomic_store_32(&pAllocationData->Threads[i].Count, 0);
+	}
+	c89atomic_store_32(&pAllocationData->LatestPointer, UINT32_MAX);
+	//setting values to make allocation valid.
+	c89atomic_fetch_add_32(&Utils.InternalObjectBuffer.AllocationDatas.AllocationsCount, 1);
+	c89atomic_fetch_add_32(&pSignature->AllocationsCount, 1);
+	c89atomic_store_32(&pAllocationData->Allocation.Object.Pointer, Pointer);
+	c89atomic_store_32(&pAllocationData->Allocation.Object.Identifier, Identifier);
+	Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+	pAllocation->Pointer = Pointer;
+	pAllocation->Identifier = Identifier;
+	return (Success);
+}
+
+TEXRESULT Allocate_ResourceHeaderAllocationData(ResourceHeaderSignature* pSignature, uint32_t Identifier, ResourceHeaderAllocation* pAllocation, uint32_t ThreadIndex) {
+	ArenaAllocater* pArenaAllocater = NULL;
+	uint64_t Pointer = 0;
+	uint64_t SizeOfBlock = 0;
+	uint64_t ResetCount = 0;
+	uint64_t i = 0;
+	while (true)
+	{
+		if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
+		{
+			if (Engine_Ref_TryLock_Mutex(&Utils.InternalResourceHeaderBuffer.AllocationDatas.ArenaAllocaters[Utils.InternalResourceHeaderBuffer.AllocationDatas.Indexes[ThreadIndex]].Mutex) == Success)
+			{
+				pArenaAllocater = &Utils.InternalResourceHeaderBuffer.AllocationDatas.ArenaAllocaters[Utils.InternalResourceHeaderBuffer.AllocationDatas.Indexes[ThreadIndex]];
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_ArenaAllocater(pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+				uint64_t prevendindex = pArenaAllocater->StartPtr;
+				for (i = pArenaAllocater->StartPtr; i < pArenaAllocater->EndPtr;)
+				{
+					SizeOfBlock = i - prevendindex;
+					Pointer = prevendindex;
+					if (!(SizeOfBlock < 1)) //if is large enough break out of loop
+						break;
+					if (Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[i].Allocation.ResourceHeader.Identifier != 0)
+					{
+						i++;
+						prevendindex = i;
+					}
+					else
+					{
+						i++;
+					}
+				}
+				if (!(SizeOfBlock < 1)) //if is large enough break out of loop
+					break;
+				else
+					Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+			}
+			Utils.InternalResourceHeaderBuffer.AllocationDatas.Indexes[ThreadIndex] = (Utils.InternalResourceHeaderBuffer.AllocationDatas.Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+			ResetCount++;
+		}
+		else
+		{
+			if (Utils.Config.ActiveMemoryResizing == true)
+			{
+				Engine_Ref_FunctionError("Allocate_ResourceHeaderAllocationData()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+				//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+				//ResetCount = 0;
+			}
+			else
+			{
+				Engine_Ref_FunctionError("Allocate_ResourceHeaderAllocationData()", "Not Enough Space In Allocation Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
+				return (Failure);
+			}
+		}
+	}
+	//Engine_Ref_FunctionError("Allocate_ResourceHeaderAllocationData()", "PTR == ", Pointer);
+	AllocationData* pAllocationData = &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[Pointer];
+	memset(pAllocationData, 0, sizeof(*pAllocationData));
+	//set all internal data to invalid number
+	for (size_t i = 0; i < maxthreads; i++)
+	{
+		c89atomic_store_32(&pAllocationData->Threads[i].Pointer, UINT32_MAX);
+		c89atomic_store_32(&pAllocationData->Threads[i].Count, 0);
+	}
+	c89atomic_store_32(&pAllocationData->LatestPointer, UINT32_MAX);
+	//setting values to make allocation valid.
+	c89atomic_fetch_add_32(&Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount, 1);
+	c89atomic_fetch_add_32(&pSignature->AllocationsCount, 1);
+	c89atomic_store_32(&pAllocationData->Allocation.ResourceHeader.Pointer, Pointer);
+	c89atomic_store_32(&pAllocationData->Allocation.ResourceHeader.Identifier, Identifier);
+	Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+	pAllocation->Pointer = Pointer;
+	pAllocation->Identifier = Identifier;
+	return (Success);
+}
+
+TEXRESULT Allocate_ElementAllocationData(ElementSignature* pSignature, uint32_t Identifier, ElementAllocation* pAllocation, uint32_t ThreadIndex) {
+	ArenaAllocater* pArenaAllocater = NULL;
+	uint64_t Pointer = 0;
+	uint64_t SizeOfBlock = 0;
+	uint64_t ResetCount = 0;
+	uint64_t i = 0;
+	while (true)
+	{
+		if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
+		{
+			if (Engine_Ref_TryLock_Mutex(&Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[Utils.InternalElementBuffer.AllocationDatas.Indexes[ThreadIndex]].Mutex) == Success)
+			{
+				pArenaAllocater = &Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[Utils.InternalElementBuffer.AllocationDatas.Indexes[ThreadIndex]];
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_ArenaAllocater(pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+				uint64_t prevendindex = pArenaAllocater->StartPtr;
+				for (i = pArenaAllocater->StartPtr; i < pArenaAllocater->EndPtr;)
+				{
+					SizeOfBlock = i - prevendindex;
+					Pointer = prevendindex;
+					if (!(SizeOfBlock < 1)) //if is large enough break out of loop
+						break;
+					if (Utils.InternalElementBuffer.AllocationDatas.Buffer[i].Allocation.Element.Identifier != 0)
+					{
+						i++;
+						prevendindex = i;
+					}
+					else
+					{
+						i++;
+					}
+				}
+				if (!(SizeOfBlock < 1)) //if is large enough break out of loop
+					break;
+				else
+					Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+			}
+			Utils.InternalElementBuffer.AllocationDatas.Indexes[ThreadIndex] = (Utils.InternalElementBuffer.AllocationDatas.Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+			ResetCount++;
+		}
+		else
+		{
+			if (Utils.Config.ActiveMemoryResizing == true)
+			{
+				Engine_Ref_FunctionError("Allocate_ElementAllocationData()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+				//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+				//ResetCount = 0;
+			}
+			else
+			{
+				Engine_Ref_FunctionError("Allocate_ElementAllocationData()", "Not Enough Space In Allocation Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
+				return (Failure);
+			}
+		}
+	}
+	//Engine_Ref_FunctionError("Allocate_ElementAllocationData()", "PTR == ", Pointer);
+	AllocationData* pAllocationData = &Utils.InternalElementBuffer.AllocationDatas.Buffer[Pointer];
+	memset(pAllocationData, 0, sizeof(*pAllocationData));
+	//set all internal data to invalid number
+	for (size_t i = 0; i < maxthreads; i++)
+	{
+		c89atomic_store_32(&pAllocationData->Threads[i].Pointer, UINT32_MAX);
+		c89atomic_store_32(&pAllocationData->Threads[i].Count, 0);
+	}
+	c89atomic_store_32(&pAllocationData->LatestPointer, UINT32_MAX);
+	//setting values to make allocation valid.
+	c89atomic_fetch_add_32(&Utils.InternalElementBuffer.AllocationDatas.AllocationsCount, 1);
+	c89atomic_fetch_add_32(&pSignature->AllocationsCount, 1);
+	c89atomic_store_32(&pAllocationData->Allocation.Element.Pointer, Pointer);
+	c89atomic_store_32(&pAllocationData->Allocation.Element.Identifier, Identifier);
+	Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+	pAllocation->Pointer = Pointer;
+	pAllocation->Identifier = Identifier;
+	return (Success);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//DeAllocate Allocation
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DeAllocate_ObjectAllocationData(ObjectSignature* pSignature, ObjectAllocation Allocation) {
+	/*ArenaAllocater* pArenaAllocater = NULL;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		pArenaAllocater = &pBuffer->ArenaAllocaters[i];
+		if (Pointer >= pArenaAllocater->StartPtr &&
+			Pointer < pArenaAllocater->EndPtr)
+		{
+			break;
+		}
+	}
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_FunctionError("DeAllocate_ObjectAllocationData()", "ArenaAllocater Not Found. == ", NULL);
+		return;
+	}
+	Engine_Ref_Lock_Mutex(pArenaAllocater->Mutex);*/
+	//set the allocation validaters to null atomically so no mutex is needed.
+	c89atomic_store_32(&Utils.InternalObjectBuffer.AllocationDatas.Buffer[Allocation.Pointer].Allocation.Object.Identifier, 0);
+	c89atomic_store_32(&Utils.InternalObjectBuffer.AllocationDatas.Buffer[Allocation.Pointer].Allocation.Object.Pointer, 0);
+	memset(&Utils.InternalObjectBuffer.AllocationDatas.Buffer[Allocation.Pointer], 0, sizeof(*Utils.InternalObjectBuffer.AllocationDatas.Buffer));
+	c89atomic_fetch_sub_32(&Utils.InternalObjectBuffer.AllocationDatas.AllocationsCount, 1);
+	c89atomic_fetch_sub_32(&pSignature->AllocationsCount, 1);
+	//Engine_Ref_Unlock_Mutex(pArenaAllocater->Mutex);
+}
+
+void DeAllocate_ResourceHeaderAllocationData(ResourceHeaderSignature* pSignature, ResourceHeaderAllocation Allocation) {
+	/*ArenaAllocater* pArenaAllocater = NULL;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		pArenaAllocater = &pBuffer->ArenaAllocaters[i];
+		if (Pointer >= pArenaAllocater->StartPtr &&
+			Pointer < pArenaAllocater->EndPtr)
+		{
+			break;
+		}
+	}
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_FunctionError("DeAllocate_ResourceHeaderAllocationData()", "ArenaAllocater Not Found. == ", NULL);
+		return;
+	}
+	Engine_Ref_Lock_Mutex(pArenaAllocater->Mutex);*/
+	//set the allocation validaters to null atomically so no mutex is needed.
+	c89atomic_store_32(&Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[Allocation.Pointer].Allocation.ResourceHeader.Identifier, 0);
+	c89atomic_store_32(&Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[Allocation.Pointer].Allocation.ResourceHeader.Pointer, 0);
+	memset(&Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[Allocation.Pointer], 0, sizeof(*Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer));
+	c89atomic_fetch_sub_32(&Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount, 1);
+	c89atomic_fetch_sub_32(&pSignature->AllocationsCount, 1);
+	//Engine_Ref_Unlock_Mutex(pArenaAllocater->Mutex);
+}
+
+void DeAllocate_ElementAllocationData(ElementSignature* pSignature, ElementAllocation Allocation) {
+	/*ArenaAllocater* pArenaAllocater = NULL;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		pArenaAllocater = &pBuffer->ArenaAllocaters[i];
+		if (Pointer >= pArenaAllocater->StartPtr &&
+			Pointer < pArenaAllocater->EndPtr)
+		{
+			break;
+		}
+	}
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_FunctionError("DeAllocate_ElementAllocationData()", "ArenaAllocater Not Found. == ", NULL);
+		return;
+	}
+	Engine_Ref_Lock_Mutex(pArenaAllocater->Mutex);*/
+	//set the allocation validaters to null atomically so no mutex is needed.
+	c89atomic_store_32(&Utils.InternalElementBuffer.AllocationDatas.Buffer[Allocation.Pointer].Allocation.Element.Identifier, 0);
+	c89atomic_store_32(&Utils.InternalElementBuffer.AllocationDatas.Buffer[Allocation.Pointer].Allocation.Element.Pointer, 0);
+	memset(&Utils.InternalElementBuffer.AllocationDatas.Buffer[Allocation.Pointer], 0, sizeof(*Utils.InternalElementBuffer.AllocationDatas.Buffer));
+	c89atomic_fetch_sub_32(&Utils.InternalElementBuffer.AllocationDatas.AllocationsCount, 1);
+	c89atomic_fetch_sub_32(&pSignature->AllocationsCount, 1);
+	//Engine_Ref_Unlock_Mutex(pArenaAllocater->Mutex);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Allocatie Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TEXRESULT Allocate_Object(ObjectSignature* pSignature, uint32_t AllocationSize, uint32_t Identifier, ObjectAllocation Allocation, uint32_t* pPointer, uint32_t ThreadIndex) {
+	ArenaAllocater* pArenaAllocater = NULL;
+	uint64_t Pointer = 0;
+	uint64_t SizeOfBlock = 0;
+	uint64_t ResetCount = 0;
+	uint64_t i = 0;
+	while (true)
+	{
+		if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
+		{
+			if (Engine_Ref_TryLock_Mutex(&Utils.InternalObjectBuffer.ArenaAllocaters[Utils.InternalObjectBuffer.Indexes[ThreadIndex]].Mutex) == Success)
+			{
+				pArenaAllocater = &Utils.InternalObjectBuffer.ArenaAllocaters[Utils.InternalObjectBuffer.Indexes[ThreadIndex]];
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_ArenaAllocater(pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+				uint64_t prevendindex = pArenaAllocater->StartPtr;
+				for (i = pArenaAllocater->StartPtr; i < pArenaAllocater->EndPtr;)
+				{
+					SizeOfBlock = i - prevendindex;
+					Pointer = prevendindex;
+					if (SizeOfBlock >= AllocationSize) //if is large enough break out of loop
+						break;
+					if (Utils.InternalObjectBuffer.Buffer[i].Header.AllocationSize != NULL)
+					{
+						i += Utils.InternalObjectBuffer.Buffer[i].Header.AllocationSize;
+						prevendindex = i;
+					}
+					else
+					{
+						i++;
+					}
+				}
+				if (SizeOfBlock >= AllocationSize) //if is large enough break out of loop
+					break;
+				else
+					Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+			}
+			Utils.InternalObjectBuffer.Indexes[ThreadIndex] = (Utils.InternalObjectBuffer.Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+			ResetCount++;
+		}
+		else
+		{
+			if (Utils.Config.ActiveMemoryResizing == true)
+			{
+				Engine_Ref_FunctionError("Allocate_Object()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+				//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+				//ResetCount = 0;
+			}
+			else
+			{
+				Engine_Ref_FunctionError("Allocate_Object()", "Not Enough Space In Allocation Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
+				return (Failure);
+			}
+		}
+	}
+	//Engine_Ref_FunctionError("Allocate_Object()", "PTR == ", Pointer);
+	//Engine_Ref_FunctionError("Allocate_Object()", "Size == ", AllocationSize);
+
+	Object* pObject = &Utils.InternalObjectBuffer.Buffer[Pointer];
+	memset(pObject, 0, sizeof(*pObject) * AllocationSize);
+	//setting values to make allocation valid.
+	c89atomic_fetch_add_32(&Utils.InternalObjectBuffer.AllocationsCount, 1);
+	c89atomic_fetch_add_32(&pSignature->ObjectsCount, 1);
+	c89atomic_store_8(&pObject->Header.UseCount, 0);
+	c89atomic_store_32(&pObject->Header.OverlayPointer, UINT32_MAX);
+	pObject->Header.Allocation = Allocation;
+	//c89atomic_store_32(&pObject->Header.Allocation, Allocation);
+	c89atomic_store_32(&pObject->Header.AllocationSize, AllocationSize);
+	Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+	*pPointer = Pointer;
+	return (Success);
+}
+
+TEXRESULT Allocate_ResourceHeader(ResourceHeaderSignature* pSignature, uint32_t AllocationSize, uint32_t Identifier, ResourceHeaderAllocation Allocation, uint32_t* pPointer, uint32_t ThreadIndex) {
+	ArenaAllocater* pArenaAllocater = NULL;
+	uint64_t Pointer = 0;
+	uint64_t SizeOfBlock = 0;
+	uint64_t ResetCount = 0;
+	uint64_t i = 0;
+	while (true)
+	{
+		if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
+		{
+			if (Engine_Ref_TryLock_Mutex(&Utils.InternalResourceHeaderBuffer.ArenaAllocaters[Utils.InternalResourceHeaderBuffer.Indexes[ThreadIndex]].Mutex) == Success)
+			{
+				pArenaAllocater = &Utils.InternalResourceHeaderBuffer.ArenaAllocaters[Utils.InternalResourceHeaderBuffer.Indexes[ThreadIndex]];
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_ArenaAllocater(pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+				uint64_t prevendindex = pArenaAllocater->StartPtr;
+				for (i = pArenaAllocater->StartPtr; i < pArenaAllocater->EndPtr;)
+				{
+					SizeOfBlock = i - prevendindex;
+					Pointer = prevendindex;
+					if (SizeOfBlock >= AllocationSize) //if is large enough break out of loop
+						break;
+					if (Utils.InternalResourceHeaderBuffer.Buffer[i].Header.AllocationSize != NULL)
+					{
+						i += Utils.InternalResourceHeaderBuffer.Buffer[i].Header.AllocationSize;
+						prevendindex = i;
+					}
+					else
+					{
+						i++;
+					}
+				}
+				if (SizeOfBlock >= AllocationSize) //if is large enough break out of loop
+					break;
+				else
+					Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+			}
+			Utils.InternalResourceHeaderBuffer.Indexes[ThreadIndex] = (Utils.InternalResourceHeaderBuffer.Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+			ResetCount++;
+		}
+		else
+		{
+			if (Utils.Config.ActiveMemoryResizing == true)
+			{
+				Engine_Ref_FunctionError("Allocate_ResourceHeader()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+				//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+				//ResetCount = 0;
+			}
+			else
+			{
+				Engine_Ref_FunctionError("Allocate_ResourceHeader()", "Not Enough Space In Allocation Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
+				return (Failure);
+			}
+		}
+	}
+//	Engine_Ref_FunctionError("Allocate_ResourceHeader()", "PTR == ", Pointer);
+	//Engine_Ref_FunctionError("Allocate_ResourceHeader()", "Size == ", AllocationSize);
+
+	ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
+	memset(pResourceHeader, 0, sizeof(*pResourceHeader) * AllocationSize);
+	//setting values to make allocation valid.
+	c89atomic_fetch_add_32(&Utils.InternalResourceHeaderBuffer.AllocationsCount, 1);
+	c89atomic_fetch_add_32(&pSignature->ResourceHeadersCount, 1);
+	c89atomic_store_8(&pResourceHeader->Header.UseCount, 0);
+	c89atomic_store_32(&pResourceHeader->Header.OverlayPointer, UINT32_MAX);
+	pResourceHeader->Header.Allocation = Allocation;
+	//c89atomic_store_32(&pResourceHeader->Header.Allocation, AllocationPointer);
+	c89atomic_store_32(&pResourceHeader->Header.AllocationSize, AllocationSize);
+	Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+	*pPointer = Pointer;
+	return (Success);
+}
+
+TEXRESULT Allocate_Element(ElementSignature* pSignature, uint32_t AllocationSize, uint32_t Identifier, ElementAllocation Allocation, uint32_t* pPointer, uint32_t ThreadIndex)
 {
-	return (Allocation.Identifier != 0) ? Success : Failure;
+	ArenaAllocater* pArenaAllocater = NULL;
+	uint64_t Pointer = 0;
+	uint64_t SizeOfBlock = 0;
+	uint64_t ResetCount = 0;
+	uint64_t i = 0;
+	while (true)
+	{
+		if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
+		{
+			if (Engine_Ref_TryLock_Mutex(&Utils.InternalElementBuffer.ArenaAllocaters[Utils.InternalElementBuffer.Indexes[ThreadIndex]].Mutex) == Success)
+			{
+				pArenaAllocater = &Utils.InternalElementBuffer.ArenaAllocaters[Utils.InternalElementBuffer.Indexes[ThreadIndex]];
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
+				//if (pArenaAllocater->Size == 0)
+				//	ReCreate_ArenaAllocater(pArenaAllocater, TargetBuffer->Size, TargetMemory);
+
+				uint64_t prevendindex = pArenaAllocater->StartPtr;
+				for (i = pArenaAllocater->StartPtr; i < pArenaAllocater->EndPtr;)
+				{
+					SizeOfBlock = i - prevendindex;
+					Pointer = prevendindex;
+					if (SizeOfBlock >= AllocationSize) //if is large enough break out of loop
+						break;
+					if (Utils.InternalElementBuffer.Buffer[i].Header.AllocationSize != NULL)
+					{
+						i += Utils.InternalElementBuffer.Buffer[i].Header.AllocationSize;
+						prevendindex = i;
+					}
+					else
+					{
+						i++;
+					}
+				}
+				if (SizeOfBlock >= AllocationSize) //if is large enough break out of loop
+					break;
+				else
+					Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+			}
+			Utils.InternalElementBuffer.Indexes[ThreadIndex] = (Utils.InternalElementBuffer.Indexes[ThreadIndex] + 1) % EngineRes.pUtils->CPU.MaxThreads;
+			ResetCount++;
+		}
+		else
+		{
+			if (Utils.Config.ActiveMemoryResizing == true)
+			{
+				Engine_Ref_FunctionError("Allocate_Element()", "AAAAAAAAAAAAAA resizing main", SizeOfBlock);
+				//ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, pArenaAllocater->Size + AlignedSize, TargetMemory);
+				//ResetCount = 0;
+			}
+			else
+			{
+				Engine_Ref_FunctionError("Allocate_Element()", "Not Enough Space In Allocation Memory!, Resize buffer!, Blocksize == ", SizeOfBlock);
+				return (Failure);
+			}
+		}
+	}
+	//Engine_Ref_FunctionError("Allocate_Element()", "PTR == ", Pointer);
+	//Engine_Ref_FunctionError("Allocate_Element()", "Size == ", AllocationSize);
+
+	Element* pElement = &Utils.InternalElementBuffer.Buffer[Pointer];
+	memset(pElement, 0, sizeof(*pElement) * AllocationSize);
+	//setting values to make allocation valid.
+	c89atomic_fetch_add_32(&Utils.InternalElementBuffer.AllocationsCount, 1);
+	c89atomic_fetch_add_32(&pSignature->ElementsCount, 1);
+	c89atomic_store_8(&pElement->Header.UseCount, 0);
+	c89atomic_store_32(&pElement->Header.OverlayPointer, UINT32_MAX);
+	pElement->Header.Allocation = Allocation;
+	//c89atomic_store_32(&pElement->Header.Allocation, AllocationPointer);
+	c89atomic_store_32(&pElement->Header.AllocationSize, AllocationSize);
+	Engine_Ref_Unlock_Mutex(&pArenaAllocater->Mutex);
+	*pPointer = Pointer;
+	return (Success);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Deallocate Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DeAllocate_Object(ObjectSignature* pSignature, uint32_t Pointer) {
+	/*ArenaAllocater* pArenaAllocater = NULL;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		pArenaAllocater = &Utils.InternalObjectBuffer.ArenaAllocaters[i];
+		if (Pointer >= pArenaAllocater->StartPtr &&
+			Pointer < pArenaAllocater->EndPtr)
+		{
+			break;
+		}
+	}
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_FunctionError("DeAllocate_Object()", "ArenaAllocater Not Found. == ", NULL);
+		return;
+	}
+	Engine_Ref_Lock_Mutex(pArenaAllocater->Mutex);*/
+	uint32_t AllocationSize = Utils.InternalObjectBuffer.Buffer[Pointer].Header.AllocationSize;
+	c89atomic_store_32(&Utils.InternalObjectBuffer.Buffer[Pointer].Header.AllocationSize, 0);
+	c89atomic_store_8(&Utils.InternalObjectBuffer.Buffer[Pointer].Header.UseCount, 0);
+	memset(&Utils.InternalObjectBuffer.Buffer[Pointer], 0, sizeof(*Utils.InternalObjectBuffer.Buffer) * AllocationSize);
+	c89atomic_fetch_sub_32(&Utils.InternalObjectBuffer.AllocationsCount, 1);
+	c89atomic_fetch_sub_32(&pSignature->ObjectsCount, 1);
+	//Engine_Ref_Unlock_Mutex(pArenaAllocater->Mutex);
+}
+
+void DeAllocate_ResourceHeader(ResourceHeaderSignature* pSignature, uint32_t Pointer) {
+	/*
+	ArenaAllocater* pArenaAllocater = NULL;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		pArenaAllocater = &Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i];
+		if (Pointer >= pArenaAllocater->StartPtr &&
+			Pointer < pArenaAllocater->EndPtr)
+		{
+			break;
+		}
+	}
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_FunctionError("DeAllocate_ResourceHeader()", "ArenaAllocater Not Found. == ", NULL);
+		return;
+	}
+	Engine_Ref_Lock_Mutex(pArenaAllocater->Mutex);*/
+	uint32_t AllocationSize = Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.AllocationSize;
+	c89atomic_store_32(&Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.AllocationSize, 0);
+	c89atomic_store_8(&Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.UseCount, 0);
+	memset(&Utils.InternalResourceHeaderBuffer.Buffer[Pointer], 0, sizeof(*Utils.InternalResourceHeaderBuffer.Buffer) * AllocationSize);
+	c89atomic_fetch_sub_32(&Utils.InternalResourceHeaderBuffer.AllocationsCount, 1);
+	c89atomic_fetch_sub_32(&pSignature->ResourceHeadersCount, 1);
+	//Engine_Ref_Unlock_Mutex(pArenaAllocater->Mutex);
+}
+
+void DeAllocate_Element(ElementSignature* pSignature, uint32_t Pointer) {
+	/*ArenaAllocater* pArenaAllocater = NULL;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		pArenaAllocater = &Utils.InternalElementBuffer.ArenaAllocaters[i];
+		if (Pointer >= pArenaAllocater->StartPtr &&
+			Pointer < pArenaAllocater->EndPtr)
+		{
+			break;
+		}
+	}
+	if (pArenaAllocater == NULL)
+	{
+		Engine_Ref_FunctionError("DeAllocate_Element()", "ArenaAllocater Not Found. == ", NULL);
+		return;
+	}
+	//Engine_Ref_Lock_Mutex(pArenaAllocater->Mutex);*/
+	uint32_t AllocationSize = Utils.InternalElementBuffer.Buffer[Pointer].Header.AllocationSize;
+	c89atomic_store_32(&Utils.InternalElementBuffer.Buffer[Pointer].Header.AllocationSize, 0);
+	c89atomic_store_8(&Utils.InternalElementBuffer.Buffer[Pointer].Header.UseCount, 0);
+	memset(&Utils.InternalElementBuffer.Buffer[Pointer], 0, sizeof(*Utils.InternalElementBuffer.Buffer) * AllocationSize);
+	c89atomic_fetch_sub_32(&Utils.InternalElementBuffer.AllocationsCount, 1);
+	c89atomic_fetch_sub_32(&pSignature->ElementsCount, 1);
+	//Engine_Ref_Unlock_Mutex(pArenaAllocater->Mutex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,9 +737,8 @@ TEXRESULT Get_ElementAllocationValidity(ElementAllocation Allocation)
 * @note Thread Safe always.
 * @note Externally Synchronized.
 */
-TEXRESULT Compare_ObjectAllocation(ObjectAllocation Allocation0, ObjectAllocation Allocation1)
-{
-	return (((Allocation0.Pointer == Allocation1.Pointer) && (Allocation0.Identifier == Allocation1.Identifier))) ? Success : Failure;
+TEXRESULT Compare_ObjectAllocation(ObjectAllocation Allocation0, ObjectAllocation Allocation1) {
+	return (Allocation0.Pointer == Allocation1.Pointer && Allocation0.Identifier == Allocation1.Identifier) ? Success : Failure;
 }
 /*
 * Added in 1.0.0
@@ -82,9 +748,8 @@ TEXRESULT Compare_ObjectAllocation(ObjectAllocation Allocation0, ObjectAllocatio
 * @note Thread Safe always.
 * @note Externally Synchronized.
 */
-TEXRESULT Compare_ResourceHeaderAllocation(ResourceHeaderAllocation Allocation0, ResourceHeaderAllocation Allocation1)
-{
-	return (((Allocation0.Pointer == Allocation1.Pointer) && (Allocation0.Identifier == Allocation1.Identifier))) ? Success : Failure;
+TEXRESULT Compare_ResourceHeaderAllocation(ResourceHeaderAllocation Allocation0, ResourceHeaderAllocation Allocation1) {
+	return (Allocation0.Pointer == Allocation1.Pointer && Allocation0.Identifier == Allocation1.Identifier) ? Success : Failure;
 }
 /*
 * Added in 1.0.0
@@ -94,9 +759,46 @@ TEXRESULT Compare_ResourceHeaderAllocation(ResourceHeaderAllocation Allocation0,
 * @note Thread Safe always.
 * @note Externally Synchronized.
 */
-TEXRESULT Compare_ElementAllocation(ElementAllocation Allocation0, ElementAllocation Allocation1)
-{
-	return (((Allocation0.Pointer == Allocation1.Pointer) && (Allocation0.Identifier == Allocation1.Identifier))) ? Success : Failure;
+TEXRESULT Compare_ElementAllocation(ElementAllocation Allocation0, ElementAllocation Allocation1) {
+	return (Allocation0.Pointer == Allocation1.Pointer && Allocation0.Identifier == Allocation1.Identifier) ? Success : Failure;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Get AllocationData Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*
+* Added in 1.0.0
+* Returns AllocationData, also used to check if allocation is valid.
+* @return @ref return pointer to AllocationData if valid. @ref NULL if invalid.
+* @param Allocation, Allocation to get the AllocationData of. (required)
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+AllocationData* Get_ObjectAllocationData(ObjectAllocation Allocation) {
+	return (Allocation.Identifier != NULL) ? &Utils.InternalObjectBuffer.AllocationDatas.Buffer[Allocation.Pointer] : NULL;
+}
+/*
+* Added in 1.0.0
+* Returns AllocationData, also used to check if allocation is valid.
+* @return @ref return pointer to AllocationData if valid. @ref NULL if invalid.
+* @param Allocation, Allocation to get the AllocationData of. (required)
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+AllocationData* Get_ResourceHeaderAllocationData(ResourceHeaderAllocation Allocation) {
+	return (Allocation.Identifier != NULL) ? &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[Allocation.Pointer] : NULL;
+}
+/*
+* Added in 1.0.0
+* Returns AllocationData, also used to check if allocation is valid.
+* @return @ref return pointer to AllocationData if valid. @ref NULL if invalid.
+* @param Allocation, Allocation to get the AllocationData of. (required)
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+AllocationData* Get_ElementAllocationData(ElementAllocation Allocation) {
+	return (Allocation.Identifier != NULL) ? &Utils.InternalElementBuffer.AllocationDatas.Buffer[Allocation.Pointer] : NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,52 +810,47 @@ TEXRESULT Compare_ElementAllocation(ElementAllocation Allocation0, ElementAlloca
 * Uses Identifier to find the signature that the object is associated with.
 * @param Identifier, desired signature identifier to find.
 * @param ppSignature is a pointer to a pointer of a signature to return.
-* @param pBufferIndex is a pointer to a bufferindex value to return.
+* @param pIndex is a pointer to a signatureindex value to return, signature index being the index of the signature in the signatures buffer.
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Find_ObjectSignature(ObjectIdentifier Identifier, ObjectSignature** ppSignature, ObjectBufferIndex* pBufferIndex)
-{
+TEXRESULT Find_ObjectSignature(ObjectIdentifier Identifier, ObjectSignature** ppSignature) {
 #ifndef NDEBUG
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Find_ObjectSignature()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-
+	//why no sync;
 	for (uint64_t i = 0; i < Utils.ObjectSignaturesSize; i++)
 	{
 		if (Utils.ObjectSignatures[i]->Identifier == Identifier)
 		{
 			if (ppSignature != NULL)
 				*ppSignature = Utils.ObjectSignatures[i];
-			if (pBufferIndex != NULL)
-				*pBufferIndex = i;
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	*ppSignature = NULL;
-	*pBufferIndex = NULL;
 	Engine_Ref_ArgsError("Find_ObjectSignature()", "Identifier Invalid");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 /*
 * Added in 1.0.0
 * Uses Identifier to find the signature that the object is associated with.
 * @param Identifier, desired signature identifier to find.
 * @param ppSignature is a pointer to a pointer of a signature to return.
-* @param pBufferIndex is a pointer to a bufferindex value to return.
+* @param pIndex is a pointer to a signatureindex value to return, signature index being the index of the signature in the signatures buffer.
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Find_ResourceHeaderSignature(ResourceHeaderIdentifier Identifier, ResourceHeaderSignature** ppSignature, ResourceHeaderBufferIndex* pBufferIndex)
-{
+TEXRESULT Find_ResourceHeaderSignature(ResourceHeaderIdentifier Identifier, ResourceHeaderSignature** ppSignature) {
 #ifndef NDEBUG
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Find_ResourceHeaderSignature()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	for (uint64_t i = 0; i < Utils.ResourceHeaderSignaturesSize; i++)
@@ -162,32 +859,28 @@ TEXRESULT Find_ResourceHeaderSignature(ResourceHeaderIdentifier Identifier, Reso
 		{
 			if (ppSignature != NULL)
 				*ppSignature = Utils.ResourceHeaderSignatures[i];
-			if (pBufferIndex != NULL)
-				*pBufferIndex = i;
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	*ppSignature = NULL;
-	*pBufferIndex = NULL;
 	Engine_Ref_ArgsError("Find_ResourceHeaderSignature()", "Identifier Invalid");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
 }
 /*
 * Added in 1.0.0
 * Uses Identifier to find the signature that the object is associated with.
 * @param Identifier, desired signature identifier to find.
 * @param ppSignature is a pointer to a pointer of a signature to return.
-* @param pBufferIndex is a pointer to a bufferindex value to return.
+* @param pIndex is a pointer to a signatureindex value to return, signature index being the index of the signature in the signatures buffer.
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Find_ElementSignature(ElementIdentifier Identifier, ElementSignature** ppSignature, ElementBufferIndex* pBufferIndex)
-{
+TEXRESULT Find_ElementSignature(ElementIdentifier Identifier, ElementSignature** ppSignature) {
 #ifndef NDEBUG
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Find_ElementSignature()", "Identifier == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	for (uint64_t i = 0; i < Utils.ElementSignaturesSize; i++)
@@ -196,15 +889,325 @@ TEXRESULT Find_ElementSignature(ElementIdentifier Identifier, ElementSignature**
 		{
 			if (ppSignature != NULL)
 				*ppSignature = Utils.ElementSignatures[i];
-			if (pBufferIndex != NULL)
-				*pBufferIndex = i;
-			return (TEXRESULT)(Success);
+			return (Success);
 		}
 	}
 	*ppSignature = NULL;
-	*pBufferIndex = NULL;
 	Engine_Ref_ArgsError("Find_ElementSignature()", "Identifier Invalid");
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	return (Invalid_Parameter | Failure);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Get Pointer Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TEXRESULT Destroy_ObjectInstance(uint32_t Pointer, ObjectSignature* pSignature, bool Full, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	Object* pObject = &Utils.InternalObjectBuffer.Buffer[Pointer];
+	Object* pObjectOverlay = pObject->Header.OverlayPointer != UINT32_MAX ? &Utils.InternalObjectBuffer.Buffer[pObject->Header.OverlayPointer] : NULL;
+	if (pSignature->Destructor != NULL)
+	{
+		Destroy_ObjectTemplate* func = *pSignature->Destructor;
+		if ((tres = func(pObject, pObjectOverlay, Full, ThreadIndex)) != Success)
+			return tres;
+	}
+	if (((pObjectOverlay != NULL) ? (pObject->Header.iResourceHeaders != pObjectOverlay->Header.iResourceHeaders) : true) && pObject->Header.iResourceHeaders != NULL) {
+		free(pObject->Header.iResourceHeaders);
+		pObject->Header.iResourceHeaders = NULL;
+		pObject->Header.iResourceHeadersSize = NULL;
+	}
+	if (((pObjectOverlay != NULL) ? (pObject->Header.iChildren != pObjectOverlay->Header.iChildren) : true) && pObject->Header.iChildren != NULL) {
+		free(pObject->Header.iChildren);
+		pObject->Header.iChildren = NULL;
+		pObject->Header.iChildrenSize = NULL;
+	}
+	if (((pObjectOverlay != NULL) ? (pObject->Header.Name != pObjectOverlay->Header.Name) : true) && pObject->Header.Name != NULL) {
+		free(pObject->Header.Name);
+		pObject->Header.Name = NULL;
+	}
+	return (Success);
+}
+TEXRESULT Destroy_ResourceHeaderInstance(uint32_t Pointer, ResourceHeaderSignature* pSignature, bool Full, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
+	ResourceHeader* pResourceHeaderOverlay = pResourceHeader->Header.OverlayPointer != UINT32_MAX ? &Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.OverlayPointer] : NULL;
+	if (pSignature->Destructor != NULL)
+	{
+		Destroy_ResourceHeaderTemplate* func = *pSignature->Destructor;
+		if ((tres = func(pResourceHeader, pResourceHeaderOverlay, Full, ThreadIndex)) != Success)
+			return tres;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->Header.iObjects != pResourceHeaderOverlay->Header.iObjects) : true) && pResourceHeader->Header.iObjects != NULL) {
+		free(pResourceHeader->Header.iObjects);
+		pResourceHeader->Header.iObjects = NULL;
+		pResourceHeader->Header.iObjectsSize = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->Header.iElements != pResourceHeaderOverlay->Header.iElements) : true) && pResourceHeader->Header.iElements != NULL) {
+		free(pResourceHeader->Header.iElements);
+		pResourceHeader->Header.iElements = NULL;
+		pResourceHeader->Header.iElementsSize = NULL;
+	}
+	if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->Header.Name != pResourceHeaderOverlay->Header.Name) : true) && pResourceHeader->Header.Name != NULL) {
+		free(pResourceHeader->Header.Name);
+		pResourceHeader->Header.Name = NULL;
+	}
+	return (Success);
+}
+TEXRESULT Destroy_ElementInstance(uint32_t Pointer, ElementSignature* pSignature, bool Full, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	Element* pElement = &Utils.InternalElementBuffer.Buffer[Pointer];
+	Element* pElementOverlay = pElement->Header.OverlayPointer != UINT32_MAX ? &Utils.InternalElementBuffer.Buffer[pElement->Header.OverlayPointer] : NULL;
+	if (pSignature->Destructor != NULL)
+	{
+		Destroy_ElementTemplate* func = *pSignature->Destructor;
+		if ((tres = func(pElement, pElementOverlay, Full, ThreadIndex)) != Success)
+			return tres;
+	}
+	if (((pElementOverlay != NULL) ? (pElement->Header.iResourceHeaders != pElementOverlay->Header.iResourceHeaders) : true) && pElement->Header.iResourceHeaders != NULL) {
+		free(pElement->Header.iResourceHeaders);
+		pElement->Header.iResourceHeaders = NULL;
+		pElement->Header.iResourceHeadersSize = NULL;
+	}
+	if (((pElementOverlay != NULL) ? (pElement->Header.Name != pElementOverlay->Header.Name) : true) && pElement->Header.Name != NULL) {
+		free(pElement->Header.Name);
+		pElement->Header.Name = NULL;
+	}
+	return (Success);
+}
+
+#define DestroyAndDeAllocate_ObjectInstance(Pointer, pSignature, Full, ThreadIndex)\
+{\
+	Destroy_ObjectInstance(Pointer, pSignature, Full, ThreadIndex);\
+	DeAllocate_Object(pSignature, Pointer);\
+}
+#define DestroyAndDeAllocate_ResourceHeaderInstance(Pointer, pSignature, Full, ThreadIndex)\
+{\
+	Destroy_ResourceHeaderInstance(Pointer, pSignature, Full, ThreadIndex);\
+	DeAllocate_ResourceHeader(pSignature, Pointer);\
+}
+#define DestroyAndDeAllocate_ElementInstance(Pointer, pSignature, Full, ThreadIndex)\
+{\
+	Destroy_ElementInstance(Pointer, pSignature, Full, ThreadIndex);\
+	DeAllocate_Element(pSignature, Pointer);\
+}
+
+#define DestroyAndDeAllocate_Object(Pointer, pSignature)\
+{\
+	Object* pObject = &Utils.InternalObjectBuffer.Buffer[Pointer];\
+	if (pObject->Header.OverlayPointer != UINT32_MAX)\
+		DestroyAndDeAllocate_ObjectInstance(pObject->Header.OverlayPointer, pSignature, false, ThreadIndex)\
+	c89atomic_store_32(&pObject->Header.OverlayPointer, UINT32_MAX);\
+	for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)\
+	{\
+		ResourceHeader* pChild = Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], true, false, ThreadIndex);\
+		if (pChild != NULL)\
+		{\
+			for (size_t i = 0; i < pChild->Header.iObjectsSize; i++)\
+			{\
+				if (Compare_ObjectAllocation(pChild->Header.iObjects[i], Allocation) == Success)\
+				{\
+					RemoveMember_Array((void**)&pChild->Header.iObjects, pChild->Header.iObjectsSize, i, sizeof(*pChild->Header.iObjects), 1);\
+					pChild->Header.iObjectsSize = pChild->Header.iObjectsSize - 1;\
+				}\
+			}\
+		}\
+		End_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], true, false, ThreadIndex);\
+	}\
+	for (size_t i = 0; i < pObject->Header.iChildrenSize; i++)\
+	{\
+		Object* pChild = Get_ObjectPointer(pObject->Header.iChildren[i], true, false, ThreadIndex);\
+		if (pChild != NULL)\
+		{\
+			memset(&pChild->Header.iParent, 0, sizeof(pChild->Header.iParent));\
+		}\
+		End_ObjectPointer(pObject->Header.iChildren[i], true, false, ThreadIndex);\
+	}\
+	if (pObject->Header.iResourceHeaders != NULL && pObject->Header.iResourceHeadersSize != NULL)\
+		free(pObject->Header.iResourceHeaders);\
+	if (pObject->Header.iChildren != NULL && pObject->Header.iChildrenSize != NULL)\
+		free(pObject->Header.iChildren);\
+	if (pObject->Header.Name != NULL)\
+		free(pObject->Header.Name);\
+	DestroyAndDeAllocate_ObjectInstance(Pointer, pSignature, true, ThreadIndex)\
+	ObjectSignature* pSignature = NULL;\
+	Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature);\
+	DeAllocate_ObjectAllocationData(pSignature, Allocation);\
+}
+#define DestroyAndDeAllocate_ResourceHeader(Pointer, pSignature)\
+{\
+	ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];\
+	if (pResourceHeader->Header.OverlayPointer != UINT32_MAX)\
+		DestroyAndDeAllocate_ResourceHeaderInstance(pResourceHeader->Header.OverlayPointer, pSignature, false, ThreadIndex)\
+	c89atomic_store_32(&pResourceHeader->Header.OverlayPointer, UINT32_MAX);\
+	for (size_t i = 0; i < pResourceHeader->Header.iObjectsSize; i++)\
+	{\
+		Object* pParent = Get_ObjectPointer(pResourceHeader->Header.iObjects[i], true, false, ThreadIndex);\
+		if (pParent != NULL)\
+		{\
+			for (size_t i = 0; i < pParent->Header.iResourceHeadersSize; i++)\
+			{\
+				if (Compare_ResourceHeaderAllocation(pParent->Header.iResourceHeaders[i], Allocation) == Success)\
+				{\
+					RemoveMember_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, i, sizeof(*pParent->Header.iResourceHeaders), 1);\
+					pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize - 1;\
+				}\
+			}\
+		}\
+		End_ObjectPointer(pResourceHeader->Header.iObjects[i], true, false, ThreadIndex);\
+	}\
+	for (size_t i = 0; i < pResourceHeader->Header.iElementsSize; i++)\
+	{\
+		Element* pChild = Get_ElementPointer(pResourceHeader->Header.iElements[i], true, false, ThreadIndex);\
+		if (pChild != NULL)\
+		{\
+			for (size_t i = 0; i < pChild->Header.iResourceHeadersSize; i++)\
+			{\
+				if (Compare_ResourceHeaderAllocation(pChild->Header.iResourceHeaders[i], Allocation) == Success)\
+				{\
+					RemoveMember_Array((void**)&pChild->Header.iResourceHeaders, pChild->Header.iResourceHeadersSize, i, sizeof(*pChild->Header.iResourceHeaders), 1);\
+					pChild->Header.iResourceHeadersSize = pChild->Header.iResourceHeadersSize - 1;\
+				}\
+			}\
+		}\
+		End_ElementPointer(pResourceHeader->Header.iElements[i], true, false, ThreadIndex);\
+	}\
+	if (pResourceHeader->Header.iObjects != NULL && pResourceHeader->Header.iObjectsSize != NULL)\
+		free(pResourceHeader->Header.iObjects);\
+	if (pResourceHeader->Header.iElements != NULL && pResourceHeader->Header.iElementsSize != NULL)\
+		free(pResourceHeader->Header.iElements);\
+	if (pResourceHeader->Header.Name != NULL)\
+		free(pResourceHeader->Header.Name);\
+	DestroyAndDeAllocate_ResourceHeaderInstance(Pointer, pSignature, true, ThreadIndex)\
+	ResourceHeaderSignature* pSignature = NULL;\
+	Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature);\
+	DeAllocate_ResourceHeaderAllocationData(pSignature, Allocation);\
+}
+#define DestroyAndDeAllocate_Element(Pointer, pSignature)\
+{\
+	Element* pElement = &Utils.InternalElementBuffer.Buffer[Pointer];\
+	if (pElement->Header.OverlayPointer != UINT32_MAX)\
+		DestroyAndDeAllocate_ElementInstance(pElement->Header.OverlayPointer, pSignature, false, ThreadIndex)\
+	c89atomic_store_32(&pElement->Header.OverlayPointer, UINT32_MAX);\
+	for (size_t i = 0; i < pElement->Header.iResourceHeadersSize; i++)\
+	{\
+		ResourceHeader* pParent = Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i], true, false, ThreadIndex);\
+		if (pParent != NULL)\
+		{\
+			for (size_t i = 0; i < pParent->Header.iElementsSize; i++)\
+			{\
+				if (Compare_ElementAllocation(pParent->Header.iElements[i], Allocation) == Success)\
+				{\
+					RemoveMember_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, i, sizeof(*pParent->Header.iElements), 1);\
+					pParent->Header.iElementsSize = pParent->Header.iElementsSize - 1;\
+				}\
+			}\
+		}\
+		End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i], true, false, ThreadIndex);\
+	}\
+	if (pElement->Header.iResourceHeaders != NULL && pElement->Header.iResourceHeadersSize != NULL)\
+		free(pElement->Header.iResourceHeaders);\
+	if (pElement->Header.Name != NULL)\
+		free(pElement->Header.Name);\
+	DestroyAndDeAllocate_ElementInstance(Pointer, pSignature, true, ThreadIndex)\
+	ElementSignature* pSignature = NULL;\
+	Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature);\
+	DeAllocate_ElementAllocationData(pSignature, Allocation);\
+}
+
+#define CreateAndAllocate_ObjectInstance(Pointer)\
+{\
+	Object* pOldObject = &Utils.InternalObjectBuffer.Buffer[LatestPointer];\
+	Allocate_Object(pSignature, pOldObject->Header.AllocationSize, pAllocationData->Allocation.Object.Identifier, Allocation, &Pointer, ThreadIndex);\
+	Object* pObject = &Utils.InternalObjectBuffer.Buffer[Pointer];\
+	memcpy(pObject, pOldObject, sizeof(Object) * pOldObject->Header.AllocationSize);\
+	pObject->Header.UseCount = 0;\
+	pObject->Header.OverlayPointer = UINT32_MAX;\
+}
+#define CreateAndAllocate_ResourceHeaderInstance(Pointer)\
+{\
+	ResourceHeader* pOldResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer]; \
+	Allocate_ResourceHeader(pSignature, pOldResourceHeader->Header.AllocationSize, pAllocationData->Allocation.ResourceHeader.Identifier, Allocation, &Pointer, ThreadIndex); \
+	ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer]; \
+	memcpy(pResourceHeader, pOldResourceHeader, sizeof(ResourceHeader) * pOldResourceHeader->Header.AllocationSize); \
+	pResourceHeader->Header.UseCount = 0; \
+	pResourceHeader->Header.OverlayPointer = UINT32_MAX;\
+}
+#define CreateAndAllocate_ElementInstance(Pointer)\
+{\
+	Element* pOldElement = &Utils.InternalElementBuffer.Buffer[LatestPointer];\
+	Allocate_Element(pSignature, pOldElement->Header.AllocationSize, pAllocationData->Allocation.Element.Identifier, Allocation, &Pointer, ThreadIndex);\
+	Element* pElement = &Utils.InternalElementBuffer.Buffer[Pointer];\
+	memcpy(pElement, pOldElement, sizeof(Element) * pOldElement->Header.AllocationSize);\
+	pElement->Header.UseCount = 0;\
+	pElement->Header.OverlayPointer = UINT32_MAX;\
+}
+//attempts to destroy itself and then its overlay pointer.
+void TryDestruct_Object(AllocationData* pAllocationData, uint32_t Pointer, ObjectSignature* pSignature, uint32_t ThreadIndex) {
+	if (pAllocationData->LatestPointer != Pointer &&
+		c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[Pointer].Header.UseCount, UINT16_MAX) == 0) {
+		uint32_t OverlayPointer = Utils.InternalObjectBuffer.Buffer[Pointer].Header.OverlayPointer;
+		Object* pObject = &Utils.InternalObjectBuffer.Buffer[Pointer];
+		DestroyAndDeAllocate_ObjectInstance(Pointer, pSignature, false, ThreadIndex);
+		if (OverlayPointer != UINT32_MAX) {
+			c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[OverlayPointer].Header.UseCount, 1);
+			if (pAllocationData->LatestPointer != OverlayPointer && 
+				c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[OverlayPointer].Header.UseCount, UINT16_MAX) == 0) {
+				Object* pObject = &Utils.InternalObjectBuffer.Buffer[OverlayPointer];
+				DestroyAndDeAllocate_ObjectInstance(OverlayPointer, pSignature, false, ThreadIndex);
+			}
+			else {
+				c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[OverlayPointer].Header.UseCount, UINT16_MAX);
+			}
+		}
+	}
+	else {
+		c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[Pointer].Header.UseCount, UINT16_MAX);
+	}
+}
+void TryDestruct_ResourceHeader(AllocationData* pAllocationData, uint32_t Pointer, ResourceHeaderSignature* pSignature, uint32_t ThreadIndex) {
+	if (pAllocationData->LatestPointer != Pointer &&
+		c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.UseCount, UINT16_MAX) == 0) {
+		uint32_t OverlayPointer = Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.OverlayPointer;
+		ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
+		DestroyAndDeAllocate_ResourceHeaderInstance(Pointer, pSignature, false, ThreadIndex);
+		if (OverlayPointer != UINT32_MAX) {
+			c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[OverlayPointer].Header.UseCount, 1);
+			if (pAllocationData->LatestPointer != OverlayPointer &&
+				c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[OverlayPointer].Header.UseCount, UINT16_MAX) == 0) {
+				ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[OverlayPointer];
+				DestroyAndDeAllocate_ResourceHeaderInstance(OverlayPointer, pSignature, false, ThreadIndex);
+			}
+			else {
+				c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[OverlayPointer].Header.UseCount, UINT16_MAX);
+			}
+		}
+	}
+	else {
+		c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.UseCount, UINT16_MAX);
+	}
+}
+void TryDestruct_Element(AllocationData* pAllocationData, uint32_t Pointer, ElementSignature* pSignature, uint32_t ThreadIndex) {
+	if (pAllocationData->LatestPointer != Pointer &&
+		c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[Pointer].Header.UseCount, UINT16_MAX) == 0) {
+		uint32_t OverlayPointer = Utils.InternalElementBuffer.Buffer[Pointer].Header.OverlayPointer;
+		Element* pElement = &Utils.InternalElementBuffer.Buffer[Pointer];
+		DestroyAndDeAllocate_ElementInstance(Pointer, pSignature, false, ThreadIndex);
+		if (OverlayPointer != UINT32_MAX) {
+			c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[OverlayPointer].Header.UseCount, 1);
+			if (pAllocationData->LatestPointer != OverlayPointer &&
+				c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[OverlayPointer].Header.UseCount, UINT16_MAX) == 0) {
+				Element* pElement = &Utils.InternalElementBuffer.Buffer[OverlayPointer];
+				DestroyAndDeAllocate_ElementInstance(OverlayPointer, pSignature, false, ThreadIndex);
+			}
+			else {
+				c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[OverlayPointer].Header.UseCount, UINT16_MAX);
+			}
+		}
+	}
+	else {
+		c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[Pointer].Header.UseCount, UINT16_MAX);
+	} 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,154 +1216,550 @@ TEXRESULT Find_ElementSignature(ElementIdentifier Identifier, ElementSignature**
 
 /*
 * Added in 1.0.0
-* Gets a pointer from an allocation.
-* Returns Success when allocation is valid. Failure otherwise.
+* Gets a pointer from an allocation for that threadindex that is an instance.
+* Always call End_ObjectPointer after done.
 * @param Allocation, allocation of the desired object to get pointer of.
+* @param Write, intended use of the instance that will be retrieved, true means its allocates a new instance so its quite slow.
+* @param Consistent, Consistent == true means that the pointer wont be modified since the last time get_pointer was called on this threadindex on this allocation,
+  useful for making sure when reading allocation buffers that no new allocations will appear in second parsing, so it omits the requirement of a buffer per thread or such.
+* @param ThreadIndex threadindex global.
 * @note Thread Safe always.
-* @note Externally Synchronized.
+* @note Not Synchronized but doesnt matter.
 */
-Object* Get_ObjectPointer(ObjectAllocation Allocation)
-{
-#ifndef NDEBUG
-	if (Allocation.Identifier == NULL)
+Object* Get_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Get_ObjectPointer()", "Identifier == NULL, This is invalid");
+		//Engine_Ref_FunctionError("Get_ObjectPointer()", "pAllocationData == ", 0);
 		return NULL;
 	}
-#endif
-	ObjectSignature* pSignature = NULL;
-	ObjectBufferIndex BufferIndex = 0;
-	Find_ObjectSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-
-	if (BufferIndex == NULL)
+	//if latest instance UINT32_MAX it is invalid to read or write.
+	if (pAllocationData->LatestPointer == UINT32_MAX)
 	{
-		Engine_Ref_ArgsError("Get_ObjectPointer()", "BufferIndex == NULL, Identifier Invalid.");
-		return NULL;
-	}
-	else
-	{
-		return &Utils.ObjectSignatures[BufferIndex]->Buffer->Buffer[Allocation.Pointer];
-	}
-}
-/*
-* Added in 1.0.0
-* Gets a pointer from an allocation.
-* Returns Success when allocation is valid. Failure otherwise.
-* @param Allocation, allocation of the desired object to get pointer of.
-* @note Thread Safe always.
-* @note Externally Synchronized.
-*/
-ResourceHeader* Get_ResourceHeaderPointer(ResourceHeaderAllocation Allocation)
-{
-#ifndef NDEBUG
-	if (Allocation.Identifier == NULL)
-	{
-		Engine_Ref_ArgsError("Get_ResourceHeaderPointer()", "Identifier == NULL, This is invalid");
-		return NULL;
-	}
-#endif
-	ResourceHeaderSignature* pSignature = NULL;
-	ResourceHeaderBufferIndex BufferIndex = 0;
-	Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-
-	if (BufferIndex == NULL)
-	{
-		Engine_Ref_ArgsError("Get_ResourceHeaderPointer()", "BufferIndex == NULL, Identifier Invalid.");
-		return NULL;
-	}
-	else
-	{
-		return &Utils.ResourceHeaderSignatures[BufferIndex]->Buffer->Buffer[Allocation.Pointer];
-	}
-}
-/*
-* Added in 1.0.0
-* Gets a pointer from an allocation.
-* Returns Success when allocation is valid. Failure otherwise.
-* @param Allocation, allocation of the desired object to get pointer of.
-* @note Thread Safe always.
-* @note Externally Synchronized.
-*/
-Element* Get_ElementPointer(ElementAllocation Allocation)
-{
-#ifndef NDEBUG
-	if (Allocation.Identifier == NULL)
-	{
-		Engine_Ref_ArgsError("Get_ElementPointer()", "Identifier == NULL, This is invalid");
-		return NULL;
-	}
-#endif
-	ElementSignature* pSignature = NULL;
-	ElementBufferIndex BufferIndex = 0;
-	Find_ElementSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-
-	if (BufferIndex == NULL)
-	{
-		Engine_Ref_ArgsError("Get_ElementPointer()", "BufferIndex == NULL, Identifier Invalid.");
-		return NULL;
-	}
-	else
-	{
-		return &Utils.ElementSignatures[BufferIndex]->Buffer->Buffer[Allocation.Pointer];
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Arena Allocater Functions
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-* Added in 1.0.0
-* Creates a object arena allocater.
-* @param pAllocater pointer to the allocater to create.
-* @param StartPtr offset from the start of the gpu buffer to reserve for this arena, arena size = (EndPtr - StartPtr)
-* @param EndPtr offset from the start of the gpu buffer to reserve for this arena, arena size = (EndPtr - StartPtr)
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-TEXRESULT Create_ArenaAllocater(ArenaAllocater* pAllocater, uint64_t StartPtr, uint64_t EndPtr)
-{
-#ifndef NDEBUG
-	if (pAllocater == NULL)
-	{
-		Engine_Ref_ArgsError("Create_ArenaAllocater()", "pAllocater == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-#endif
-	Engine_Ref_Create_Mutex(pAllocater->mutex, MutexType_Plain);
-	pAllocater->StartPtr = StartPtr;
-	pAllocater->EndPtr = EndPtr;
-	pAllocater->Size = (pAllocater->EndPtr - pAllocater->StartPtr);
-	return Success;
-}
-/*
-* Added in 1.0.0
-* Destroys a object arena allocater.
-* @param pAllocater pointer to the allocater to destroy.
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-void Destroy_ArenaAllocater(ArenaAllocater* pAllocater)
-{
-#ifndef NDEBUG
-	if (pAllocater == NULL)
-	{
-		Engine_Ref_ArgsError("Destroy_ArenaAllocater()", "pAllocater == NULLPTR");
+		Engine_Ref_FunctionError("Get_ObjectPointer()", "LatestPointer Invalid. ", 0);
 		return;
 	}
-#endif
-	Engine_Ref_Destroy_Mutex(pAllocater->mutex);
+	if (pAllocationData->ScheduleDestruct == true)
+		return NULL;
 
-	pAllocater->StartPtr = 0;
-	pAllocater->EndPtr = 0;
-	pAllocater->Size = 0;
-	pAllocater->PrevPointer = 0;
-	memset(pAllocater, 0, sizeof(*pAllocater));
+	if (Consistent == false && c89atomic_fetch_add_32(&pAllocationData->Threads[ThreadIndex].Count, 1) == 0)
+	{
+		if (Write == true)
+		{
+			//Engine_Ref_FunctionError("Get_ResourceHeaderPointer", "Begin Write On Pointer == ", Allocation.Pointer);
+			//LOCK SO ONLY 1 WRITE AT A TIME OR FIX THE PROBLEMS ASSOCIATED WITH MULTIPLE WRITES CONCURRENTLY;
+			if (c89atomic_test_and_set_8(&pAllocationData->WriteLock) == 0)
+			{
+				//get new data.
+				ObjectSignature* pSignature = NULL;
+				Find_ObjectSignature(pAllocationData->Allocation.Object.Identifier, &pSignature);
+
+				uint32_t LatestPointer = pAllocationData->LatestPointer;
+				//refresh pointer
+				if (c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1) >= UINT16_MAX) {
+					c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+					LatestPointer = pAllocationData->LatestPointer;
+					c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+				}
+				uint32_t Pointer = 0;
+				CreateAndAllocate_ObjectInstance(Pointer);
+				c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+				//save pointer of latest;
+				c89atomic_store_32(&Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer, LatestPointer);
+				c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+
+				c89atomic_clear_8(&pAllocationData->WriteLock);
+			}
+			else
+			{
+				c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1);
+				Engine_Ref_FunctionError("Get_ObjectPointer()", "Concurrent Write. ", 0);
+				return NULL;
+			}
+		}
+		else
+		{
+			//Engine_Ref_FunctionError("Get_ResourceHeaderPointer", "Begin Read On Pointer == ", Allocation.Pointer);
+			//get new pointer
+			uint32_t LatestPointer = pAllocationData->LatestPointer;
+			//refresh pointer
+			if (c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1) >= UINT16_MAX) {
+				c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+				LatestPointer = pAllocationData->LatestPointer;
+				c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+			}
+			c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, LatestPointer);
+		}
+	}
+	if (pAllocationData->Threads[ThreadIndex].Pointer == UINT32_MAX)
+	{
+		c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1);
+		Engine_Ref_FunctionError("Get_ObjectPointer()", "POINTER INVALID  ", Allocation.Pointer);
+		return NULL;
+	}
+	return &Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer];
+}
+/*
+* Added in 1.0.0
+* Gets a pointer from an allocation for that threadindex that is an instance.
+* Always call End_ResourceHeaderPointer after done.
+* @param Allocation, allocation of the desired object to g/et pointer of.
+* @param Write, intended use of the instance that will be retrieved, true means its allocates a new instance so its quite slow.
+* @param Consistent, Consistent == true means that the pointer wont be modified since the last time get_pointer was called on this threadindex on this allocation,
+  useful for making sure when reading allocation buffers that no new allocations will appear in second parsing, so it omits the requirement of a buffer per thread or such.
+* @param ThreadIndex threadindex global.
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+ResourceHeader* Get_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
+	if (pAllocationData == NULL)
+	{
+		//Engine_Ref_FunctionError("Get_ResourceHeaderPointer()", "pAllocationData == ", 0);
+		return NULL;
+	}
+	//if latest instance UINT32_MAX it is invalid to read or write.
+	if (pAllocationData->LatestPointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("Get_ResourceHeaderPointer()", "LatestPointer Invalid. ", 0);
+		return;
+	}
+	if (pAllocationData->ScheduleDestruct == true)
+		return NULL;
+
+	if (Consistent == false && c89atomic_fetch_add_32(&pAllocationData->Threads[ThreadIndex].Count, 1) == 0)
+	{
+		if (Write == true)
+		{
+			//Engine_Ref_FunctionError("Get_ResourceHeaderPointer", "Begin Write On Pointer == ", Allocation.Pointer);
+			//LOCK SO ONLY 1 WRITE AT A TIME OR FIX THE PROBLEMS ASSOCIATED WITH MULTIPLE WRITES CONCURRENTLY;
+			if (c89atomic_test_and_set_8(&pAllocationData->WriteLock) == 0)
+			{
+				//get new data.
+				ResourceHeaderSignature* pSignature = NULL;
+				Find_ResourceHeaderSignature(pAllocationData->Allocation.ResourceHeader.Identifier, &pSignature);
+
+				uint32_t LatestPointer = pAllocationData->LatestPointer;
+				//refresh pointer
+				if (c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1) >= UINT16_MAX) {
+					c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+					LatestPointer = pAllocationData->LatestPointer;
+					c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+				}
+				uint32_t Pointer = 0;
+				CreateAndAllocate_ResourceHeaderInstance(Pointer);
+				c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+				//save pointer of latest;
+				c89atomic_store_32(&Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer, LatestPointer);
+				c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+
+				c89atomic_clear_8(&pAllocationData->WriteLock);
+			}
+			else
+			{
+				c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1);
+				Engine_Ref_FunctionError("Get_ResourceHeaderPointer()", "Concurrent Write. ", 0);
+				return NULL;
+			}
+		}
+		else
+		{
+			//Engine_Ref_FunctionError("Get_ResourceHeaderPointer", "Begin Read On Pointer == ", Allocation.Pointer);
+			//get new pointer
+			uint32_t LatestPointer = pAllocationData->LatestPointer;
+			//refresh pointer
+			if (c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1) >= UINT16_MAX) {
+				c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+				LatestPointer = pAllocationData->LatestPointer;
+				c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+			}
+			c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, LatestPointer);
+		}
+	}	
+	if (pAllocationData->Threads[ThreadIndex].Pointer == UINT32_MAX)
+	{
+		c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1);
+		Engine_Ref_FunctionError("Get_ResourceHeaderPointer()", "POINTER INVALID  ", Allocation.Pointer);
+		return NULL;
+	}
+	return &Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer];
+}
+/*
+* Added in 1.0.0
+* Gets a pointer from an allocation for that threadindex that is an instance.
+* Always call End_ElementPointer after done.
+* @param Allocation, allocation of the desired object to get pointer of.
+* @param Write, intended use of the instance that will be retrieved, true means its allocates a new instance so its quite slow.
+* @param Consistent, Consistent == true means that the pointer wont be modified since the last time get_pointer was called on this threadindex on this allocation,
+  useful for making sure when reading allocation buffers that no new allocations will appear in second parsing, so it omits the requirement of a buffer per thread or such.
+* @param ThreadIndex threadindex global.
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+Element* Get_ElementPointer(ElementAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
+	if (pAllocationData == NULL)
+	{
+		//Engine_Ref_FunctionError("Get_ElementPointer()", "pAllocationData == ", 0);
+		return NULL;
+	}
+	//if latest instance UINT32_MAX it is invalid to read or write.
+	if (pAllocationData->LatestPointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("Get_ElementPointer()", "LatestPointer Invalid. ", 0);
+		return;
+	}
+	if (pAllocationData->ScheduleDestruct == true)
+		return NULL;
+
+	if (Consistent == false && c89atomic_fetch_add_32(&pAllocationData->Threads[ThreadIndex].Count, 1) == 0)
+	{
+		if (Write == true)
+		{
+			//Engine_Ref_FunctionError("Get_ResourceHeaderPointer", "Begin Write On Pointer == ", Allocation.Pointer);
+			//LOCK SO ONLY 1 WRITE AT A TIME OR FIX THE PROBLEMS ASSOCIATED WITH MULTIPLE WRITES CONCURRENTLY;
+			if (c89atomic_test_and_set_8(&pAllocationData->WriteLock) == 0)
+			{
+				//get new data.
+				ElementSignature* pSignature = NULL;
+				Find_ElementSignature(pAllocationData->Allocation.Element.Identifier, &pSignature);
+
+				uint32_t LatestPointer = pAllocationData->LatestPointer;
+				//refresh pointer
+				if (c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1) >= UINT16_MAX) {
+					c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+					LatestPointer = pAllocationData->LatestPointer;
+					c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+				}
+				uint32_t Pointer = 0;
+				CreateAndAllocate_ElementInstance(Pointer);
+				c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+				//save pointer of latest;
+				c89atomic_store_32(&Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer, LatestPointer);
+				c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+
+				c89atomic_clear_8(&pAllocationData->WriteLock);
+			}
+			else
+			{
+				c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1);
+				Engine_Ref_FunctionError("Get_ElementPointer()", "Concurrent Write. ", 0);
+				return NULL;
+			}
+		}
+		else
+		{
+			//Engine_Ref_FunctionError("Get_ResourceHeaderPointer", "Begin Read On Pointer == ", Allocation.Pointer);
+			//get new pointer
+			uint32_t LatestPointer = pAllocationData->LatestPointer;
+			//refresh pointer
+			if (c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1) >= UINT16_MAX) {
+				c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+				LatestPointer = pAllocationData->LatestPointer;
+				c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+			}
+			c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, LatestPointer);
+		}
+	}
+	if (pAllocationData->Threads[ThreadIndex].Pointer == UINT32_MAX)
+	{
+		c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1);
+		Engine_Ref_FunctionError("Get_ElementPointer()", "POINTER INVALID  ", Allocation.Pointer);
+		return NULL;
+	}
+	return &Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//End Write
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void End_ElementPointer(ElementAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex);
+void End_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex);
+/*
+* Added in 1.0.0
+* Ends a Get_Pointer function and applies the results.
+* Always call Get_Pointer before.
+* @param Allocation, allocation of the desired object to end read/write of.
+* @param Write, (MUST MATCH GET_POINTER THAT THIS IS PAIRED WITH)
+* @param Consistent, (MUST MATCH GET_POINTER THAT THIS IS PAIRED WITH)
+* @param ThreadIndex threadindex global.
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+void End_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {	
+	TEXRESULT tres = Success;
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
+	if (pAllocationData == NULL)
+	{
+		//Engine_Ref_FunctionError("End_ObjectPointer()", "pAllocationData == ", 0);
+		return;
+	}
+	if (pAllocationData->Threads[ThreadIndex].Pointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("End_ObjectPointer()", "Invalid Call. ", 0);
+		return;
+	}
+	if (pAllocationData->LatestPointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("End_ObjectPointer()", "LatestPointer Invalid. ", 0);
+		return;
+	}
+	if (pAllocationData->Threads[ThreadIndex].Count == 0)
+	{
+		Engine_Ref_FunctionError("End_ObjectPointer()", "Count == ", 0);
+		return;
+	}
+
+	if (Consistent == false && c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1) == 1) {
+		if (Write == true) {
+			//Engine_Ref_FunctionError("End_ElementPointer", "End Write On Pointer == ", Allocation.Pointer);
+			uint32_t LatestPointer = Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer;
+			c89atomic_store_32(&Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer, UINT32_MAX);
+
+			c89atomic_store_32(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.OverlayPointer, pAllocationData->Threads[ThreadIndex].Pointer);
+			//lock usedcount for threadindex because its used as overlayand it might be destructed before;
+			c89atomic_fetch_add_8(&Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+
+
+			c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+			c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+
+			c89atomic_store_32(&pAllocationData->LatestPointer, pAllocationData->Threads[ThreadIndex].Pointer);
+
+			//every decrement of use count must have oppurtunity to destruct. (in this case overlaypointer aka latestpointer at allocate time);
+			ObjectSignature* pSignature = NULL;
+			Find_ObjectSignature(Allocation.Identifier, &pSignature);
+			TryDestruct_Object(pAllocationData, LatestPointer, pSignature, ThreadIndex);
+		}
+		else {
+			//Engine_Ref_FunctionError("End_ElementPointer", "End Read On Pointer == ", Allocation.Pointer);
+			c89atomic_fetch_sub_8(&Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+		}
+		if (pAllocationData->Threads[ThreadIndex].Pointer != pAllocationData->LatestPointer) {
+			ObjectSignature* pSignature = NULL;
+			Find_ObjectSignature(Allocation.Identifier, &pSignature);
+			TryDestruct_Object(pAllocationData, pAllocationData->Threads[ThreadIndex].Pointer, pSignature, ThreadIndex);
+			//this is fine because it doesnt destroy only if its not used and any other thread would call this after too.
+			c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, UINT32_MAX);
+		}
+		if (pAllocationData->ScheduleDestruct == true) {
+			bool found = false;
+			for (size_t i = 0; i < maxthreads; i++)
+				if (pAllocationData->Threads[ThreadIndex].Pointer != UINT32_MAX && pAllocationData->Threads[ThreadIndex].Pointer != pAllocationData->LatestPointer)
+					found = true;
+			if (Utils.InternalObjectBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount == 0 && found == false) {
+				uint32_t Pointer = pAllocationData->Threads[ThreadIndex].Pointer;
+				c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, UINT32_MAX);
+
+				ObjectSignature* pSignature = NULL;
+				Find_ObjectSignature(Allocation.Identifier, &pSignature);
+				DestroyAndDeAllocate_Object(Pointer, pSignature);
+			}
+		}
+	}
+	return;
+}
+/*
+* Added in 1.0.0
+* Ends a Get_Pointer function and applies the results.
+* Always call Get_Pointer before.
+* @param Allocation, allocation of the desired object to end read/write of.
+* @param Write, (MUST MATCH GET_POINTER THAT THIS IS PAIRED WITH)
+* @param Consistent, (MUST MATCH GET_POINTER THAT THIS IS PAIRED WITH)
+* @param ThreadIndex threadindex global.
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+void End_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
+	if (pAllocationData == NULL)
+	{
+		//Engine_Ref_FunctionError("End_ResourceHeaderPointer()", "pAllocationData == ", 0);
+		return;
+	}
+	if (pAllocationData->Threads[ThreadIndex].Pointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("End_ResourceHeaderPointer()", "Invalid Call. ", 0);
+		return;
+	}
+	if (pAllocationData->LatestPointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("End_ResourceHeaderPointer()", "LatestPointer Invalid. ", 0);
+		return;
+	}
+	if (pAllocationData->Threads[ThreadIndex].Count == 0)
+	{
+		Engine_Ref_FunctionError("End_ResourceHeaderPointer()", "Count == ", 0);
+		return;
+	}
+
+	if (Consistent == false && c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1) == 1) {
+		if (Write == true) {
+			//Engine_Ref_FunctionError("End_ResourceHeaderPointer", "End Write On Pointer == ", Allocation.Pointer);
+			uint32_t LatestPointer = Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer;
+			c89atomic_store_32(&Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer, UINT32_MAX);
+
+			c89atomic_store_32(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.OverlayPointer, pAllocationData->Threads[ThreadIndex].Pointer);
+			//lock usedcount for threadindex because its used as overlayand it might be destructed before;
+			c89atomic_fetch_add_8(&Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+
+			c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+			c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+
+			c89atomic_store_32(&pAllocationData->LatestPointer, pAllocationData->Threads[ThreadIndex].Pointer);
+
+			//every decrement of use count must have oppurtunity to destruct. (in this case overlaypointer aka latestpointer at allocate time);
+			ResourceHeaderSignature* pSignature = NULL;
+			Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature);
+			TryDestruct_ResourceHeader(pAllocationData, LatestPointer, pSignature, ThreadIndex);
+		}
+		else {
+			//Engine_Ref_FunctionError("End_ResourceHeaderPointer", "End Read On Pointer == ", Allocation.Pointer);
+			c89atomic_fetch_sub_8(&Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+		}
+		if (pAllocationData->Threads[ThreadIndex].Pointer != pAllocationData->LatestPointer) {
+			ResourceHeaderSignature* pSignature = NULL;
+			Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature);
+			TryDestruct_ResourceHeader(pAllocationData, pAllocationData->Threads[ThreadIndex].Pointer, pSignature, ThreadIndex);
+			//this is fine because it doesnt destroy only if its not used and any other thread would call this after too.
+			c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, UINT32_MAX);
+		}
+		if (pAllocationData->ScheduleDestruct == true) {
+			bool found = false;
+			for (size_t i = 0; i < maxthreads; i++)
+				if (pAllocationData->Threads[ThreadIndex].Pointer != UINT32_MAX && pAllocationData->Threads[ThreadIndex].Pointer != pAllocationData->LatestPointer)
+					found = true;
+			if (Utils.InternalResourceHeaderBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount == 0 && found == false) {
+				uint32_t Pointer = pAllocationData->Threads[ThreadIndex].Pointer;
+				c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, UINT32_MAX);
+
+				ResourceHeaderSignature* pSignature = NULL;
+				Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature);
+				DestroyAndDeAllocate_ResourceHeader(Pointer, pSignature);
+			}
+		}
+	}
+	return;
+}
+/*
+* Added in 1.0.0
+* Ends a Get_Pointer function and applies the results.
+* Always call Get_Pointer before.
+* @param Allocation, allocation of the desired object to end read/write of.
+* @param Write, (MUST MATCH GET_POINTER THAT THIS IS PAIRED WITH)
+* @param Consistent, (MUST MATCH GET_POINTER THAT THIS IS PAIRED WITH)
+* @param ThreadIndex threadindex global.
+* @note Thread Safe always.
+* @note Not Synchronized but doesnt matter.
+*/
+void End_ElementPointer(ElementAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+	TEXRESULT tres = Success;
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
+	if (pAllocationData == NULL)
+	{
+		//Engine_Ref_FunctionError("End_ElementPointer()", "pAllocationData == ", 0);
+		return;
+	}
+	if (pAllocationData->Threads[ThreadIndex].Pointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("End_ElementPointer()", "Invalid Call. ", 0);
+		return;
+	}
+	if (pAllocationData->LatestPointer == UINT32_MAX)
+	{
+		Engine_Ref_FunctionError("End_ElementPointer()", "LatestPointer Invalid. ", 0);
+		return;
+	}
+	if (pAllocationData->Threads[ThreadIndex].Count == 0)
+	{
+		Engine_Ref_FunctionError("End_ElementPointer()", "Count == ", 0);
+		return;
+	}
+
+	if (Consistent == false && c89atomic_fetch_sub_32(&pAllocationData->Threads[ThreadIndex].Count, 1) == 1) {
+		if (Write == true) {
+			//Engine_Ref_FunctionError("End_ElementPointer", "End Write On Pointer == ", Allocation.Pointer);
+			uint32_t LatestPointer = Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer;
+			c89atomic_store_32(&Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.OverlayPointer, UINT32_MAX);
+
+			c89atomic_store_32(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.OverlayPointer, pAllocationData->Threads[ThreadIndex].Pointer);
+			//lock usedcount for threadindex because its used as overlayand it might be destructed before;
+			c89atomic_fetch_add_8(&Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+
+			c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+			c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[LatestPointer].Header.UseCount, 1);
+
+			c89atomic_store_32(&pAllocationData->LatestPointer, pAllocationData->Threads[ThreadIndex].Pointer);
+
+			//every decrement of use count must have oppurtunity to destruct. (in this case overlaypointer aka latestpointer at allocate time);
+			ElementSignature* pSignature = NULL;
+			Find_ElementSignature(Allocation.Identifier, &pSignature);
+			TryDestruct_Element(pAllocationData, LatestPointer, pSignature, ThreadIndex);
+		}
+		else {
+			//Engine_Ref_FunctionError("End_ElementPointer", "End Read On Pointer == ", Allocation.Pointer);
+			c89atomic_fetch_sub_8(&Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount, 1);
+		}
+		if (pAllocationData->Threads[ThreadIndex].Pointer != pAllocationData->LatestPointer) {
+			ElementSignature* pSignature = NULL;
+			Find_ElementSignature(Allocation.Identifier, &pSignature);
+			TryDestruct_Element(pAllocationData, pAllocationData->Threads[ThreadIndex].Pointer, pSignature, ThreadIndex);
+			//this is fine because it doesnt destroy only if its not used and any other thread would call this after too.
+			c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, UINT32_MAX);
+		}
+		if (pAllocationData->ScheduleDestruct == true) {
+			bool found = false;
+			for (size_t i = 0; i < maxthreads; i++)
+				if (pAllocationData->Threads[ThreadIndex].Pointer != UINT32_MAX && pAllocationData->Threads[ThreadIndex].Pointer != pAllocationData->LatestPointer)
+					found = true;
+			if (Utils.InternalElementBuffer.Buffer[pAllocationData->Threads[ThreadIndex].Pointer].Header.UseCount == 0 && found == false) {
+				uint32_t Pointer = pAllocationData->Threads[ThreadIndex].Pointer;
+				c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, UINT32_MAX);
+
+				ElementSignature* pSignature = NULL;
+				Find_ElementSignature(Allocation.Identifier, &pSignature);
+				DestroyAndDeAllocate_Element(Pointer, pSignature);
+			}
+		}
+	}
+	return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Construct Buffer Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define Create_Buffer(name)\
+{\
+	pBuffer->BufferSize = InitialSize;\
+	pBuffer->Buffer = calloc(pBuffer->BufferSize, sizeof(*pBuffer->Buffer));\
+	pBuffer->ArenaAllocaters = calloc(EngineRes.pUtils->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));\
+	pBuffer->Indexes = calloc(EngineRes.pUtils->CPU.MaxThreads, sizeof(*pBuffer->Indexes));\
+	if (pBuffer->ArenaAllocaters == NULL || pBuffer->Indexes == NULL || pBuffer->Buffer == NULL) {\
+		Engine_Ref_FunctionError(name, "Out Of Memory.", 0);\
+		return (Out_Of_Memory_Result | Failure);\
+	}\
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)\
+		Create_ArenaAllocater(&pBuffer->ArenaAllocaters[i], (i)*InitialSize, (i + 1) * InitialSize);\
+}
+#define Create_AllocationDataBuffer(name)\
+{\
+	pBuffer->AllocationDatas.BufferSize = InitialSize;\
+	pBuffer->AllocationDatas.Buffer = calloc(pBuffer->AllocationDatas.BufferSize, sizeof(*pBuffer->AllocationDatas.Buffer));\
+	pBuffer->AllocationDatas.ArenaAllocaters = calloc(EngineRes.pUtils->CPU.MaxThreads, sizeof(*pBuffer->AllocationDatas.ArenaAllocaters));\
+	pBuffer->AllocationDatas.Indexes = calloc(EngineRes.pUtils->CPU.MaxThreads, sizeof(*pBuffer->AllocationDatas.Indexes));\
+	if (pBuffer->AllocationDatas.ArenaAllocaters == NULL || pBuffer->AllocationDatas.Indexes == NULL || pBuffer->AllocationDatas.Buffer == NULL) {\
+		Engine_Ref_FunctionError(name, "Out Of Memory.", 0);\
+		return (Out_Of_Memory_Result | Failure);\
+	}\
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)\
+		Create_ArenaAllocater(&pBuffer->AllocationDatas.ArenaAllocaters[i], (i)*InitialSize, (i + 1) * InitialSize);\
+}
 
 /*
 * Added in 1.0.0
@@ -376,30 +1775,18 @@ TEXRESULT Create_ObjectBuffer(ObjectBuffer* pBuffer, uint64_t InitialSize)
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ObjectBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (InitialSize == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ObjectBuffer()", "InitialSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	memset(pBuffer, 0, sizeof(*pBuffer));
-	pBuffer->Buffer = (Object*)calloc(InitialSize, sizeof(*pBuffer->Buffer));
-	pBuffer->Size = InitialSize;
-
-	pBuffer->ArenaAllocaters = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));
-	pBuffer->Indexes = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->Indexes));
-	if (pBuffer->ArenaAllocaters == NULL || pBuffer->Indexes == NULL)
-	{
-		Engine_Ref_FunctionError("Create_ObjectBuffer()", "Out Of Memory.", pBuffer->ArenaAllocaters);
-		return (TEXRESULT)(Out_Of_Memory_Result);
-	}
-
-	Create_ArenaAllocater(&pBuffer->ArenaAllocaters[0], 0, InitialSize);
-	for (size_t i = 1; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		Create_ArenaAllocater(&pBuffer->ArenaAllocaters[i], 0, 0);
-	return (TEXRESULT)(Success);
+	Create_Buffer("Create_ObjectBuffer()");
+	Create_AllocationDataBuffer("Create_ObjectBuffer()");
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -415,30 +1802,18 @@ TEXRESULT Create_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer, uint64_t In
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ResourceHeaderBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (InitialSize == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ResourceHeaderBuffer()", "InitialSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	memset(pBuffer, 0, sizeof(*pBuffer));
-	pBuffer->Buffer = (ResourceHeader*)calloc(InitialSize, sizeof(*pBuffer->Buffer));
-	pBuffer->Size = InitialSize;
-
-	pBuffer->ArenaAllocaters = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));
-	pBuffer->Indexes = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->Indexes));
-	if (pBuffer->ArenaAllocaters == NULL || pBuffer->Indexes == NULL)
-	{
-		Engine_Ref_FunctionError("Create_ResourceHeaderBuffer()", "Out Of Memory.", pBuffer->ArenaAllocaters);
-		return (TEXRESULT)(Out_Of_Memory_Result);
-	}
-
-	Create_ArenaAllocater(&pBuffer->ArenaAllocaters[0], 0, InitialSize);
-	for (size_t i = 1; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		Create_ArenaAllocater(&pBuffer->ArenaAllocaters[i], 0, 0);
-	return (TEXRESULT)(Success);
+	Create_Buffer("Create_ResourceHeaderBuffer()");
+	Create_AllocationDataBuffer("Create_ResourceHeaderBuffer()");
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -454,503 +1829,18 @@ TEXRESULT Create_ElementBuffer(ElementBuffer* pBuffer, uint64_t InitialSize)
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ElementBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 	if (InitialSize == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ElementBuffer()", "InitialSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	memset(pBuffer, 0, sizeof(*pBuffer));
-	pBuffer->Buffer = (Element*)calloc(InitialSize, sizeof(*pBuffer->Buffer));
-	pBuffer->Size = InitialSize;
-
-	pBuffer->ArenaAllocaters = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->ArenaAllocaters));
-	pBuffer->Indexes = calloc(((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads, sizeof(*pBuffer->Indexes));
-	if (pBuffer->ArenaAllocaters == NULL || pBuffer->Indexes == NULL)
-	{
-		Engine_Ref_FunctionError("Create_ElementBuffer()", "Out Of Memory.", pBuffer->ArenaAllocaters);
-		return (TEXRESULT)(Out_Of_Memory_Result);
-	}
-
-	Create_ArenaAllocater(&pBuffer->ArenaAllocaters[0], 0, InitialSize);
-	for (size_t i = 1; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		Create_ArenaAllocater(&pBuffer->ArenaAllocaters[i], 0, 0);
-	return (TEXRESULT)(Success);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Resizes Buffer Functions
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-* Added in 1.0.0
-* Resizes specified buffer to newsize.
-* doesnt compact, there will be excess space in the vector and still elements cut off when downsizing.
-* resize functions are super expensive and shouldnt be done often.
-* remember downsizing cuts everything off and makes alot of errors if any pointers point towards invalid memory
-* @param pBuffer pointer to a buffer object to resize.
-* @param Size is in allocation chunks. (1 Object == 1 chunk).
-* @note Thread Safe.
-* @note Internally Synchronized.
-*/
-TEXRESULT Resize_ObjectBuffer(ObjectBuffer* pBuffer, uint64_t NewSize)
-{
-#ifndef NDEBUG
-	if (pBuffer == NULL)
-	{
-		Engine_Ref_ArgsError("Resize_ObjectBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (NewSize == NULL)
-	{
-		Engine_Ref_ArgsError("Resize_ObjectBuffer()", "NewSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-#endif
-
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	{
-		Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-	}
-
-	Resize_Array((void**)&pBuffer->Buffer, pBuffer->Size, NewSize, sizeof(*pBuffer->Buffer));
-	pBuffer->Size = NewSize;
-
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	{
-		Engine_Ref_Unlock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-	}
-	return (TEXRESULT)(Success);
-}
-/*
-* Added in 1.0.0
-* Resizes specified buffer to newsize.
-* doesnt compact, there will be excess space in the vector and still elements cut off when downsizing.
-* resize functions are super expensive and shouldnt be done often.
-* remember downsizing cuts everything off and makes alot of errors if any pointers point towards invalid memory
-* @param pBuffer pointer to a buffer object to resize.
-* @param Size is in allocation chunks. (1 Object == 1 chunk).
-* @note Thread Safe.
-* @note Internally Synchronized.
-*/
-TEXRESULT Resize_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer, uint64_t NewSize)
-{
-#ifndef NDEBUG
-	if (pBuffer == NULL)
-	{
-		Engine_Ref_ArgsError("Resize_ResourceHeaderBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (NewSize == NULL)
-	{
-		Engine_Ref_ArgsError("Resize_ResourceHeaderBuffer()", "NewSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-#endif
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	{
-		Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-	}
-
-	Resize_Array((void**)&pBuffer->Buffer, pBuffer->Size, NewSize, sizeof(*pBuffer->Buffer));
-	pBuffer->Size = NewSize;
-
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	{
-		Engine_Ref_Unlock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-	}
-	return (TEXRESULT)(Success);
-}
-/*
-* Added in 1.0.0
-* Resizes specified buffer to newsize.
-* doesnt compact, there will be excess space in the vector and still elements cut off when downsizing.
-* resize functions are super expensive and shouldnt be done often.
-* remember downsizing cuts everything off and makes alot of errors if any pointers point towards invalid memory
-* @param pBuffer pointer to a buffer object to resize.
-* @param Size is in allocation chunks. (1 Object == 1 chunk).
-* @note Thread Safe.
-* @note Internally Synchronized.
-*/
-TEXRESULT Resize_ElementBuffer(ElementBuffer* pBuffer, uint64_t NewSize)
-{
-#ifndef NDEBUG
-	if (pBuffer == NULL)
-	{
-		Engine_Ref_ArgsError("Resize_ElementBuffer()", "pBuffer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (NewSize == NULL)
-	{
-		Engine_Ref_ArgsError("Resize_ElementBuffer()", "NewSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-#endif
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	{
-		Engine_Ref_Lock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-	}
-
-	Resize_Array((void**)&pBuffer->Buffer, pBuffer->Size, NewSize, sizeof(*pBuffer->Buffer));
-	pBuffer->Size = NewSize;
-
-	for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-	{
-		Engine_Ref_Unlock_Mutex(pBuffer->ArenaAllocaters[i].mutex);
-	}
-	return (TEXRESULT)(Success);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Find Allocation
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-* Added in 1.0.0
-* Finds allocation in the specified buffer of specified size.
-* @param pBuffer pointer to a buffer object to find allocation from.
-* @param Type of buffer.
-* @param RequiredSize in chunks.
-* @param pReturnPointer returned index in buffer in chunks of a space larger then RequiredSize.
-* @note Thread safe.
-* @note Internally Synchronized.
-*/
-TEXRESULT Find_Allocation(pObjectBuffer pBuffer, ObjectBufferType Type, uint64_t RequiredSize, uint64_t* pReturnPointer, uint32_t ThreadIndex)
-{
-#ifndef NDEBUG
-	if (pReturnPointer == NULL)
-	{
-		Engine_Ref_ArgsError("Find_Allocation()", "pReturnPointer == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (RequiredSize == NULL)
-	{
-		Engine_Ref_ArgsError("Find_Allocation()", "RequiredSize == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-#endif
-	GenericBuffer* pGenericBuffer = NULL;
-	switch (Type)
-	{
-	case ObjectBufferType_Object:
-#ifndef NDEBUG
-		if (pBuffer.Object == NULL)
-		{
-			Engine_Ref_ArgsError("Find_Allocation()", "Type is ObjectBufferType_Object but pBuffer.Object == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
-		}
-#endif
-		pGenericBuffer = pBuffer.Object;
-		break;
-	case ObjectBufferType_ResourceHeader:
-#ifndef NDEBUG
-		if (pBuffer.ResourceHeader == NULL)
-		{
-			Engine_Ref_ArgsError("Find_Allocation()", "Type is ObjectBufferType_ResourceHeader but pBuffer.ResourceHeader == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
-		}
-#endif
-		pGenericBuffer = pBuffer.ResourceHeader;
-		break;
-	case ObjectBufferType_Element:
-#ifndef NDEBUG
-		if (pBuffer.Element == NULL)
-		{
-			Engine_Ref_ArgsError("Find_Allocation()", "Type is ObjectBufferType_Element but pBuffer.Element == NULLPTR");
-			return (TEXRESULT)(Invalid_Parameter | Failure);
-		}
-#endif
-		pGenericBuffer = pBuffer.Element;
-		break;
-	default:
-		Engine_Ref_ArgsError("Find_Allocation()", "Type Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-		break;
-	}
-	ArenaAllocater* pArenaAllocater = NULL;
-	if (Engine_Ref_TryLock_Mutex(pGenericBuffer->ArenaAllocaters[pGenericBuffer->Indexes[ThreadIndex]].mutex) != Success)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (Engine_Ref_TryLock_Mutex(pGenericBuffer->ArenaAllocaters[i].mutex) == Success)
-			{
-				pArenaAllocater = &pGenericBuffer->ArenaAllocaters[i];
-				pGenericBuffer->Indexes[ThreadIndex] = i;
-				break;
-			}
-		}
-	}
-	else
-	{
-		pArenaAllocater = &pGenericBuffer->ArenaAllocaters[pGenericBuffer->Indexes[ThreadIndex]];
-	}
-	if (pArenaAllocater == NULL)
-	{
-		Engine_Ref_FunctionError("Find_Allocation()", "Arena Allocater could not be found. ", pArenaAllocater);
-		return Failure;
-	}
-
-	//dynamic halfing
-	if (pArenaAllocater->Size == 0)
-	{
-		Engine_Ref_FunctionError("Find_Allocation()", "HALFING", pArenaAllocater);
-		//take half of largest mutex remaining capacity and assign to this arena allocater.
-		ArenaAllocater* pArenaAllocaterLargest = &pGenericBuffer->ArenaAllocaters[0];
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-			if (pGenericBuffer->ArenaAllocaters[i].Size > pArenaAllocaterLargest->Size)
-				pArenaAllocaterLargest = &pGenericBuffer->ArenaAllocaters[i];
-
-		Engine_Ref_Lock_Mutex(pArenaAllocaterLargest->mutex);
-
-		uint64_t pointer = 0;
-		switch (Type)
-		{
-		case ObjectBufferType_Object:
-			for (size_t i = 0; i < pArenaAllocaterLargest->Size;)
-			{
-				Object* pObject = (Object*)&pBuffer.Object->Buffer[i];
-				if (pObject->Header.AllocationSize != NULL)
-				{
-					pointer = i + pObject->Header.AllocationSize;
-					i += pObject->Header.AllocationSize;
-				}
-				else
-				{
-					i++;
-				}
-			}
-			break;
-		case ObjectBufferType_ResourceHeader:
-			for (size_t i = 0; i < pArenaAllocaterLargest->Size;)
-			{
-				ResourceHeader* pResourceHeader = (ResourceHeader*)&pBuffer.ResourceHeader->Buffer[i];
-				if (pResourceHeader->Header.AllocationSize != NULL)
-				{
-					pointer = i + pResourceHeader->Header.AllocationSize;
-					i += pResourceHeader->Header.AllocationSize;
-				}
-				else
-				{
-					i++;
-				}
-			}
-			break;
-		case ObjectBufferType_Element:
-			for (size_t i = 0; i < pArenaAllocaterLargest->Size;)
-			{
-				Element* pElement = (Element*)&pBuffer.Element->Buffer[i];
-				if (pElement->Header.AllocationSize != NULL)
-				{
-					pointer = i + pElement->Header.AllocationSize;
-					i += pElement->Header.AllocationSize;
-				}
-				else
-				{
-					i++;
-				}
-			}
-			break;
-		}
-		uint64_t size = (pointer < (pArenaAllocaterLargest->Size / 2)) ? (pArenaAllocaterLargest->Size / 2) : (pArenaAllocaterLargest->Size - (pointer));
-
-		pArenaAllocater->StartPtr = pArenaAllocaterLargest->EndPtr - size;
-		pArenaAllocater->EndPtr = pArenaAllocaterLargest->EndPtr;
-		pArenaAllocater->Size = pArenaAllocater->EndPtr - pArenaAllocater->StartPtr;
-
-		//pArenaAllocaterLargest->StartPtr = ;
-		pArenaAllocaterLargest->EndPtr = pArenaAllocaterLargest->EndPtr - size;
-		pArenaAllocaterLargest->Size = pArenaAllocaterLargest->EndPtr - pArenaAllocaterLargest->StartPtr;
-
-		Engine_Ref_Unlock_Mutex(pArenaAllocaterLargest->mutex);
-	}
-
-	uint64_t ResetCount = 0;
-	uint64_t FoundChunksCount = 0;
-	switch (Type)
-	{
-	case ObjectBufferType_Object:
-		while (FoundChunksCount != RequiredSize)
-		{
-			FoundChunksCount = pBuffer.Object->Buffer[pArenaAllocater->PrevPointer + pArenaAllocater->StartPtr].Header.AllocationSize == NULL ? FoundChunksCount + 1 : 0;
-			pArenaAllocater->PrevPointer++;
-			if (pArenaAllocater->PrevPointer > pArenaAllocater->Size)
-			{
-				pArenaAllocater->PrevPointer = 0;
-				ResetCount++;
-				if (ResetCount > 1)
-				{
-					Engine_Ref_FunctionError("Find_Allocation()", "Not Enough Space In Array, Resize Array ", NULL);
-					return (TEXRESULT)(Resize_Array_Result | Failure);
-				}
-			}
-		}
-		break;
-	case ObjectBufferType_ResourceHeader:
-		while (FoundChunksCount != RequiredSize)
-		{
-			FoundChunksCount = pBuffer.ResourceHeader->Buffer[pArenaAllocater->PrevPointer + pArenaAllocater->StartPtr].Header.AllocationSize == NULL ? FoundChunksCount + 1 : 0;
-			pArenaAllocater->PrevPointer++;
-			if (pArenaAllocater->PrevPointer > pArenaAllocater->Size)
-			{
-				pArenaAllocater->PrevPointer = 0;
-				ResetCount++;
-				if (ResetCount > 1)
-				{
-					Engine_Ref_FunctionError("Find_Allocation()", "Not Enough Space In Array, Resize Array ", NULL);
-					return (TEXRESULT)(Resize_Array_Result | Failure);
-				}
-			}
-		}
-		break;
-	case ObjectBufferType_Element:
-		while (FoundChunksCount != RequiredSize)
-		{
-			FoundChunksCount = pBuffer.Element->Buffer[pArenaAllocater->PrevPointer + pArenaAllocater->StartPtr].Header.AllocationSize == NULL ? FoundChunksCount + 1 : 0;
-			pArenaAllocater->PrevPointer++;
-			if (pArenaAllocater->PrevPointer > pArenaAllocater->Size)
-			{
-				pArenaAllocater->PrevPointer = 0;
-				ResetCount++;
-				if (ResetCount > 1)
-				{
-					Engine_Ref_FunctionError("Find_Allocation()", "Not Enough Space In Array, Resize Array ", NULL);
-					return (TEXRESULT)(Resize_Array_Result | Failure);
-				}
-			}
-		}
-		break;
-	}
-	*pReturnPointer = (pArenaAllocater->PrevPointer - RequiredSize) + pArenaAllocater->StartPtr;
-	Engine_Ref_Unlock_Mutex(pArenaAllocater->mutex);
-	return (TEXRESULT)(Success);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Create Instance Functions
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-* Added in 1.0.0
-* Creates an instance of an Object to be used for multithread safety.
-* @param Allocation refrencing the desired Object to create instance of.
-* @param ppReturn pointer to a pointer of the resulting instance. (non malloced)
-* @note Externally Synchronized.
-*/
-TEXRESULT CreateInstance_Object(ObjectAllocation Allocation, ObjectInstance* pReturn, uint32_t ThreadIndex)
-{
-	Object* pObject = Get_ObjectPointer(Allocation);
-
-	TEXRESULT res = Success;
-	uint64_t Pointer = 0;
-	pObjectBuffer pBuffer;
-	memset(&pBuffer, 0, sizeof(pBuffer));
-	pBuffer.Object = &Utils.InternalObjectBuffer;
-	if ((res = Find_Allocation(pBuffer, ObjectBufferType_Object, pObject->Header.AllocationSize, &Pointer, ThreadIndex)) != Success)
-	{
-		Engine_Ref_FunctionError("CreateInstance_Object()", "Find_Allocation() Failed, TEXRESULT == ", res);
-		return res;
-	}
-	pReturn->Pointer = Pointer;
-	pReturn->pInstance = &Utils.InternalObjectBuffer.Buffer[Pointer];
-
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Lock_Mutex(pObject->Header.mutex);
-#endif
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		if (pObject->Header.pDelayedInstances[i].Latest == 1)
-		{
-			Object* pTarget = (pObject->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pObject->Header.pDelayedInstances[ThreadIndex].Pointer] : pObject;
-			memcpy(pReturn->pInstance, pTarget, sizeof(*pTarget) * pTarget->Header.AllocationSize);
-			break;
-		}
-	}
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Unlock_Mutex(pObject->Header.mutex);
-#endif
-	return Success;
-}
-/*
-* Added in 1.0.0
-* Creates an instance of an ResourceHeader to be used for multithread safety.
-* @param Allocation refrencing the desired ResourceHeader to create instance of.
-* @param ppReturn pointer to a pointer of the resulting instance. (non malloced)
-* @note Externally Synchronized.
-*/
-TEXRESULT CreateInstance_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeaderInstance* pReturn, uint32_t ThreadIndex)
-{
-	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
-
-	TEXRESULT res = Success;
-	uint64_t Pointer = 0;
-	pObjectBuffer pBuffer;
-	memset(&pBuffer, 0, sizeof(pBuffer));
-	pBuffer.ResourceHeader = &Utils.InternalResourceHeaderBuffer;
-	if ((res = Find_Allocation(pBuffer, ObjectBufferType_ResourceHeader, pResourceHeader->Header.AllocationSize, &Pointer, ThreadIndex)) != Success)
-	{
-		Engine_Ref_FunctionError("CreateInstance_ResourceHeader()", "Find_Allocation() Failed, TEXRESULT == ", res);
-		return res;
-	}
-	pReturn->Pointer = Pointer;
-	pReturn->pInstance = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Lock_Mutex(pResourceHeader->Header.mutex);
-#endif
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		if (pResourceHeader->Header.pDelayedInstances[i].Latest == 1)
-		{
-			ResourceHeader* pTarget = (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer] : pResourceHeader;
-			memcpy(pReturn->pInstance, pTarget, sizeof(*pTarget) * pTarget->Header.AllocationSize);
-			break;
-		}
-	}
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Unlock_Mutex(pResourceHeader->Header.mutex);
-#endif
-	return Success;
-}
-/*
-* Added in 1.0.0
-* Creates an instance of an Element to be used for multithread safety.
-* @param Allocation refrencing the desired Element to create instance of.
-* @param ppReturn pointer to a pointer of the resulting instance. (non malloced)
-* @note Externally Synchronized.
-*/
-TEXRESULT CreateInstance_Element(ElementAllocation Allocation, ElementInstance* pReturn, uint32_t ThreadIndex)
-{
-	Element* pElement = Get_ElementPointer(Allocation);
-
-	TEXRESULT res = Success;
-	uint64_t Pointer = 0;
-	pObjectBuffer pBuffer;
-	memset(&pBuffer, 0, sizeof(pBuffer));
-	pBuffer.Element = &Utils.InternalElementBuffer;
-	if ((res = Find_Allocation(pBuffer, ObjectBufferType_Element, pElement->Header.AllocationSize, &Pointer, ThreadIndex)) != Success)
-	{
-		Engine_Ref_FunctionError("CreateInstance_Element()", "Find_Allocation() Failed, TEXRESULT == ", res);
-		return res;
-	}
-	pReturn->Pointer = Pointer;
-	pReturn->pInstance = &Utils.InternalElementBuffer.Buffer[Pointer];
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Lock_Mutex(pElement->Header.mutex);
-#endif
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		if (pElement->Header.pDelayedInstances[i].Latest == 1)
-		{
-			Element* pTarget = (pElement->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalElementBuffer.Buffer[pElement->Header.pDelayedInstances[ThreadIndex].Pointer] : pElement;
-			memcpy(pReturn->pInstance, pTarget, sizeof(*pTarget) * pTarget->Header.AllocationSize);
-			break;
-		}
-	}
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Unlock_Mutex(pElement->Header.mutex);
-#endif
-	return Success;
+	Create_Buffer("Create_ElementBuffer()");
+	Create_AllocationDataBuffer("Create_ElementBuffer()");
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -967,94 +1857,77 @@ TEXRESULT CreateInstance_Element(ElementAllocation Allocation, ElementInstance* 
 * @note Thread safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex)
-{
-	ObjectSignature* pObjectSignature = NULL;
-	ObjectBufferIndex BufferIndex = 0;
-	Find_ObjectSignature(CreateInfo.Identifier, &pObjectSignature, &BufferIndex);
+TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex) {
+	ObjectSignature* pSignature = NULL;
+	Find_ObjectSignature(CreateInfo.Identifier, &pSignature);
 #ifndef NDEBUG
 	if (pAllocation == NULL)
 	{
 		Engine_Ref_ArgsError("Create_Object()", "pAllocation == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
-	if (BufferIndex == NULL)
+	if (CreateInfo.Identifier == NULL)
 	{
-		Engine_Ref_ArgsError("Create_Object()", "BufferIndex == NULL, No Associated Signature Was Found For The Identifier");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ArgsError("Create_Object()", "CreateInfo.Identifier == NULL");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pObjectSignature == NULL)
+	if (pSignature == NULL)
 	{
-		Engine_Ref_ArgsError("Create_Object()", "pObjectSignature == NULL, No Associated Signature Was Found For The Identifier");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ArgsError("Create_Object()", "pSignature == NULL, No Associated Signature Was Found For The Identifier");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pObjectSignature->Buffer == NULL)
+	if (pSignature->ByteLength == NULL)
 	{
-		Engine_Ref_ObjectError("Create_Object()", "pObjectSignature", &pObjectSignature, "pObjectSignature.Buffer == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ObjectError("Create_Object()", "pSignature", &pSignature, "pSignature.ByteLength == NULL");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pObjectSignature->ByteLength == NULL)
+	if (pSignature->Identifier == NULL)
 	{
-		Engine_Ref_ObjectError("Create_Object()", "pObjectSignature", &pObjectSignature, "pObjectSignature.ByteLength == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (pObjectSignature->Identifier == NULL)
-	{
-		Engine_Ref_ObjectError("Create_Object()", "pObjectSignature", &pObjectSignature, "pObjectSignature.Identifer == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ObjectError("Create_Object()", "pSignature", &pSignature, "pSignature.Identifer == NULL");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	TEXRESULT tres = Success;
-	Object* pObject = NULL;
+	TEXRESULT tres = Success;	
 	uint64_t RequiredSizeBytes = NULL;
-	if (pObjectSignature->Constructor != NULL)
+	if (pSignature->Constructor != NULL)
 	{
-		Create_ObjectTemplate* pFunction = *pObjectSignature->Constructor;
+		Create_ObjectTemplate* pFunction = *pSignature->Constructor;
 		if ((tres = pFunction(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
 			return tres;
 	}
 	uint64_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
 		RequiredSizeBytes / sizeof(Object) + ((RequiredSizeBytes % sizeof(Object)) != 0) :
-		pObjectSignature->ByteLength / sizeof(Object) + ((pObjectSignature->ByteLength % sizeof(Object)) != 0);
-	uint64_t Pointer = 0;
-	pObjectBuffer pBuffer;
-	memset(&pBuffer, 0, sizeof(pBuffer));
-	pBuffer.Object = pObjectSignature->Buffer;
-	if ((tres = Find_Allocation(pBuffer, ObjectBufferType_Object, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
-	{
-		Engine_Ref_FunctionError("Create_Object()", "Find_Allocation() Failed, TEXRESULT == ", tres);
+		pSignature->ByteLength / sizeof(Object) + ((pSignature->ByteLength % sizeof(Object)) != 0);
+	ObjectAllocation Allocation = {sizeof(Allocation)};
+	uint32_t Pointer = 0;
+
+	if ((tres = Allocate_ObjectAllocationData(pSignature, CreateInfo.Identifier, &Allocation, ThreadIndex)) != Success)
 		return tres;
-	}
-	pObject = &pObjectSignature->Buffer->Buffer[Pointer];
-	memset(pObject, 0, sizeof(Object) * RequiredSizeChunks);
-	pObject->Header.AllocationSize = RequiredSizeChunks;
-	pObject->Header.Allocation.Pointer = Pointer;
-	pObject->Header.Allocation.Identifier = CreateInfo.Identifier;
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Create_Mutex(pObject->Header.mutex, MutexType_Plain);
-#endif
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		pObject->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
-		pObject->Header.pDelayedInstances[i].Latest = 1;
-	}
+	if ((tres = Allocate_Object(pSignature, RequiredSizeChunks, CreateInfo.Identifier, Allocation, &Pointer, ThreadIndex)) != Success)
+		return tres;
+
+
+	Object* pObject = &Utils.InternalObjectBuffer.Buffer[Pointer];
 	if (CreateInfo.Name != NULL)
 		pObject->Header.Name = (UTF8*)CopyData((void*)CreateInfo.Name);
 	else
 	{
-		UTF8 TempBuffer[12 + 65 + 65 + 1];
-		memset(TempBuffer, 0, 12 + 65 + 65 + 1);
-		sprintf((char*)TempBuffer, "Object_%i_%i", pObject->Header.Allocation.Identifier, pObject->Header.Allocation.Pointer);
+		UTF8 TempBuffer[20 + 65 + 65 + 1];
+		memset(TempBuffer, 0, 20 + 65 + 65 + 1);
+		sprintf((char*)TempBuffer, "Object_%i_%llu", CreateInfo.Identifier, RequiredSizeChunks);
 		pObject->Header.Name = (UTF8*)CopyData((void*)TempBuffer);
 	}
-	if (pObjectSignature->Constructor != NULL)
+	if (pSignature->Constructor != NULL)
 	{
-		Create_ObjectTemplate* pFunction = *pObjectSignature->Constructor;
+		Create_ObjectTemplate* pFunction = *pSignature->Constructor;
 		if ((tres = pFunction(pObject, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
 			return tres;
 	}
-	*pAllocation = pObject->Header.Allocation;
-	return (TEXRESULT)(Success);
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
+	c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+	c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
+	*pAllocation = Allocation;
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1066,94 +1939,76 @@ TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateIn
 * @note Thread safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceHeaderCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex)
-{
-	ResourceHeaderSignature* pResourceHeaderSignature = NULL;
-	ResourceHeaderBufferIndex BufferIndex = 0;
-	Find_ResourceHeaderSignature(CreateInfo.Identifier, &pResourceHeaderSignature, &BufferIndex);
+TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceHeaderCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex) {
+	ResourceHeaderSignature* pSignature = NULL;
+	Find_ResourceHeaderSignature(CreateInfo.Identifier, &pSignature);
 #ifndef NDEBUG
 	if (pAllocation == NULL)
 	{
 		Engine_Ref_ArgsError("Create_ResourceHeader()", "pAllocation == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
-	if (BufferIndex == NULL)
+	if (CreateInfo.Identifier == NULL)
 	{
-		Engine_Ref_ArgsError("Create_ResourceHeader()", "BufferIndex == NULL, No Associated Signature Was Found For The Identifier");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ArgsError("Create_ResourceHeader()", "CreateInfo.Identifier == NULL");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pResourceHeaderSignature == NULL)
+	if (pSignature == NULL)
 	{
-		Engine_Ref_ArgsError("Create_ResourceHeader()", "pResourceHeaderSignature == NULL, No Associated Signature Was Found For The Identifier");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ArgsError("Create_ResourceHeader()", "pSignature == NULL, No Associated Signature Was Found For The Identifier");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pResourceHeaderSignature->Buffer == NULL)
+	if (pSignature->ByteLength == NULL)
 	{
-		Engine_Ref_ObjectError("Create_ResourceHeader()", "pResourceHeaderSignature", &pResourceHeaderSignature, "pResourceHeaderSignature.Buffer == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ObjectError("Create_ResourceHeader()", "pSignature", &pSignature, "pSignature.ByteLength == NULL");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pResourceHeaderSignature->ByteLength == NULL)
+	if (pSignature->Identifier == NULL)
 	{
-		Engine_Ref_ObjectError("Create_ResourceHeader()", "pResourceHeaderSignature", &pResourceHeaderSignature, "pResourceHeaderSignature.ByteLength == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (pResourceHeaderSignature->Identifier == NULL)
-	{
-		Engine_Ref_ObjectError("Create_ResourceHeader()", "pResourceHeaderSignature", &pResourceHeaderSignature, "pResourceHeaderSignature.Identifer == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ObjectError("Create_ResourceHeader()", "pSignature", &pSignature, "pSignature.Identifer == NULL");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	TEXRESULT tres = Success;
-	ResourceHeader* pResourceHeader = NULL;
 	uint64_t RequiredSizeBytes = NULL;
-	if (pResourceHeaderSignature->Constructor != NULL)
+	if (pSignature->Constructor != NULL)
 	{
-		Create_ResourceHeaderTemplate* pFunction = *pResourceHeaderSignature->Constructor;
+		Create_ResourceHeaderTemplate* pFunction = *pSignature->Constructor;
 		if ((tres = pFunction(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
 			return tres;
 	}
 	uint64_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
 		RequiredSizeBytes / sizeof(ResourceHeader) + ((RequiredSizeBytes % sizeof(ResourceHeader)) != 0) :
-		pResourceHeaderSignature->ByteLength / sizeof(ResourceHeader) + ((pResourceHeaderSignature->ByteLength % sizeof(ResourceHeader)) != 0);
-	uint64_t Pointer = 0;
-	pObjectBuffer pBuffer;
-	memset(&pBuffer, 0, sizeof(pBuffer));
-	pBuffer.ResourceHeader = pResourceHeaderSignature->Buffer;
-	if ((tres = Find_Allocation(pBuffer, ObjectBufferType_ResourceHeader, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
-	{
-		Engine_Ref_FunctionError("Create_ResourceHeader()", "Find_Allocation() Failed, TEXRESULT == ", tres);
+		pSignature->ByteLength / sizeof(ResourceHeader) + ((pSignature->ByteLength % sizeof(ResourceHeader)) != 0);
+	ResourceHeaderAllocation Allocation = { sizeof(Allocation) };
+	uint32_t Pointer = 0;
+
+	if ((tres = Allocate_ResourceHeaderAllocationData(pSignature, CreateInfo.Identifier, &Allocation, ThreadIndex)) != Success)
 		return tres;
-	}
-	pResourceHeader = &pResourceHeaderSignature->Buffer->Buffer[Pointer];
-	memset(pResourceHeader, 0, sizeof(ResourceHeader) * RequiredSizeChunks);
-	pResourceHeader->Header.AllocationSize = RequiredSizeChunks;
-	pResourceHeader->Header.Allocation.Pointer = Pointer;
-	pResourceHeader->Header.Allocation.Identifier = CreateInfo.Identifier;
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Create_Mutex(pResourceHeader->Header.mutex, MutexType_Plain);
-#endif
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		pResourceHeader->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
-		pResourceHeader->Header.pDelayedInstances[i].Latest = 1;
-	}
+	if ((tres = Allocate_ResourceHeader(pSignature, RequiredSizeChunks, CreateInfo.Identifier, Allocation, &Pointer, ThreadIndex)) != Success)
+		return tres;
+
+	ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
 	if (CreateInfo.Name != NULL)
 		pResourceHeader->Header.Name = (UTF8*)CopyData((void*)CreateInfo.Name);
 	else
 	{
-		UTF8 TempBuffer[16 + 65 + 65 + 1];
-		memset(TempBuffer, 0, 16 + 65 + 65 + 1);
-		sprintf((char*)TempBuffer, "ResourceHeader_%i_%i", pResourceHeader->Header.Allocation.Identifier, pResourceHeader->Header.Allocation.Pointer);
+		UTF8 TempBuffer[20 + 65 + 65 + 1];
+		memset(TempBuffer, 0, 20 + 65 + 65 + 1);
+		sprintf((char*)TempBuffer, "ResourceHeader_%i_%llu", CreateInfo.Identifier, RequiredSizeChunks);
 		pResourceHeader->Header.Name = (UTF8*)CopyData((void*)TempBuffer);
 	}
-	if (pResourceHeaderSignature->Constructor != NULL)
+	if (pSignature->Constructor != NULL)
 	{
-		Create_ResourceHeaderTemplate* pFunction = *pResourceHeaderSignature->Constructor;
+		Create_ResourceHeaderTemplate* pFunction = *pSignature->Constructor;
 		if ((tres = pFunction(pResourceHeader, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
 			return tres;
 	}
-	*pAllocation = pResourceHeader->Header.Allocation;
-	return (TEXRESULT)(Success);
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
+	c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+	c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
+	*pAllocation = Allocation;
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1165,94 +2020,76 @@ TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceH
 * @note Thread safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex)
-{
-	ElementSignature* pElementSignature = NULL;
-	ElementBufferIndex BufferIndex = 0;
-	Find_ElementSignature(CreateInfo.Identifier, &pElementSignature, &BufferIndex);
+TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex) {
+	ElementSignature* pSignature = NULL;
+	Find_ElementSignature(CreateInfo.Identifier, &pSignature);
 #ifndef NDEBUG
 	if (pAllocation == NULL)
 	{
 		Engine_Ref_ArgsError("Create_Element()", "pAllocation == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
-	if (BufferIndex == NULL)
+	if (CreateInfo.Identifier == NULL)
 	{
-		Engine_Ref_ArgsError("Create_Element()", "BufferIndex == NULL, No Associated Signature Was Found For The Identifier");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ArgsError("Create_Element()", "CreateInfo.Identifier == NULL");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pElementSignature == NULL)
+	if (pSignature == NULL)
 	{
-		Engine_Ref_ArgsError("Create_Element()", "pElementSignature == NULL, No Associated Signature Was Found For The Identifier");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ArgsError("Create_Element()", "pSignature == NULL, No Associated Signature Was Found For The Identifier");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pElementSignature->Buffer == NULL)
+	if (pSignature->ByteLength == NULL)
 	{
-		Engine_Ref_ObjectError("Create_Element()", "pElementSignature", &pElementSignature, "pElementSignature.Buffer == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ObjectError("Create_Element()", "pSignature", &pSignature, "pSignature.ByteLength == NULL");
+		return (Invalid_Parameter | Failure);
 	}
-	if (pElementSignature->ByteLength == NULL)
+	if (pSignature->Identifier == NULL)
 	{
-		Engine_Ref_ObjectError("Create_Element()", "pElementSignature", &pElementSignature, "pElementSignature.ByteLength == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
-	}
-	if (pElementSignature->Identifier == NULL)
-	{
-		Engine_Ref_ObjectError("Create_Element()", "pElementSignature", &pElementSignature, "pElementSignature.Identifer == NULL");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		Engine_Ref_ObjectError("Create_Element()", "pSignature", &pSignature, "pSignature.Identifer == NULL");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	TEXRESULT tres = Success;
-	Element* pElement = NULL;
 	uint64_t RequiredSizeBytes = NULL;
-	if (pElementSignature->Constructor != NULL)
+	if (pSignature->Constructor != NULL)
 	{
-		Create_ElementTemplate* pFunction = *pElementSignature->Constructor;
+		Create_ElementTemplate* pFunction = *pSignature->Constructor;
 		if ((tres = pFunction(NULL, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
 			return tres;
 	}
-	uint32_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
+	uint64_t RequiredSizeChunks = (RequiredSizeBytes != NULL) ?
 		RequiredSizeBytes / sizeof(Element) + ((RequiredSizeBytes % sizeof(Element)) != 0) :
-		pElementSignature->ByteLength / sizeof(Element) + ((pElementSignature->ByteLength % sizeof(Element)) != 0);
-	uint64_t Pointer = 0;
-	pObjectBuffer pBuffer;
-	memset(&pBuffer, 0, sizeof(pBuffer));
-	pBuffer.Element = pElementSignature->Buffer;
-	if ((tres = Find_Allocation(pBuffer, ObjectBufferType_Element, RequiredSizeChunks, &Pointer, ThreadIndex)) != Success)
-	{
-		Engine_Ref_FunctionError("Create_Element()", "Find_Allocation() Failed, TEXRESULT == ", tres);
+		pSignature->ByteLength / sizeof(Element) + ((pSignature->ByteLength % sizeof(Element)) != 0);
+	ElementAllocation Allocation = { sizeof(Allocation) };
+	uint32_t Pointer = 0;
+
+	if ((tres = Allocate_ElementAllocationData(pSignature, CreateInfo.Identifier, &Allocation, ThreadIndex)) != Success)
 		return tres;
-	}
-	pElement = &pElementSignature->Buffer->Buffer[Pointer];
-	memset(pElement, 0, sizeof(Element) * RequiredSizeChunks);
-	pElement->Header.AllocationSize = RequiredSizeChunks;
-	pElement->Header.Allocation.Pointer = Pointer;
-	pElement->Header.Allocation.Identifier = CreateInfo.Identifier;
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Create_Mutex(pElement->Header.mutex, MutexType_Plain);
-#endif
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		pElement->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
-		pElement->Header.pDelayedInstances[i].Latest = 1;
-	}
+	if ((tres = Allocate_Element(pSignature, RequiredSizeChunks, CreateInfo.Identifier, Allocation, &Pointer, ThreadIndex)) != Success)
+		return tres;
+
+	Element* pElement = &Utils.InternalElementBuffer.Buffer[Pointer];	
 	if (CreateInfo.Name != NULL)
 		pElement->Header.Name = (UTF8*)CopyData((void*)CreateInfo.Name);
 	else
 	{
-		UTF8 TempBuffer[9 + 65 + 65 + 1];
-		memset(TempBuffer, 0, 9 + 65 + 65 + 1);
-		sprintf((char*)TempBuffer, "Element_%i_%i", pElement->Header.Allocation.Identifier, pElement->Header.Allocation.Pointer);
+		UTF8 TempBuffer[20 + 65 + 65 + 1];
+		memset(TempBuffer, 0, 20 + 65 + 65 + 1);
+		sprintf((char*)TempBuffer, "Element_%i_%llu", CreateInfo.Identifier, RequiredSizeChunks);
 		pElement->Header.Name = (UTF8*)CopyData((void*)TempBuffer);
 	}
-	if (pElementSignature->Constructor != NULL)
+	if (pSignature->Constructor != NULL)
 	{
-		Create_ElementTemplate* pFunction = *pElementSignature->Constructor;
+		Create_ElementTemplate* pFunction = *pSignature->Constructor;
 		if ((tres = pFunction(pElement, pCreateInfo, &RequiredSizeBytes, ThreadIndex)) != Success)
 			return tres;
 	}
-	*pAllocation = pElement->Header.Allocation;
-	return (TEXRESULT)(Success);
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
+	c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+	c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
+	*pAllocation = Allocation;
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1269,126 +2106,32 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 * @note Multithread safe when threadindex is unique on each thread calling.
 * @note Externally Synchronized.
 */
-TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex)
-{
+TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) != Success)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_Object()", "Allocation Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
+	//destroy should destroy anything it can via overlay pointer (which is the previous latest pointer for it?), and then set rest to NULL ? ;
+	//if overlay == UINT32_MAX then it has full ownerhsip otherwise usual destruct regime;
+	//overlay pointer is just the latest pointer during this stage;
+	//if pointer is uint32_t max it means that it hasnt been aquirred yet, otherwise make consistent.
 	TEXRESULT tres = Success;
+	Object* pObject = Get_ObjectPointer(Allocation, true, false, ThreadIndex);
+	if (pObject == NULL)
+		return (Failure);
+
 	ObjectSignature* pSignature = NULL;
-	ObjectBufferIndex BufferIndex = 0;
-	Find_ObjectSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-
-	Object* pObject = Get_ObjectPointer(Allocation);
-	Object* pInstance = (pObject->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pObject->Header.pDelayedInstances[ThreadIndex].Pointer] : pObject;
-
-	if (pSignature->Destructor != NULL)
-	{
-		Destroy_ObjectTemplate* func = *pSignature->Destructor;
-		if ((tres = func(pInstance, Full, ThreadIndex)) != Success)
-			return tres;
-	}
-
-	if (pObject->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
-	{
-		ArenaAllocater* pAllocater = NULL;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (Utils.InternalObjectBuffer.ArenaAllocaters[i].StartPtr <= pObject->Header.pDelayedInstances[ThreadIndex].Pointer &&
-				Utils.InternalObjectBuffer.ArenaAllocaters[i].EndPtr >= (pObject->Header.pDelayedInstances[ThreadIndex].Pointer + pObject->Header.AllocationSize))
-			{
-				pAllocater = &Utils.InternalObjectBuffer.ArenaAllocaters[i];
-			}
-		}
-		if (pAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("Destroy_Object()", "Arena Allocater could not be found. ", pAllocater);
-			return (TEXRESULT)(Failure);
-		}
-		Engine_Ref_Lock_Mutex(pAllocater->mutex);
-		memset(&Utils.InternalObjectBuffer.Buffer[pObject->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pObject) * pObject->Header.AllocationSize);
-		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
-	}
-
-	c89atomic_store_32(&pObject->Header.pDelayedInstances[ThreadIndex].Pointer, UINT32_MAX);
-	c89atomic_store_8(&pObject->Header.pDelayedInstances[ThreadIndex].Latest, 0);
-
+	Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature);
+	Destroy_ObjectInstance(pAllocationData->Threads[ThreadIndex].Pointer, pSignature, false, ThreadIndex);
 	if (Full == true)
 	{
-		ArenaAllocater* pAllocater = NULL;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr <= pObject->Header.Allocation.Pointer &&
-				pSignature->Buffer->ArenaAllocaters[i].EndPtr >= (pObject->Header.Allocation.Pointer + pObject->Header.AllocationSize))
-			{
-				pAllocater = &pSignature->Buffer->ArenaAllocaters[i];
-			}
-		}
-		if (pAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("Destroy_Object()", "Arena Allocater could not be found. ", pAllocater);
-			return (TEXRESULT)(Failure);
-		}
-		Engine_Ref_Lock_Mutex(pAllocater->mutex);
-
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-		{
-			if (pObject->Header.pDelayedInstances[i].Pointer != UINT32_MAX)
-			{
-				Destroy_Object(Allocation, false, i);
-				pObject->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
-				pObject->Header.pDelayedInstances[i].Latest = 1;
-			}
-		}
-
-		for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
-		{
-			ResourceHeader* pChild = Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i]);
-
-			if (pChild != NULL)
-			{
-				uint64_t index = 0;
-				bool found = false;
-				for (size_t i = 0; i < pChild->Header.iParentsSize; i++)
-				{
-					if (pChild->Header.iParents[i].Pointer == Allocation.Pointer)
-					{
-						index = i;
-						found = true;
-					}
-				}
-				if (found == false)
-					break;
-
-				RemoveMember_Array((void**)&pChild->Header.iParents, pChild->Header.iParentsSize, index, sizeof(*pChild->Header.iParents), 1);
-				pChild->Header.iParentsSize = pChild->Header.iParentsSize - 1;
-			}
-		}
-
-		for (size_t i = 0; i < pObject->Header.iChildrenSize; i++)
-		{
-			Object* pChild = Get_ObjectPointer(pObject->Header.iChildren[i]);
-			if (pChild != NULL)
-			{
-				memset(&pChild->Header.iParent, 0, sizeof(pChild->Header.iParent));
-			}
-		}
-
-
-		if (pObject->Header.iResourceHeaders != NULL && pObject->Header.iResourceHeadersSize != NULL)
-			free(pObject->Header.iResourceHeaders);
-		if (pObject->Header.iChildren != NULL  && pObject->Header.iChildrenSize != NULL)
-			free(pObject->Header.iChildren);
-		if (pObject->Header.Name != NULL)
-			free(pObject->Header.Name);
-
-		memset(pObject, 0, sizeof(*pObject) * pObject->Header.AllocationSize);
-		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
+		pAllocationData->ScheduleDestruct = true;
 	}
+	End_ObjectPointer(Allocation, true, false, ThreadIndex);
 	return Success;
 }
 /*
@@ -1401,138 +2144,32 @@ TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t Thread
 * @note Multithread safe when threadindex is unique on each thread calling.
 * @note Externally Synchronized.
 */
-TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex)
-{
+TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ResourceHeaderAllocationValidity(Allocation) != Success)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_ResourceHeader()", "Allocation Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
+	//destroy should destroy anything it can via overlay pointer (which is the previous latest pointer for it?), and then set rest to NULL ? ;
+	//if overlay == UINT32_MAX then it has full ownerhsip otherwise usual destruct regime;
+	//overlay pointer is just the latest pointer during this stage;
+	//if pointer is uint32_t max it means that it hasnt been aquirred yet, otherwise make consistent.
 	TEXRESULT tres = Success;
+	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
+	if (pResourceHeader == NULL)
+		return (Failure);
+
 	ResourceHeaderSignature* pSignature = NULL;
-	ResourceHeaderBufferIndex BufferIndex = 0;
-	Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-
-	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
-	ResourceHeader* pInstance = (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer] : pResourceHeader;
-
-	if (pSignature->Destructor != NULL)
-	{
-		Destroy_ResourceHeaderTemplate* func = *pSignature->Destructor;
-		if ((tres = func(pInstance, Full, ThreadIndex)) != Success)
-			return tres;
-	}
-	
-	if (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
-	{
-		ArenaAllocater* pAllocater = NULL;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i].StartPtr <= pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer &&
-				Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i].EndPtr >= (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer + pResourceHeader->Header.AllocationSize))
-			{
-				pAllocater = &Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i];
-			}
-		}
-		if (pAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("Destroy_ResourceHeader()", "Arena Allocater could not be found. ", pAllocater);
-			return (TEXRESULT)(Failure);
-		}
-		Engine_Ref_Lock_Mutex(pAllocater->mutex);
-		memset(&Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pResourceHeader) * pResourceHeader->Header.AllocationSize);
-		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
-	}
-
-	c89atomic_store_32(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer, UINT32_MAX);
-	c89atomic_store_8(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Latest, 0);
-
+	Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature);
+	Destroy_ResourceHeaderInstance(pAllocationData->Threads[ThreadIndex].Pointer, pSignature, false, ThreadIndex);
 	if (Full == true)
 	{
-		ArenaAllocater* pAllocater = NULL;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr <= pResourceHeader->Header.Allocation.Pointer &&
-				pSignature->Buffer->ArenaAllocaters[i].EndPtr >= (pResourceHeader->Header.Allocation.Pointer + pResourceHeader->Header.AllocationSize))
-			{
-				pAllocater = &pSignature->Buffer->ArenaAllocaters[i];
-			}
-		}
-		if (pAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("Destroy_ResourceHeader()", "Arena Allocater could not be found. ", pAllocater);
-			return (TEXRESULT)(Failure);
-		}
-		Engine_Ref_Lock_Mutex(pAllocater->mutex);
-
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-		{
-			if (pResourceHeader->Header.pDelayedInstances[i].Pointer != UINT32_MAX)
-			{
-				Destroy_ResourceHeader(Allocation, false, i);
-				pResourceHeader->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
-				pResourceHeader->Header.pDelayedInstances[i].Latest = 1;
-			}
-		}
-
-		for (size_t i = 0; i < pResourceHeader->Header.iElementsSize; i++)
-		{
-			Element* pChild = Get_ElementPointer(pResourceHeader->Header.iElements[i]);
-			if (pChild != NULL)
-			{
-				uint64_t index = 0;
-				bool found = false;
-				for (size_t i = 0; i < pChild->Header.iParentsSize; i++)
-				{
-					if (pChild->Header.iParents[i].Pointer == Allocation.Pointer)
-					{
-						index = i;
-						found = true;
-					}
-				}
-				if (found == false)
-					break;
-
-				RemoveMember_Array((void**)&pChild->Header.iParents, pChild->Header.iParentsSize, index, sizeof(*pChild->Header.iParents), 1);
-				pChild->Header.iParentsSize = pChild->Header.iParentsSize - 1;
-			}
-		}
-
-		for (size_t i = 0; i < pResourceHeader->Header.iParentsSize; i++)
-		{
-			Object* pParent = Get_ObjectPointer(pResourceHeader->Header.iParents[i]);
-			if (pParent != NULL)
-			{
-				uint64_t index = 0;
-				bool found = false;
-				for (size_t i = 0; i < pParent->Header.iResourceHeadersSize; i++)
-				{
-					if (pParent->Header.iResourceHeaders[i].Pointer == Allocation.Pointer)
-					{
-						index = i;
-						found = true;
-					}
-				}
-				if (found == false)
-					break;
-
-				RemoveMember_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, index, sizeof(*pParent->Header.iResourceHeaders), 1);
-				pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize - 1;
-			}
-		}
-
-		if (pResourceHeader->Header.iParents != NULL && pResourceHeader->Header.iParentsSize != NULL)
-			free(pResourceHeader->Header.iParents);
-		if (pResourceHeader->Header.iElements != NULL && pResourceHeader->Header.iElementsSize != NULL)
-			free(pResourceHeader->Header.iElements);
-		if (pResourceHeader->Header.Name != NULL)
-			free(pResourceHeader->Header.Name);
-
-		memset(pResourceHeader, 0, sizeof(ResourceHeader) * pResourceHeader->Header.AllocationSize);
-		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
+		pAllocationData->ScheduleDestruct = true;
 	}
+	End_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
 	return Success;
 }
 /*
@@ -1545,115 +2182,35 @@ TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full,
 * @note Multithread safe when threadindex is unique on each thread calling.
 * @note Externally Synchronized.
 */
-TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex)
-{
+TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ElementAllocationValidity(Allocation) != Success)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_Element()", "Allocation Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
+	//destroy should destroy anything it can via overlay pointer (which is the previous latest pointer for it?), and then set rest to NULL ? ;
+	//if overlay == UINT32_MAX then it has full ownerhsip otherwise usual destruct regime;
+	//overlay pointer is just the latest pointer during this stage;
+	//if pointer is uint32_t max it means that it hasnt been aquirred yet, otherwise make consistent.
 	TEXRESULT tres = Success;
+	Element* pElement = Get_ElementPointer(Allocation, true, false, ThreadIndex);
+	if (pElement == NULL)
+		return (Failure);
+
 	ElementSignature* pSignature = NULL;
-	ElementBufferIndex BufferIndex = 0;
-	Find_ElementSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-
-	Element* pElement = Get_ElementPointer(Allocation);
-	Element* pInstance = (pElement->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalElementBuffer.Buffer[pElement->Header.pDelayedInstances[ThreadIndex].Pointer] : pElement;
-
-	if (pSignature->Destructor != NULL)
-	{
-		Destroy_ElementTemplate* func = *pSignature->Destructor;
-		if ((tres = func(pInstance, Full, ThreadIndex)) != Success)
-			return tres;
-	}
-	
-	if (pElement->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX)
-	{
-		ArenaAllocater* pAllocater = NULL;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (Utils.InternalElementBuffer.ArenaAllocaters[i].StartPtr <= pElement->Header.pDelayedInstances[ThreadIndex].Pointer &&
-				Utils.InternalElementBuffer.ArenaAllocaters[i].EndPtr >= (pElement->Header.pDelayedInstances[ThreadIndex].Pointer + pElement->Header.AllocationSize))
-			{
-				pAllocater = &Utils.InternalElementBuffer.ArenaAllocaters[i];
-			}
-		}
-		if (pAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("Destroy_Element()", "Arena Allocater could not be found. ", pAllocater);
-			return (TEXRESULT)(Failure);
-		}
-		Engine_Ref_Lock_Mutex(pAllocater->mutex);
-		memset(&Utils.InternalElementBuffer.Buffer[pElement->Header.pDelayedInstances[ThreadIndex].Pointer], 0, sizeof(*pElement) * pElement->Header.AllocationSize);
-		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
-	}
-
-	c89atomic_store_32(&pElement->Header.pDelayedInstances[ThreadIndex].Pointer, UINT32_MAX);
-	c89atomic_store_8(&pElement->Header.pDelayedInstances[ThreadIndex].Latest, 0);
-
+	Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature);
+	Destroy_ElementInstance(pAllocationData->Threads[ThreadIndex].Pointer, pSignature, false, ThreadIndex);
 	if (Full == true)
 	{
-		ArenaAllocater* pAllocater = NULL;
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-		{
-			if (pSignature->Buffer->ArenaAllocaters[i].StartPtr <= pElement->Header.Allocation.Pointer &&
-				pSignature->Buffer->ArenaAllocaters[i].EndPtr >= (pElement->Header.Allocation.Pointer + pElement->Header.AllocationSize))
-			{
-				pAllocater = &pSignature->Buffer->ArenaAllocaters[i];
-			}
-		}
-		if (pAllocater == NULL)
-		{
-			Engine_Ref_FunctionError("Destroy_Element()", "Arena Allocater could not be found. ", pAllocater);
-			return (TEXRESULT)(Failure);
-		}
-		Engine_Ref_Lock_Mutex(pAllocater->mutex);
-
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-		{
-			if (pElement->Header.pDelayedInstances[i].Pointer != UINT32_MAX)
-			{
-				Destroy_Element(Allocation, false, i);
-				pElement->Header.pDelayedInstances[i].Pointer = UINT32_MAX;
-				pElement->Header.pDelayedInstances[i].Latest = 1;
-			}
-		}
-
-		for (size_t i = 0; i < pElement->Header.iParentsSize; i++)
-		{
-			ResourceHeader* pParent = Get_ResourceHeaderPointer(pElement->Header.iParents[i]);
-			if (pParent != NULL)
-			{
-				uint64_t index = 0;
-				bool found = false;
-				for (size_t i = 0; i < pParent->Header.iElementsSize; i++)
-				{
-					if (pParent->Header.iElements[i].Pointer == Allocation.Pointer)
-					{
-						index = i;
-						found = true;
-					}
-				}
-				if (found == false)
-					break;
-
-				RemoveMember_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, index, sizeof(*pParent->Header.iElements), 1);
-				pParent->Header.iElementsSize = pParent->Header.iElementsSize - 1;
-			}
-		}
-		if (pElement->Header.iParents != NULL && pElement->Header.iParentsSize != NULL)
-			free(pElement->Header.iParents);
-		if (pElement->Header.Name != NULL)
-			free(pElement->Header.Name);
-
-		memset(pElement, 0, sizeof(Element) * pElement->Header.AllocationSize);
-		Engine_Ref_Unlock_Mutex(pAllocater->mutex);
+		pAllocationData->ScheduleDestruct = true;
 	}
+	End_ElementPointer(Allocation, true, false, ThreadIndex);
 	return Success;
 }
-
+ 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Recreate Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1666,60 +2223,33 @@ TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t Thre
 * @param ThreadIndex Index of the thread that is calling this.
 * @note Externally Synchronized.
 */
-TEXRESULT ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Object(ObjectAllocation Allocation, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) != Success)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_Object()", "Allocation Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	TEXRESULT tres = Success;
+	Object* pObject = Get_ObjectPointer(Allocation, true, false, ThreadIndex);
+	if (pObject == NULL)
+		return (Failure);
+
 	ObjectSignature* pSignature = NULL;
-	ObjectBufferIndex BufferIndex = 0;
-	Find_ObjectSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-	Object* pObject = Get_ObjectPointer(Allocation);
-	if (pInstance != NULL)
+	Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature);
+	//destruct everything;
+	Destroy_Object(Allocation, false, ThreadIndex);
+	//sort out recreate;
+	if (pSignature->ReConstructor != NULL)
 	{
-#ifdef OBJECT_MUTEX
-		Engine_Ref_Lock_Mutex(pObject->Header.mutex);
-#endif
-		size_t foundcount = 0;
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-			if (pObject->Header.pDelayedInstances[i].Pointer == pObject->Header.pDelayedInstances[ThreadIndex].Pointer)
-				foundcount++;
-		if (foundcount == 1)
-			Destroy_Object(Allocation, false, ThreadIndex);
-		if (pSignature->ReConstructor != NULL)
-		{
-			ReCreate_ObjectTemplate* func = *pSignature->ReConstructor;
-			func(pInstance->pInstance, ThreadIndex);
-		}
-		c89atomic_store_32(&pObject->Header.pDelayedInstances[ThreadIndex].Pointer, pInstance->Pointer);
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-		{		
-			if (pObject->Header.pDelayedInstances[i].Pointer == UINT32_MAX)
-			{
-				c89atomic_store_32(&pObject->Header.pDelayedInstances[i].Pointer, pInstance->Pointer);
-			}
-			c89atomic_store_8(&pObject->Header.pDelayedInstances[i].Latest, 0);
-		}
-		c89atomic_store_8(&pObject->Header.pDelayedInstances[ThreadIndex].Latest, 1);
-#ifdef OBJECT_MUTEX
-		Engine_Ref_Unlock_Mutex(pObject->Header.mutex);
-#endif
+		ReCreate_ObjectTemplate* pFunction = *pSignature->ReConstructor;
+		if ((tres = pFunction(pObject, ThreadIndex)) != Success)
+			return tres;
 	}
-	else
-	{
-		if (pSignature->ReConstructor != NULL)
-		{
-			ReCreate_ObjectTemplate* pFunction = *pSignature->ReConstructor;
-			if ((tres = pFunction(pObject, ThreadIndex)) != Success)
-				return tres;
-		}
-	}
-	return Success;
+	End_ObjectPointer(Allocation, true, false, ThreadIndex);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1729,60 +2259,33 @@ TEXRESULT ReCreate_Object(ObjectAllocation Allocation, ObjectInstance* pInstance
 * @param ThreadIndex Index of the thread that is calling this.
 * @note Externally Synchronized.
 */
-TEXRESULT ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceHeaderInstance* pInstance, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ResourceHeaderAllocationValidity(Allocation) != Success)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_ResourceHeader()", "Allocation Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	TEXRESULT tres = Success;
+	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
+	if (pResourceHeader == NULL)
+		return (Failure);
+
 	ResourceHeaderSignature* pSignature = NULL;
-	ResourceHeaderBufferIndex BufferIndex = 0;
-	Find_ResourceHeaderSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
-	if (pInstance != NULL)
+	Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature);
+	//destruct everything;
+	Destroy_ResourceHeader(Allocation, false, ThreadIndex);
+	//sort out recreate;
+	if (pSignature->ReConstructor != NULL)
 	{
-#ifdef OBJECT_MUTEX
-		Engine_Ref_Lock_Mutex(pResourceHeader->Header.mutex);
-#endif
-		size_t foundcount = 0;
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-			if (pResourceHeader->Header.pDelayedInstances[i].Pointer == pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer)
-				foundcount++;
-		if (foundcount == 1)
-			Destroy_ResourceHeader(Allocation, false, ThreadIndex);
-		if (pSignature->ReConstructor != NULL)
-		{
-			ReCreate_ResourceHeaderTemplate* func = *pSignature->ReConstructor;
-			func(pInstance->pInstance, ThreadIndex);
-		}
-		c89atomic_store_32(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer, pInstance->Pointer);
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-		{
-			if (pResourceHeader->Header.pDelayedInstances[i].Pointer == UINT32_MAX)
-			{
-				c89atomic_store_32(&pResourceHeader->Header.pDelayedInstances[i].Pointer, pInstance->Pointer);
-			}
-			c89atomic_store_8(&pResourceHeader->Header.pDelayedInstances[i].Latest, 0);
-		}
-		c89atomic_store_8(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Latest, 1);
-#ifdef OBJECT_MUTEX
-		Engine_Ref_Unlock_Mutex(pResourceHeader->Header.mutex);
-#endif
+		ReCreate_ResourceHeaderTemplate* pFunction = *pSignature->ReConstructor;
+		if ((tres = pFunction(pResourceHeader, ThreadIndex)) != Success)
+			return tres;
 	}
-	else
-	{
-		if (pSignature->ReConstructor != NULL)
-		{
-			ReCreate_ResourceHeaderTemplate* pFunction = *pSignature->ReConstructor;
-			if ((tres = pFunction(pResourceHeader, ThreadIndex)) != Success)
-				return tres;
-		}
-	}
-	return Success;
+	End_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -1792,229 +2295,309 @@ TEXRESULT ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, ResourceH
 * @param ThreadIndex Index of the thread that is calling this.
 * @note Externally Synchronized.
 */
-TEXRESULT ReCreate_Element(ElementAllocation Allocation, ElementInstance* pInstance, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Element(ElementAllocation Allocation, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ElementAllocationValidity(Allocation) != Success)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_Element()", "Allocation Invalid.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	TEXRESULT tres = Success;
+	Element* pElement = Get_ElementPointer(Allocation, true, false, ThreadIndex);
+	if (pElement == NULL)
+		return (Failure);
+
 	ElementSignature* pSignature = NULL;
-	ElementBufferIndex BufferIndex = 0;
-	Find_ElementSignature(Allocation.Identifier, &pSignature, &BufferIndex);
-	Element* pElement = Get_ElementPointer(Allocation);
-	if (pInstance != NULL)
+	Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature);
+	//destruct everything;
+	Destroy_Element(Allocation, false, ThreadIndex);
+	//sort out recreate;
+	if (pSignature->ReConstructor != NULL)
 	{
-#ifdef OBJECT_MUTEX
-		Engine_Ref_Lock_Mutex(pElement->Header.mutex);
+		ReCreate_ElementTemplate* pFunction = *pSignature->ReConstructor;
+		if ((tres = pFunction(pElement, ThreadIndex)) != Success)
+			return tres;
+	}
+	End_ElementPointer(Allocation, true, false, ThreadIndex);
+	return (Success);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Resizes Buffer Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define Resize_Buffer(name)\
+{\
+	Resize_Array((void**)&pBuffer->Buffer, pBuffer->BufferSize, NewSize, sizeof(*pBuffer->Buffer));\
+	pBuffer->BufferSize = NewSize;\
+	Resize_Array((void**)&pBuffer->AllocationDatas.Buffer, pBuffer->AllocationDatas.BufferSize, NewSize, sizeof(*pBuffer->AllocationDatas.Buffer));\
+	pBuffer->AllocationDatas.BufferSize = NewSize;\
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {\
+		pBuffer->ArenaAllocaters[i].StartPtr = (i)*NewSize;\
+		pBuffer->ArenaAllocaters[i].EndPtr = (i + 1) * NewSize;\
+		pBuffer->AllocationDatas.ArenaAllocaters[i].StartPtr = (i)*NewSize;\
+		pBuffer->AllocationDatas.ArenaAllocaters[i].EndPtr = (i + 1) * NewSize;\
+	}\
+}
+
+/*
+* Added in 1.0.0
+* Resizes specified buffer to newsize.
+* doesnt compact, there will be excess space in the array.
+* resize functions are super expensive and shouldnt be done often.
+* destroys all objects that are no longer in range.
+* @param pBuffer pointer to a buffer object to resize.
+* @param NewSize is in allocation chunks. (1 Object == 1 chunk).
+* @note Thread Safe.
+* @note Internally Synchronized.
+*/
+TEXRESULT Resize_ObjectBuffer(ObjectBuffer* pBuffer, uint64_t NewSize, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (pBuffer == NULL)
+	{
+		Engine_Ref_ArgsError("Resize_ObjectBuffer()", "pBuffer == NULLPTR");
+		return (Invalid_Parameter | Failure);
+	}
+	if (NewSize == NULL)
+	{
+		Engine_Ref_ArgsError("Resize_ObjectBuffer()", "NewSize == NULL");
+		return (Invalid_Parameter | Failure);
+	}
 #endif
-		size_t foundcount = 0;
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-			if (pElement->Header.pDelayedInstances[i].Pointer == pElement->Header.pDelayedInstances[ThreadIndex].Pointer)
-				foundcount++;
-		if (foundcount == 1)
-			Destroy_Element(Allocation, false, ThreadIndex);
-		if (pSignature->ReConstructor != NULL)
-		{
-			ReCreate_ElementTemplate* func = *pSignature->ReConstructor;
-			func(pInstance->pInstance, ThreadIndex);
-		}
-		c89atomic_store_32(&pElement->Header.pDelayedInstances[ThreadIndex].Pointer, pInstance->Pointer);
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-		{
-			if (pElement->Header.pDelayedInstances[i].Pointer == UINT32_MAX)
-			{
-				c89atomic_store_32(&pElement->Header.pDelayedInstances[i].Pointer, pInstance->Pointer);
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	uint32_t AllocationsToCut = 0;
+	uint32_t AllocationBufferSize = pBuffer->AllocationDatas.BufferSize;
+	uint32_t ObjectBufferSize = pBuffer->BufferSize;
+	if (NewSize < pBuffer->AllocationDatas.BufferSize)
+	{
+		//set all allocations that are out of range to destruct.
+		for (size_t i = NewSize; i < pBuffer->AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &pBuffer->AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.Object.Identifier != 0) {
+				Destroy_Object(pAllocationData->Allocation.Object, true, ThreadIndex);
+				AllocationsToCut++;
 			}
-			c89atomic_store_8(&pElement->Header.pDelayedInstances[i].Latest, 0);
 		}
-		c89atomic_store_8(&pElement->Header.pDelayedInstances[ThreadIndex].Latest, 1);
-#ifdef OBJECT_MUTEX
-		Engine_Ref_Unlock_Mutex(pElement->Header.mutex);
-#endif
 	}
-	else
+	if (NewSize < pBuffer->BufferSize)
 	{
-		if (pSignature->ReConstructor != NULL)
-		{
-			ReCreate_ElementTemplate* pFunction = *pSignature->ReConstructor;
-			if ((tres = pFunction(pElement, ThreadIndex)) != Success)
-				return tres;
+		//set all items that are out of range to destruct.
+		//the problem is you arent supposed to destruct allocation instances like this;
+		for (size_t i = NewSize; i < pBuffer->BufferSize;) {
+			Object* pObject = &pBuffer->Buffer[i];
+			if (pObject->Header.AllocationSize != NULL) {
+				//if it is under newsize then we can assure that  it hasnt been counted yet, otherwise it has.
+				if ((pObject->Header.Allocation.Pointer < NewSize))
+				{
+					Destroy_Object(pObject->Header.Allocation, true, ThreadIndex);
+					AllocationsToCut++;
+				}
+				i += pObject->Header.AllocationSize;
+			}
+			else {
+				i++;
+			}
 		}
 	}
-	return Success;
-}
+	//wait for them to destruct
+	while (pBuffer->AllocationDatas.AllocationsCount > (AllocationBufferSize - AllocationsToCut)) {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Start Thread
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-* Added in 1.0.0
-* Get the designated Object's data for a threadindex.
-* @param pObject refrencing the desired Object to get data from.
-* @param ThreadIndex threadindex global.
-* @param ppReturn pointer to a pointer of a Object that will contain the thread specific data. (non malloced)
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-TEXRESULT StartThread_Object(ObjectAllocation Allocation, uint32_t ThreadIndex, Object** ppReturn){
-	Object* pObject = Get_ObjectPointer(Allocation);
-	*ppReturn = (pObject->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pObject->Header.pDelayedInstances[ThreadIndex].Pointer] : pObject;
-	return (TEXRESULT)(Success);
-}
-/*
-* Added in 1.0.0
-* Get the designated Object's data for a threadindex.
-* @param pObject refrencing the desired Object to get data from.
-* @param ThreadIndex threadindex global.
-* @param ppReturn pointer to a pointer of a Object that will contain the thread specific data. (non malloced)
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-TEXRESULT StartThread_ResourceHeader(ResourceHeaderAllocation Allocation, uint32_t ThreadIndex, ResourceHeader** ppReturn){
-	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
-	*ppReturn = (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalResourceHeaderBuffer.Buffer[pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer] : pResourceHeader;
-	return (TEXRESULT)(Success);
-}
-/*
-* Added in 1.0.0
-* Get the designated Object's data for a threadindex.
-* @param pObject refrencing the desired Object to get data from.
-* @param ThreadIndex threadindex global.
-* @param ppReturn pointer to a pointer of a Object that will contain the thread specific data. (non malloced)
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-TEXRESULT StartThread_Element(ElementAllocation Allocation, uint32_t ThreadIndex, Element** ppReturn){
-	Element* pElement = Get_ElementPointer(Allocation);
-	*ppReturn = (pElement->Header.pDelayedInstances[ThreadIndex].Pointer != UINT32_MAX) ? &Utils.InternalElementBuffer.Buffer[pElement->Header.pDelayedInstances[ThreadIndex].Pointer] : pElement;
-	return (TEXRESULT)(Success);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//End Thread
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-* Added in 1.0.0
-* Signals that thread is done with Object.
-* @param pObject refrencing the desired Object to signal done.
-* @param ThreadIndex threadindex global.
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-TEXRESULT EndThread_Object(ObjectAllocation Allocation, uint32_t ThreadIndex){
-	Object* pObject = Get_ObjectPointer(Allocation);
-	//if its the last of its pointer and non latest then delete.
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Lock_Mutex(pObject->Header.mutex);
-#endif
-	if (pObject->Header.pDelayedInstances[ThreadIndex].Latest == 0)
-	{
-		size_t foundcount = 0;
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-			if (pObject->Header.pDelayedInstances[i].Pointer == pObject->Header.pDelayedInstances[ThreadIndex].Pointer)
-				foundcount++;
-		if (foundcount == 1)
-			Destroy_Object(Allocation, false, ThreadIndex);
 	}
-	//swap this thread to most recent instance
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
+	Resize_Buffer("Resize_ObjectBuffer()");
+
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Resizes specified buffer to newsize.
+* doesnt compact, there will be excess space in the array.
+* resize functions are super expensive and shouldnt be done often.
+* destroys all objects that are no longer in range.
+* @param pBuffer pointer to a buffer object to resize.
+* @param NewSize is in allocation chunks. (1 Object == 1 chunk).
+* @note Thread Safe.
+* @note Internally Synchronized.
+*/
+TEXRESULT Resize_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer, uint64_t NewSize, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (pBuffer == NULL)
 	{
-		if (pObject->Header.pDelayedInstances[i].Latest == 1)
-		{
-			c89atomic_store_32(&pObject->Header.pDelayedInstances[ThreadIndex].Pointer, pObject->Header.pDelayedInstances[i].Pointer);
-			c89atomic_store_8(&pObject->Header.pDelayedInstances[ThreadIndex].Latest, 1);
+		Engine_Ref_ArgsError("Resize_ResourceHeaderBuffer()", "pBuffer == NULLPTR");
+		return (Invalid_Parameter | Failure);
+	}
+	if (NewSize == NULL)
+	{
+		Engine_Ref_ArgsError("Resize_ResourceHeaderBuffer()", "NewSize == NULL");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	uint32_t AllocationsToCut = 0;
+	uint32_t AllocationBufferSize = pBuffer->AllocationDatas.BufferSize;
+	uint32_t ResourceHeaderBufferSize = pBuffer->BufferSize;
+	if (NewSize < pBuffer->AllocationDatas.BufferSize)
+	{
+		//set all allocations that are out of range to destruct.
+		for (size_t i = NewSize; i < pBuffer->AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &pBuffer->AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.ResourceHeader.Identifier != 0) {
+				Destroy_ResourceHeader(pAllocationData->Allocation.ResourceHeader, true, ThreadIndex);
+				AllocationsToCut++;
+			}
 		}
 	}
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Unlock_Mutex(pObject->Header.mutex);
-#endif
-	return (TEXRESULT)(Success);
+	if (NewSize < pBuffer->BufferSize)
+	{
+		//set all items that are out of range to destruct.
+		//the problem is you arent supposed to destruct allocation instances like this;
+		for (size_t i = NewSize; i < pBuffer->BufferSize;) {
+			ResourceHeader* pResourceHeader = &pBuffer->Buffer[i];
+			if (pResourceHeader->Header.AllocationSize != NULL) {
+				//if it is under newsize then we can assure that  it hasnt been counted yet, otherwise it has.
+				if ((pResourceHeader->Header.Allocation.Pointer < NewSize))
+				{
+					Destroy_ResourceHeader(pResourceHeader->Header.Allocation, true, ThreadIndex);
+					AllocationsToCut++;
+				}
+				i += pResourceHeader->Header.AllocationSize;
+			}
+			else {
+				i++;
+			}
+		}
+	}
+	//wait for them to destruct
+	while (pBuffer->AllocationDatas.AllocationsCount > (AllocationBufferSize - AllocationsToCut)) {
+
+	}
+	Resize_Buffer("Resize_ResourceHeaderBuffer()");
+
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	return (Success);
 }
 /*
 * Added in 1.0.0
-* Signals that thread is done with ResourceHeader.
-* @param pResourceHeader refrencing the desired ResourceHeader to signal done.
-* @param ThreadIndex threadindex global.
-* @note Always Thread safe.
-* @note Externally Synchronized.
+* Resizes specified buffer to newsize.
+* doesnt compact, there will be excess space in the array.
+* resize functions are super expensive and shouldnt be done often.
+* destroys all objects that are no longer in range.
+* @param pBuffer pointer to a buffer object to resize.
+* @param NewSize is in allocation chunks. (1 Object == 1 chunk).
+* @note Thread Safe.
+* @note Internally Synchronized.
 */
-TEXRESULT EndThread_ResourceHeader(ResourceHeaderAllocation Allocation, uint32_t ThreadIndex){
-	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
-	//if its the last of its pointer and non latest then delete.
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Lock_Mutex(pResourceHeader->Header.mutex);
-#endif
-	if (pResourceHeader->Header.pDelayedInstances[ThreadIndex].Latest == 0)
+TEXRESULT Resize_ElementBuffer(ElementBuffer* pBuffer, uint64_t NewSize, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (pBuffer == NULL)
 	{
-		size_t foundcount = 0;
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-			if (pResourceHeader->Header.pDelayedInstances[i].Pointer == pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer)
-				foundcount++;
-		if (foundcount == 1)
-			Destroy_ResourceHeader(Allocation, false, ThreadIndex);
+		Engine_Ref_ArgsError("Resize_ElementBuffer()", "pBuffer == NULLPTR");
+		return (Invalid_Parameter | Failure);
 	}
-	//swap this thread to most recent instance
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
+	if (NewSize == NULL)
 	{
-		if (pResourceHeader->Header.pDelayedInstances[i].Latest == 1)
-		{
-			c89atomic_store_32(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Pointer, pResourceHeader->Header.pDelayedInstances[i].Pointer);
-			c89atomic_store_8(&pResourceHeader->Header.pDelayedInstances[ThreadIndex].Latest, 1);
+		Engine_Ref_ArgsError("Resize_ElementBuffer()", "NewSize == NULL");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	uint32_t AllocationsToCut = 0;
+	uint32_t AllocationBufferSize = pBuffer->AllocationDatas.BufferSize;
+	uint32_t ElementBufferSize = pBuffer->BufferSize;
+	if (NewSize < pBuffer->AllocationDatas.BufferSize)
+	{
+		//set all allocations that are out of range to destruct.
+		for (size_t i = NewSize; i < pBuffer->AllocationDatas.BufferSize; i++) {
+			AllocationData* pAllocationData = &pBuffer->AllocationDatas.Buffer[i];
+			if (pAllocationData->Allocation.Element.Identifier != 0) {
+				Destroy_Element(pAllocationData->Allocation.Element, true, ThreadIndex);
+				AllocationsToCut++;
+			}
 		}
 	}
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Unlock_Mutex(pResourceHeader->Header.mutex);
-#endif
-	return (TEXRESULT)(Success);
-}
-/*
-* Added in 1.0.0
-* Signals that thread is done with Element.
-* @param pElement refrencing the desired Element to signal done.
-* @param ThreadIndex threadindex global.
-* @note Always Thread safe.
-* @note Externally Synchronized.
-*/
-TEXRESULT EndThread_Element(ElementAllocation Allocation, uint32_t ThreadIndex){
-	Element* pElement = Get_ElementPointer(Allocation);
-	//if its the last of its pointer and non latest then delete.
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Lock_Mutex(pElement->Header.mutex);
-#endif
-	if (pElement->Header.pDelayedInstances[ThreadIndex].Latest == 0)
+	if (NewSize < pBuffer->BufferSize)
 	{
-		size_t foundcount = 0;
-		for (size_t i = 0; i < DelayedInstanceSize; i++)
-			if (pElement->Header.pDelayedInstances[i].Pointer == pElement->Header.pDelayedInstances[ThreadIndex].Pointer)
-				foundcount++;
-		if (foundcount == 1)
-			Destroy_Element(Allocation, false, ThreadIndex);
-	}
-	//swap this thread to most recent instance
-	for (size_t i = 0; i < DelayedInstanceSize; i++)
-	{
-		if (pElement->Header.pDelayedInstances[i].Latest == 1)
-		{
-			c89atomic_store_32(&pElement->Header.pDelayedInstances[ThreadIndex].Pointer, pElement->Header.pDelayedInstances[i].Pointer);
-			c89atomic_store_8(&pElement->Header.pDelayedInstances[ThreadIndex].Latest, 1);
+		//set all items that are out of range to destruct.
+		//the problem is you arent supposed to destruct allocation instances like this;
+		for (size_t i = NewSize; i < pBuffer->BufferSize;) {
+			Element* pElement = &pBuffer->Buffer[i];
+			if (pElement->Header.AllocationSize != NULL) {
+				//if it is under newsize then we can assure that  it hasnt been counted yet, otherwise it has.
+				if ((pElement->Header.Allocation.Pointer < NewSize))
+				{
+					Destroy_Element(pElement->Header.Allocation, true, ThreadIndex);
+					AllocationsToCut++;
+				}
+				i += pElement->Header.AllocationSize;
+			}
+			else {
+				i++;
+			}
 		}
 	}
-#ifdef OBJECT_MUTEX
-	Engine_Ref_Unlock_Mutex(pElement->Header.mutex);
-#endif
-	return (TEXRESULT)(Success);
+	//wait for them to destruct
+	while (pBuffer->AllocationDatas.AllocationsCount > (AllocationBufferSize - AllocationsToCut)) {
+
+	}
+	Resize_Buffer("Resize_ElementBuffer()");
+
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Destruct Buffers Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define Destroy_Buffer()\
+{\
+	if (pBuffer->Indexes != NULL)\
+		free(pBuffer->Indexes);\
+	pBuffer->Indexes = NULL;\
+	pBuffer->BufferSize = 0;\
+	if (pBuffer->Buffer != NULL)\
+		free(pBuffer->Buffer);\
+	if (pBuffer->ArenaAllocaters != NULL) {\
+		for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)\
+			Destroy_ArenaAllocater(&pBuffer->ArenaAllocaters[i]);\
+		free(pBuffer->ArenaAllocaters);\
+	}\
+	pBuffer->ArenaAllocaters = NULL;\
+	if (pBuffer->AllocationDatas.Indexes != NULL)\
+		free(pBuffer->AllocationDatas.Indexes);\
+	pBuffer->AllocationDatas.Indexes = NULL;\
+	pBuffer->AllocationDatas.BufferSize = 0;\
+	if (pBuffer->AllocationDatas.Buffer != NULL)\
+		free(pBuffer->AllocationDatas.Buffer);\
+	if (pBuffer->AllocationDatas.ArenaAllocaters != NULL) {\
+		for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)\
+			Destroy_ArenaAllocater(&pBuffer->AllocationDatas.ArenaAllocaters[i]);\
+		free(pBuffer->AllocationDatas.ArenaAllocaters);\
+	}\
+	pBuffer->AllocationDatas.ArenaAllocaters = NULL;\
+	memset(pBuffer, 0, sizeof(*pBuffer));\
+}
+
 /*
 * Added in 1.0.0
 * When a buffer is destroyed all objects within it are also destroyed, you can circumvent this by moving the object.
@@ -2022,46 +2605,38 @@ TEXRESULT EndThread_Element(ElementAllocation Allocation, uint32_t ThreadIndex){
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-void Destroy_ObjectBuffer(ObjectBuffer* pBuffer)
-{
+TEXRESULT Destroy_ObjectBuffer(ObjectBuffer* pBuffer, uint32_t ThreadIndex) {
 #ifndef NDEBUG
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_ObjectBuffer", "pBuffer == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	for (size_t i = 0; i < pBuffer->Size;)
-	{
-		Object* pObject = (Object*)&pBuffer->Buffer[i];
-		if (pObject->Header.AllocationSize != NULL)
-		{
-			Destroy_Object(pObject->Header.Allocation, true, 0);
-			i += pObject->Header.AllocationSize;
-		}
-		else
-		{
-			i++;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	//set all items in buffer to destruct.
+	for (size_t i = 0; i < pBuffer->AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &pBuffer->AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Object.Identifier != 0) {
+			Destroy_Object(pAllocationData->Allocation.Object, true, ThreadIndex);
 		}
 	}
-
-	if (pBuffer->Indexes != NULL)
-		free(pBuffer->Indexes);
-	pBuffer->Indexes = NULL;
-
-	pBuffer->Size = 0;
-	if (pBuffer->Buffer != NULL)
-		free(pBuffer->Buffer);
-
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-			Destroy_ArenaAllocater(&pBuffer->ArenaAllocaters[i]);
-		free(pBuffer->ArenaAllocaters);
+	//wait for all in the buffer to destruct.
+	while (pBuffer->AllocationDatas.AllocationsCount > 0) {
+		 
 	}
-	pBuffer->ArenaAllocaters = NULL;
-
-	memset(pBuffer, 0, sizeof(*pBuffer));
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	//period between unlock and destruct that is unsafe;
+	//mayby fix it by adding checks in the allocaters;
+	//cleanup.
+	Destroy_Buffer();
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -2070,46 +2645,36 @@ void Destroy_ObjectBuffer(ObjectBuffer* pBuffer)
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-void Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer)
-{
+TEXRESULT Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer, uint32_t ThreadIndex) {
 #ifndef NDEBUG
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_ResourceHeaderBuffer", "pBuffer == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	for (size_t i = 0; i < pBuffer->Size;)
-	{
-		ResourceHeader* pResourceHeader = (ResourceHeader*)&pBuffer->Buffer[i];
-		if (pResourceHeader->Header.AllocationSize != NULL)
-		{
-			Destroy_ResourceHeader(pResourceHeader->Header.Allocation, true, 0);
-			i += pResourceHeader->Header.AllocationSize;
-		}
-		else
-		{
-			i++;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	//set all items in buffer to destruct.
+	for (size_t i = 0; i < pBuffer->AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &pBuffer->AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier != 0) {
+			Destroy_ResourceHeader(pAllocationData->Allocation.ResourceHeader, true, ThreadIndex);
 		}
 	}
+	//wait for all in the buffer to destruct.
+	while (pBuffer->AllocationDatas.AllocationsCount > 0) {
 
-	if (pBuffer->Indexes != NULL)
-		free(pBuffer->Indexes);
-	pBuffer->Indexes = NULL;
-
-	pBuffer->Size = 0;
-	if (pBuffer->Buffer != NULL)
-		free(pBuffer->Buffer);
-
-	if (pBuffer->ArenaAllocaters != NULL)
-	{
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-			Destroy_ArenaAllocater(&pBuffer->ArenaAllocaters[i]);
-		free(pBuffer->ArenaAllocaters);
 	}
-	pBuffer->ArenaAllocaters = NULL;
-
-	memset(pBuffer, 0, sizeof(*pBuffer));
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	//cleanup.
+	Destroy_Buffer();
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -2118,45 +2683,36 @@ void Destroy_ResourceHeaderBuffer(ResourceHeaderBuffer* pBuffer)
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-void Destroy_ElementBuffer(ElementBuffer* pBuffer)
-{
+TEXRESULT Destroy_ElementBuffer(ElementBuffer* pBuffer, uint32_t ThreadIndex) {
 #ifndef NDEBUG
 	if (pBuffer == NULL)
 	{
 		Engine_Ref_ArgsError("Destroy_ElementBuffer", "pBuffer == NULLPTR");
-		return;
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	for (size_t i = 0; i < pBuffer->Size;)
-	{
-		Element* pElement = (Element*)&pBuffer->Buffer[i];
-		if (pElement->Header.AllocationSize != NULL)
-		{
-			Destroy_Element(pElement->Header.Allocation, true, 0);
-			i += pElement->Header.AllocationSize;
-		}
-		else
-		{
-			i++;
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Lock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	//set all items in buffer to destruct.
+	for (size_t i = 0; i < pBuffer->AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &pBuffer->AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Element.Identifier != 0) {
+			Destroy_Element(pAllocationData->Allocation.Element, true, ThreadIndex);
 		}
 	}
+	//wait for all in the buffer to destruct.
+	while (pBuffer->AllocationDatas.AllocationsCount > 0) {
 
-	if (pBuffer->Indexes != NULL)
-		free(pBuffer->Indexes);
-	pBuffer->Indexes = NULL;
-
-	pBuffer->Size = 0;
-	if (pBuffer->Buffer != NULL)
-		free(pBuffer->Buffer);
-
-	if (pBuffer->ArenaAllocaters != NULL) {
-		for (size_t i = 0; i < ((EngineUtils*)EngineRes.pUtils)->CPU.MaxThreads; i++)
-			Destroy_ArenaAllocater(&pBuffer->ArenaAllocaters[i]);
-		free(pBuffer->ArenaAllocaters);
-	}	
-	pBuffer->ArenaAllocaters = NULL;
-
-	memset(pBuffer, 0, sizeof(*pBuffer));
+	}
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
+		Engine_Ref_Unlock_Mutex(&pBuffer->ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&pBuffer->AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+	//cleanup.
+	Destroy_Buffer();
+	return (Success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2170,35 +2726,42 @@ void Destroy_ElementBuffer(ElementBuffer* pBuffer)
 * @param Parent refrencing the desired object to make parent of Allocation.
 * @note Externally Synchronized.
 */
-void Add_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent)
-{
+void Add_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
+	AllocationData* pParentAllocationData = Get_ObjectAllocationData(Parent);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) == Failure)
-	{
-		Engine_Ref_ArgsError("Add_ObjectChild", "Allocation Invalid.");
+	if (pAllocationData == NULL) {
+		Engine_Ref_ArgsError("Add_ObjectChild()", "Allocation Invalid");
 		return;
 	}
-	if (Get_ObjectAllocationValidity(Parent) == Failure)
-	{
-		Engine_Ref_ArgsError("Add_ObjectChild", "Parent Invalid.");
+	if (pParentAllocationData == NULL) {
+		Engine_Ref_ArgsError("Add_ObjectChild()", "Parent Invalid.");
 		return;
 	}
 #endif
 	{
-		Object* pParent = Get_ObjectPointer(Parent);
+		Object* pParent = Get_ObjectPointer(Parent, true, false, ThreadIndex);
+		if (pParent == NULL)
+			return (Failure);
+		Object* pParentOverlay = (pParent->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pParent->Header.OverlayPointer] : NULL;
+
+		if (((pParentOverlay != NULL) ? (pParent->Header.iChildren == pParentOverlay->Header.iChildren) : false)) {
+			//copy new
+			pParent->Header.iChildren = CopyDataN(pParent->Header.iChildren, sizeof(*pParent->Header.iChildren) * pParent->Header.iChildrenSize);
+		}
 
 		Resize_Array((void**)&pParent->Header.iChildren, pParent->Header.iChildrenSize, pParent->Header.iChildrenSize + 1, sizeof(*pParent->Header.iChildren));
 		pParent->Header.iChildrenSize = pParent->Header.iChildrenSize + 1;
-
 		pParent->Header.iChildren[pParent->Header.iChildrenSize - 1] = Allocation;
+		End_ObjectPointer(Parent, true, false, ThreadIndex);
 	}
-
 	{
-		Object* pChild = Get_ObjectPointer(Allocation);
-
+		Object* pChild = Get_ObjectPointer(Allocation, true, false, ThreadIndex);
+		if (pChild == NULL)
+			return (Failure);
 		pChild->Header.iParent = Parent;
+		End_ObjectPointer(Allocation, true, false, ThreadIndex);
 	}
-
 }
 /*
 * Added in 1.0.0
@@ -2207,37 +2770,52 @@ void Add_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent)
 * @param Parent refrencing the desired object to make parent of Allocation.
 * @note Externally Synchronized.
 */
-void Add_Object_ResourceHeaderChild(ResourceHeaderAllocation Allocation, ObjectAllocation Parent)
-{
+void Add_Object_ResourceHeaderChild(ResourceHeaderAllocation Allocation, ObjectAllocation Parent, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
+	AllocationData* pParentAllocationData = Get_ObjectAllocationData(Parent);
 #ifndef NDEBUG
-	if (Get_ResourceHeaderAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Add_Object_ResourceHeaderChild", "Allocation Invalid.");
+		Engine_Ref_ArgsError("Add_Object_ResourceHeaderChild()", "Allocation Invalid");
 		return;
 	}
-	if (Get_ObjectAllocationValidity(Parent) == Failure)
+	if (pParentAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Add_Object_ResourceHeaderChild", "Parent Invalid.");
+		Engine_Ref_ArgsError("Add_Object_ResourceHeaderChild()", "Parent Invalid.");
 		return;
 	}
 #endif
 	{
-		Object* pParent = Get_ObjectPointer(Parent);
+		Object* pParent = Get_ObjectPointer(Parent, true, false, ThreadIndex);
+		if (pParent == NULL)
+			return (Failure);
+		Object* pParentOverlay = (pParent->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pParent->Header.OverlayPointer] : NULL;
+
+		if (((pParentOverlay != NULL) ? (pParent->Header.iResourceHeaders == pParentOverlay->Header.iResourceHeaders) : false)) {
+			//copy new
+			pParent->Header.iResourceHeaders = CopyDataN(pParent->Header.iResourceHeaders, sizeof(*pParent->Header.iResourceHeaders) * pParent->Header.iResourceHeadersSize);
+		}
 
 		Resize_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, pParent->Header.iResourceHeadersSize + 1, sizeof(*pParent->Header.iResourceHeaders));
 		pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize + 1;
-
 		pParent->Header.iResourceHeaders[pParent->Header.iResourceHeadersSize - 1] = Allocation;
+		End_ObjectPointer(Parent, true, false, ThreadIndex);
 	}
-
 	{
-		ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
+		ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
+		if (pResourceHeader == NULL)
+			return (Failure);
+		ResourceHeader* pResourceHeaderOverlay = (pResourceHeader->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pResourceHeader->Header.OverlayPointer] : NULL;
 
-		Resize_Array((void**)&pResourceHeader->Header.iParents, pResourceHeader->Header.iParentsSize, pResourceHeader->Header.iParentsSize + 1, sizeof(*pResourceHeader->Header.iParents));
-		pResourceHeader->Header.iParentsSize = pResourceHeader->Header.iParentsSize + 1;
+		if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->Header.iObjects == pResourceHeaderOverlay->Header.iObjects) : false)) {
+			//copy new
+			pResourceHeader->Header.iObjects = CopyDataN(pResourceHeader->Header.iObjects, sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize);
+		}
 
-		pResourceHeader->Header.iParents[pResourceHeader->Header.iParentsSize - 1] = Parent;
-
+		Resize_Array((void**)&pResourceHeader->Header.iObjects, pResourceHeader->Header.iObjectsSize, pResourceHeader->Header.iObjectsSize + 1, sizeof(*pResourceHeader->Header.iObjects));
+		pResourceHeader->Header.iObjectsSize = pResourceHeader->Header.iObjectsSize + 1;
+		pResourceHeader->Header.iObjects[pResourceHeader->Header.iObjectsSize - 1] = Parent;
+		End_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
 	}
 }
 /*
@@ -2247,37 +2825,52 @@ void Add_Object_ResourceHeaderChild(ResourceHeaderAllocation Allocation, ObjectA
 * @param Parent refrencing the desired resourceheader to make parent of Allocation.
 * @note Externally Synchronized.
 */
-void Add_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHeaderAllocation Parent)
-{
+void Add_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHeaderAllocation Parent, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
+	AllocationData* pParentAllocationData = Get_ResourceHeaderAllocationData(Parent);
 #ifndef NDEBUG
-	if (Get_ElementAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Add_ResourceHeader_ElementChild", "Allocation Invalid.");
+		Engine_Ref_ArgsError("Add_ResourceHeader_ElementChild()", "Allocation Invalid");
 		return;
 	}
-	if (Get_ResourceHeaderAllocationValidity(Parent) == Failure)
+	if (pParentAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Add_ResourceHeader_ElementChild", "Parent Invalid.");
+		Engine_Ref_ArgsError("Add_ResourceHeader_ElementChild()", "Parent Invalid.");
 		return;
 	}
 #endif
 	{
-		ResourceHeader* pParent = Get_ResourceHeaderPointer(Parent);
+		ResourceHeader* pParent = Get_ResourceHeaderPointer(Parent, true, false, ThreadIndex);
+		if (pParent == NULL)
+			return (Failure);
+		ResourceHeader* pParentOverlay = (pParent->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pParent->Header.OverlayPointer] : NULL;
+
+		if (((pParentOverlay != NULL) ? (pParent->Header.iElements == pParentOverlay->Header.iElements) : false)) {
+			//copy new
+			pParent->Header.iElements = CopyDataN(pParent->Header.iElements, sizeof(*pParent->Header.iElements) * pParent->Header.iElementsSize);
+		}
 
 		Resize_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, pParent->Header.iElementsSize + 1, sizeof(*pParent->Header.iElements));
 		pParent->Header.iElementsSize = pParent->Header.iElementsSize + 1;
-
 		pParent->Header.iElements[pParent->Header.iElementsSize - 1] = Allocation;
+		End_ResourceHeaderPointer(Parent, true, false, ThreadIndex);
 	}
-
 	{
-		Element* pElement = Get_ElementPointer(Allocation);
+		Element* pElement = Get_ElementPointer(Allocation, true, false, ThreadIndex);
+		if (pElement == NULL)
+			return (Failure);
+		Element* pElementOverlay = (pElement->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pElement->Header.OverlayPointer] : NULL;
 
-		Resize_Array((void**)&pElement->Header.iParents, pElement->Header.iParentsSize, pElement->Header.iParentsSize + 1, sizeof(*pElement->Header.iParents));
-		pElement->Header.iParentsSize = pElement->Header.iParentsSize + 1;
+		if (((pElementOverlay != NULL) ? (pElement->Header.iResourceHeaders == pElementOverlay->Header.iResourceHeaders) : false)) {
+			//copy new
+			pElement->Header.iResourceHeaders = CopyDataN(pElement->Header.iResourceHeaders, sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize);
+		}
 
-		pElement->Header.iParents[pElement->Header.iParentsSize - 1] = Parent;
-
+		Resize_Array((void**)&pElement->Header.iResourceHeaders, pElement->Header.iResourceHeadersSize, pElement->Header.iResourceHeadersSize + 1, sizeof(*pElement->Header.iResourceHeaders));
+		pElement->Header.iResourceHeadersSize = pElement->Header.iResourceHeadersSize + 1;
+		pElement->Header.iResourceHeaders[pElement->Header.iResourceHeadersSize - 1] = Parent;
+		End_ElementPointer(Allocation, true, false, ThreadIndex);
 	}
 }
 
@@ -2292,43 +2885,48 @@ void Add_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHeade
 * @param Parent refrencing the desired object to remove parent of Allocation.
 * @note Externally Synchronized.
 */
-void Remove_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent)
-{
+void Remove_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
+	AllocationData* pParentAllocationData = Get_ObjectAllocationData(Parent);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Remove_ObjectChild", "Allocation Invalid.");
+		Engine_Ref_ArgsError("Remove_ObjectChild()", "Allocation Invalid");
 		return;
 	}
-	if (Get_ObjectAllocationValidity(Parent) == Failure)
+	if (pParentAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Remove_ObjectChild", "Parent Invalid.");
 		return;
 	}
 #endif
 	{
-		Object* pParent = Get_ObjectPointer(Parent);
+		Object* pParent = Get_ObjectPointer(Parent, true, false, ThreadIndex);
+		if (pParent == NULL)
+			return (Failure);
+		Object* pParentOverlay = (pParent->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pParent->Header.OverlayPointer] : NULL;
 
-		uint64_t index = 0;
-		bool found = false;
+		if (((pParentOverlay != NULL) ? (pParent->Header.iChildren == pParentOverlay->Header.iChildren) : false)) {
+			//copy new
+			pParent->Header.iChildren = CopyDataN(pParent->Header.iChildren, sizeof(*pParent->Header.iChildren) * pParent->Header.iChildrenSize);
+		}
+
 		for (size_t i = 0; i < pParent->Header.iChildrenSize; i++)
 		{
-			if (pParent->Header.iChildren[i].Pointer == Allocation.Pointer)
+			if (Compare_ObjectAllocation(pParent->Header.iChildren[i], Allocation) == Success)
 			{
-				index = i;
-				found = true;
+				RemoveMember_Array((void**)&pParent->Header.iChildren, pParent->Header.iChildrenSize, i, sizeof(*pParent->Header.iChildren), 1);
+				pParent->Header.iChildrenSize = pParent->Header.iChildrenSize - 1;
 			}
 		}
-		if (found == false)
-			return;
-
-		RemoveMember_Array((void**)&pParent->Header.iChildren, pParent->Header.iChildrenSize, index, sizeof(*pParent->Header.iChildren), 1);
-		pParent->Header.iChildrenSize = pParent->Header.iChildrenSize - 1;
+		End_ObjectPointer(Parent, true, false, ThreadIndex);
 	}
-
 	{
-		Object* pChild = Get_ObjectPointer(Allocation);
+		Object* pChild = Get_ObjectPointer(Allocation, true, false, ThreadIndex);
+		if (pChild == NULL)
+			return (Failure);
 		memset(&pChild->Header.iParent, 0, sizeof(pChild->Header.iParent));
+		End_ObjectPointer(Allocation, true, false, ThreadIndex);
 	}
 }
 /*
@@ -2338,35 +2936,62 @@ void Remove_ObjectChild(ObjectAllocation Allocation, ObjectAllocation Parent)
 * @param Parent refrencing the desired object to remove parent of Allocation.
 * @note Externally Synchronized.
 */
-void Remove_Object_ResourceHeaderChild(ResourceHeaderAllocation Allocation, ObjectAllocation Parent)
-{
+void Remove_Object_ResourceHeaderChild(ResourceHeaderAllocation Allocation, ObjectAllocation Parent, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
+	AllocationData* pParentAllocationData = Get_ObjectAllocationData(Parent);
 #ifndef NDEBUG
-	if (Get_ResourceHeaderAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Remove_Object_ResourceHeaderChild", "Allocation Invalid.");
+		Engine_Ref_ArgsError("Remove_ResourceHeader_ElementChild()", "Allocation Invalid");
 		return;
 	}
-	if (Get_ObjectAllocationValidity(Parent) == Failure)
+	if (pParentAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Remove_Object_ResourceHeaderChild", "Parent Invalid.");
 		return;
 	}
 #endif
 	{
-		Object* pParent = Get_ObjectPointer(Parent);
+		Object* pParent = Get_ObjectPointer(Parent, true, false, ThreadIndex);
+		if (pParent == NULL)
+			return (Failure);
+		Object* pParentOverlay = (pParent->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pParent->Header.OverlayPointer] : NULL;
 
-		Resize_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, pParent->Header.iResourceHeadersSize + 1, sizeof(*pParent->Header.iResourceHeaders));
-		pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize + 1;
+		if (((pParentOverlay != NULL) ? (pParent->Header.iResourceHeaders == pParentOverlay->Header.iResourceHeaders) : false)) {
+			//copy new
+			pParent->Header.iResourceHeaders = CopyDataN(pParent->Header.iResourceHeaders, sizeof(*pParent->Header.iResourceHeaders) * pParent->Header.iResourceHeadersSize);
+		}
 
-		pParent->Header.iResourceHeaders[pParent->Header.iResourceHeadersSize - 1] = Allocation;
+		for (size_t i = 0; i < pParent->Header.iResourceHeadersSize; i++)
+		{
+			if (Compare_ResourceHeaderAllocation(pParent->Header.iResourceHeaders[i], Allocation) == Success)
+			{
+				RemoveMember_Array((void**)&pParent->Header.iResourceHeaders, pParent->Header.iResourceHeadersSize, i, sizeof(*pParent->Header.iResourceHeaders), 1);
+				pParent->Header.iResourceHeadersSize = pParent->Header.iResourceHeadersSize - 1;
+			}
+		}
+		End_ObjectPointer(Parent, true, false, ThreadIndex);
 	}
 	{
-		ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation);
+		ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
+		if (pResourceHeader == NULL)
+			return (Failure);
+		ResourceHeader* pResourceHeaderOverlay = (pResourceHeader->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pResourceHeader->Header.OverlayPointer] : NULL;
 
-		Resize_Array((void**)&pResourceHeader->Header.iParents, pResourceHeader->Header.iParentsSize, pResourceHeader->Header.iParentsSize + 1, sizeof(*pResourceHeader->Header.iParents));
-		pResourceHeader->Header.iParentsSize = pResourceHeader->Header.iParentsSize + 1;
+		if (((pResourceHeaderOverlay != NULL) ? (pResourceHeader->Header.iObjects == pResourceHeaderOverlay->Header.iObjects) : false)) {
+			//copy new
+			pResourceHeader->Header.iObjects = CopyDataN(pResourceHeader->Header.iObjects, sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize);
+		}
 
-		pResourceHeader->Header.iParents[pResourceHeader->Header.iParentsSize - 1] = Parent;
+		for (size_t i = 0; i < pResourceHeader->Header.iObjectsSize; i++)
+		{
+			if (Compare_ObjectAllocation(pResourceHeader->Header.iObjects[i], Parent) == Success)
+			{
+				RemoveMember_Array((void**)&pResourceHeader->Header.iObjects, pResourceHeader->Header.iObjectsSize, i, sizeof(*pResourceHeader->Header.iObjects), 1);
+				pResourceHeader->Header.iObjectsSize = pResourceHeader->Header.iObjectsSize - 1;
+			}
+		}
+		End_ResourceHeaderPointer(Allocation, true, false, ThreadIndex);
 	}
 }
 /*
@@ -2376,62 +3001,67 @@ void Remove_Object_ResourceHeaderChild(ResourceHeaderAllocation Allocation, Obje
 * @param Parent refrencing the desired resourceheader to remove parent of Allocation.
 * @note Externally Synchronized.
 */
-void Remove_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHeaderAllocation Parent)
-{
+void Remove_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHeaderAllocation Parent, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
+	AllocationData* pParentAllocationData = Get_ResourceHeaderAllocationData(Parent);
 #ifndef NDEBUG
-	if (Get_ElementAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Remove_ResourceHeader_ElementChild", "Allocation Invalid.");
+		Engine_Ref_ArgsError("Remove_ResourceHeader_ElementChild()", "Allocation Invalid");
 		return;
 	}
-	if (Get_ResourceHeaderAllocationValidity(Parent) == Failure)
+	if (pParentAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Remove_ResourceHeader_ElementChild", "Parent Invalid.");
 		return;
 	}
 #endif
 	{
-		ResourceHeader* pParent = Get_ResourceHeaderPointer(Parent);
+		ResourceHeader* pParent = Get_ResourceHeaderPointer(Parent, true, false, ThreadIndex);
+		if (pParent == NULL)
+			return (Failure);
+		ResourceHeader* pParentOverlay = (pParent->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pParent->Header.OverlayPointer] : NULL;
 
-		uint64_t index = 0;
-		bool found = false;
+		if (((pParentOverlay != NULL) ? (pParent->Header.iElements == pParentOverlay->Header.iElements) : false)) {
+			//copy new
+			pParent->Header.iElements = CopyDataN(pParent->Header.iElements, sizeof(*pParent->Header.iElements) * pParent->Header.iElementsSize);
+		}
+
 		for (size_t i = 0; i < pParent->Header.iElementsSize; i++)
 		{
-			if (pParent->Header.iElements[i].Pointer == Allocation.Pointer)
+			if (Compare_ElementAllocation(pParent->Header.iElements[i], Allocation) == Success)
 			{
-				index = i;
-				found = true;
+				RemoveMember_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, i, sizeof(*pParent->Header.iElements), 1);
+				pParent->Header.iElementsSize = pParent->Header.iElementsSize - 1;
 			}
 		}
-		if (found == false)
-			return;
-
-		RemoveMember_Array((void**)&pParent->Header.iElements, pParent->Header.iElementsSize, index, sizeof(*pParent->Header.iElements), 1);
-		pParent->Header.iElementsSize = pParent->Header.iElementsSize - 1;
+		End_ResourceHeaderPointer(Parent, true, false, ThreadIndex);
 	}
 	{
-		Element* pElement = Get_ElementPointer(Allocation);
+		Element* pElement = Get_ElementPointer(Allocation, true, false, ThreadIndex);
+		if (pElement == NULL)
+			return (Failure);
+		Element* pElementOverlay = (pElement->Header.OverlayPointer != UINT32_MAX) ? &Utils.InternalObjectBuffer.Buffer[pElement->Header.OverlayPointer] : NULL;
 
-		uint64_t index = 0;
-		bool found = false;
-		for (size_t i = 0; i < pElement->Header.iParentsSize; i++)
+		if (((pElementOverlay != NULL) ? (pElement->Header.iResourceHeaders == pElementOverlay->Header.iResourceHeaders) : false)) {
+			//copy new
+			pElement->Header.iResourceHeaders = CopyDataN(pElement->Header.iResourceHeaders, sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize);
+		}
+
+		for (size_t i = 0; i < pElement->Header.iResourceHeadersSize; i++)
 		{
-			if (pElement->Header.iParents[i].Pointer == Parent.Pointer)
+			if (Compare_ResourceHeaderAllocation(pElement->Header.iResourceHeaders[i], Parent) == Success)
 			{
-				index = i;
-				found = true;
+				RemoveMember_Array((void**)&pElement->Header.iResourceHeaders, pElement->Header.iResourceHeadersSize, i, sizeof(*pElement->Header.iResourceHeaders), 1);
+				pElement->Header.iResourceHeadersSize = pElement->Header.iResourceHeadersSize - 1;
 			}
 		}
-		if (found == false)
-			return;
-
-		RemoveMember_Array((void**)&pElement->Header.iParents, pElement->Header.iParentsSize, index, sizeof(*pElement->Header.iParents), 1);
-		pElement->Header.iParentsSize = pElement->Header.iParentsSize - 1;
+		End_ElementPointer(Allocation, true, false, ThreadIndex);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Misc object Functions
+//Scan Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -2441,10 +3071,10 @@ void Remove_ResourceHeader_ElementChild(ElementAllocation Allocation, ResourceHe
 * @param pChildsSize is a pointer to size of the array to return.
 * @note Externally Synchronized.
 */
-void Scan_ObjectChilds(ObjectAllocation Allocation, ObjectAllocation** pChilds, uint64_t* pChildsSize) //scans all recursive childs of a gameobject. Returns a array of childs
-{
+void Scan_ObjectChilds(ObjectAllocation Allocation, ObjectAllocation** pChilds, uint64_t* pChildsSize, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Scan_ObjectChilds", "Allocation Invalid.");
 		return;
@@ -2460,22 +3090,19 @@ void Scan_ObjectChilds(ObjectAllocation Allocation, ObjectAllocation** pChilds, 
 		return;
 	}
 #endif
-	Object* pObject = Get_ObjectPointer(Allocation);
+	Object* pObject = Get_ObjectPointer(Allocation, false, false, ThreadIndex);
+	if (pObject == NULL)
+		return;
 	for (size_t i = 0; i < pObject->Header.iChildrenSize; i++)
 	{
-		ObjectSignature* pSignature = NULL;
-		ObjectBufferIndex BufferIndex = 0;
-		Find_ObjectSignature(pObject->Header.iChildren[i].Identifier, &pSignature, &BufferIndex);
-
-
 		uint64_t ChildsSize = *pChildsSize;
 		Resize_Array((void**)pChilds, ChildsSize, ChildsSize + 1, sizeof(ObjectAllocation));
 		ObjectAllocation* Childs = *pChilds;
-		Childs[ChildsSize] = Utils.ObjectSignatures[BufferIndex]->Buffer->Buffer[pObject->Header.iChildren[i].Pointer].Header.Allocation;
+		Childs[ChildsSize] = pObject->Header.iChildren[i];
 		*pChildsSize += 1;
-		Scan_ObjectChilds(Allocation, pChilds, pChildsSize);
+		Scan_ObjectChilds(Allocation, pChilds, pChildsSize, ThreadIndex);
 	}
-
+	End_ObjectPointer(Allocation, false, false, ThreadIndex);
 }
 /*
 * Added in 1.0.0
@@ -2484,10 +3111,10 @@ void Scan_ObjectChilds(ObjectAllocation Allocation, ObjectAllocation** pChilds, 
 * @param pParentsSize is a pointer to size of the array to return.
 * @note Externally Synchronized.
 */
-void Scan_ObjectParents(ObjectAllocation Allocation, ObjectAllocation** pParents, uint64_t* pParentsSize) //scans all recursive parents of a gameobject. Returns a array of parents
-{
+void Scan_ObjectParents(ObjectAllocation Allocation, ObjectAllocation** pParents, uint64_t* pParentsSize, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
 		Engine_Ref_ArgsError("Scan_ObjectParents", "Allocation Invalid.");
 		return;
@@ -2503,94 +3130,183 @@ void Scan_ObjectParents(ObjectAllocation Allocation, ObjectAllocation** pParents
 		return;
 	}
 #endif
-	Object* pObject = Get_ObjectPointer(Allocation);
-
-	if (Get_ObjectAllocationValidity(pObject->Header.iParent) == Success)
+	Object* pObject = Get_ObjectPointer(Allocation, false, false, ThreadIndex);
+	if (pObject == NULL)
+		return;
+	if (Get_ObjectAllocationData(pObject->Header.iParent) != NULL)
 	{
-		ObjectSignature* pSignature = NULL;
-		ObjectBufferIndex BufferIndex = 0;
-		Find_ObjectSignature(pObject->Header.iParent.Identifier, &pSignature, &BufferIndex);
-
 		uint64_t ParentsSize = *pParentsSize;
 		Resize_Array((void**)pParents, ParentsSize, ParentsSize + 1, sizeof(ObjectAllocation));
 		ObjectAllocation* Parents = *pParents;
-		Parents[ParentsSize] = pSignature->Buffer->Buffer[pObject->Header.iParent.Pointer].Header.Allocation;
+		Parents[ParentsSize] = pObject->Header.iParent;
 		*pParentsSize += 1;
-		Scan_ObjectParents(pSignature->Buffer->Buffer[pObject->Header.iParent.Pointer].Header.Allocation, pParents, pParentsSize);
+		Scan_ObjectParents(pObject->Header.iParent, pParents, pParentsSize, ThreadIndex);
 	}
+	End_ObjectPointer(Allocation, false, false, ThreadIndex);
 }
 /*
 * Added in 1.0.0
-* Macro for scanning all resourceheader childs of specified identifier of a gameobject. 
-* @param pHeaders is a pointer to an array of allocations to return.
-* @param pHeadersSize is a pointer to size of the array to return.
+* Macro for scanning all resourceheader childs of specified identifier of a object. 
+* @param Allocation Allocation to scan from.
+* @param Identifier desired Identifier to find.
+* @param pResourceHeaders is a pointer to an array of allocations to return.
+* @param pResourceHeadersSize is a pointer to size of the array to return.
 * @note Externally Synchronized.
 */
-void Scan_ObjectHeaders(ObjectAllocation Allocation, ResourceHeaderIdentifier Identifier, ResourceHeaderAllocation** pHeaders, uint64_t* pHeadersSize) //finds the requested header
-{
+void Scan_ObjectResourceHeaders(ObjectAllocation Allocation, ResourceHeaderIdentifier Identifier, ResourceHeaderAllocation** pResourceHeaders, uint64_t* pResourceHeadersSize, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Scan_ObjectHeaders", "Allocation Invalid.");
+		Engine_Ref_ArgsError("Scan_ObjectResourceHeaders", "Allocation Invalid.");
 		return;
 	}
 	if (Identifier == NULL)
 	{
-		Engine_Ref_ArgsError("Scan_ObjectHeaders", "Identifier Invalid.");
+		Engine_Ref_ArgsError("Scan_ObjectResourceHeaders", "Identifier Invalid.");
 		return;
 	}
-	if (pHeaders == NULL)
+	if (pResourceHeaders == NULL)
 	{
-		Engine_Ref_ArgsError("Scan_ObjectHeaders()", "pHeaders == NULLPTR");
+		Engine_Ref_ArgsError("Scan_ObjectResourceHeaders()", "pResourceHeaders == NULLPTR");
 		return;
 	}
-	if (pHeadersSize == NULL)
+	if (pResourceHeadersSize == NULL)
 	{
-		Engine_Ref_ArgsError("Scan_ObjectHeaders()", "pHeadersSize == NULLPTR");
+		Engine_Ref_ArgsError("Scan_ObjectResourceHeaders()", "pResourceHeadersSize == NULLPTR");
 		return;
 	}
 #endif
-	Object* pObject = Get_ObjectPointer(Allocation);
+	Object* pObject = Get_ObjectPointer(Allocation, false, false, ThreadIndex);
+	if (pObject == NULL)
+		return;
 	for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
-	{
-		if (Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i])->Header.Allocation.Identifier == Identifier)
+	{		
+		if (pObject->Header.iResourceHeaders[i].Identifier == Identifier)
 		{		
-			uint64_t HeadersSize = *pHeadersSize;
-			Resize_Array((void**)pHeaders, HeadersSize, HeadersSize + 1, sizeof(ResourceHeaderAllocation));
-			ResourceHeaderAllocation* Headers = *pHeaders;
-			Headers[HeadersSize] = pObject->Header.iResourceHeaders[i];
-			*pHeadersSize += 1;
+			uint64_t ResourceHeadersSize = *pResourceHeadersSize;
+			Resize_Array((void**)pResourceHeaders, ResourceHeadersSize, ResourceHeadersSize + 1, sizeof(ResourceHeaderAllocation));
+			ResourceHeaderAllocation* ResourceHeaders = *pResourceHeaders;
+			ResourceHeaders[ResourceHeadersSize] = pObject->Header.iResourceHeaders[i];
+			*pResourceHeadersSize += 1;
 		}
 	}
+	End_ObjectPointer(Allocation, false, false, ThreadIndex);
 }
 /*
 * Added in 1.0.0
-* Macro for scanning all resourceheader childs of specified identifier of a gameobject, 
-* except unlike Scan_ObjectHeaders() it only returns the first found of specified identifier. 
-* @param pHeaders is a pointer to an array of allocations to return.
-* @param pHeadersSize is a pointer to size of the array to return.
+* Macro for scanning all element childs of specified identifier of a resourceheader.
+* @param Allocation Allocation to scan from.
+* @param Identifier desired Identifier to find.
+* @param pElements is a pointer to an array of allocations to return.
+* @param pElementsSize is a pointer to size of the array to return.
 * @note Externally Synchronized.
 */
-ResourceHeader* Scan_ObjectHeadersSingle(ObjectAllocation Allocation, ResourceHeaderIdentifier Identifier)
-{
+void Scan_ResourceHeaderElements(ResourceHeaderAllocation Allocation, ElementIdentifier Identifier, ElementAllocation** pElements, uint64_t* pElementsSize, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 #ifndef NDEBUG
-	if (Get_ObjectAllocationValidity(Allocation) == Failure)
+	if (pAllocationData == NULL)
 	{
-		Engine_Ref_ArgsError("Scan_ObjectHeadersSingle", "Allocation Invalid.");
-		return NULL;
+		Engine_Ref_ArgsError("Scan_ResourceHeaderElements", "Allocation Invalid.");
+		return;
 	}
 	if (Identifier == NULL)
 	{
-		Engine_Ref_ArgsError("Scan_ObjectHeadersSingle", "Identifier Invalid.");
-		return NULL;
+		Engine_Ref_ArgsError("Scan_ResourceHeaderElements", "Identifier Invalid.");
+		return;
+	}
+	if (pElements == NULL)
+	{
+		Engine_Ref_ArgsError("Scan_ResourceHeaderElements()", "pElements == NULLPTR");
+		return;
+	}
+	if (pElementsSize == NULL)
+	{
+		Engine_Ref_ArgsError("Scan_ResourceHeaderElements()", "pElementsSize == NULLPTR");
+		return;
 	}
 #endif
-	Object* pObject = Get_ObjectPointer(Allocation);
-	for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
-		if (Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i])->Header.Allocation.Identifier == Identifier)
-			return Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i]);
-
-	return NULL;
+	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, false, false, ThreadIndex);
+	if (pResourceHeader == NULL)
+		return;
+	for (size_t i = 0; i < pResourceHeader->Header.iElementsSize; i++)
+	{
+		if (pResourceHeader->Header.iElements[i].Identifier == Identifier)
+		{
+			uint64_t ElementsSize = *pElementsSize;
+			Resize_Array((void**)pElements, ElementsSize, ElementsSize + 1, sizeof(ElementAllocation));
+			ElementAllocation* Elements = *pElements;
+			Elements[ElementsSize] = pResourceHeader->Header.iElements[i];
+			*pElementsSize += 1;
+		}
+	}
+	End_ResourceHeaderPointer(Allocation, false, false, ThreadIndex);
+}
+/*
+* Added in 1.0.0
+* Macro for scanning all resourceheader childs of specified identifier of a object, 
+* except unlike Scan_ObjectHeaders() it only returns the first found of specified identifier. 
+* @param Allocation Allocation to scan from.
+* @param Identifier desired Identifier to find.
+* @note Externally Synchronized.
+*/
+ResourceHeaderAllocation Scan_ObjectResourceHeadersSingle(ObjectAllocation Allocation, ResourceHeaderIdentifier Identifier, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
+	ResourceHeaderAllocation Return = { sizeof(Return) };
+#ifndef NDEBUG
+	if (pAllocationData == NULL)
+	{
+		Engine_Ref_ArgsError("Scan_ObjectResourceHeadersSingle", "Allocation Invalid.");
+		return Return;
+	}
+	if (Identifier == NULL)
+	{
+		Engine_Ref_ArgsError("Scan_ObjectResourceHeadersSingle", "Identifier Invalid.");
+		return Return;
+	}
+#endif
+	Object* pObject = Get_ObjectPointer(Allocation, false, false, ThreadIndex);
+	if (pObject == NULL)
+		return;
+	for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++) {
+		if (pObject->Header.iResourceHeaders[i].Identifier == Identifier)
+			return pObject->Header.iResourceHeaders[i];
+	}
+	End_ObjectPointer(Allocation, false, false, ThreadIndex);
+	return Return;
+}
+/*
+* Added in 1.0.0
+* Macro for scanning all element childs of specified identifier of a resourceheader.
+* except unlike Scan_ResourceHeaderElements() it only returns the first found of specified identifier.
+* @param Allocation Allocation to scan from.
+* @param Identifier desired Identifier to find.
+* @note Externally Synchronized.
+*/
+ElementAllocation Scan_ResourceHeaderElementsSingle(ResourceHeaderAllocation Allocation, ElementIdentifier Identifier, uint32_t ThreadIndex) {
+	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
+	ElementAllocation Return = { sizeof(Return) };
+#ifndef NDEBUG
+	if (pAllocationData == NULL)
+	{
+		Engine_Ref_ArgsError("Scan_ResourceHeaderElementsSingle", "Allocation Invalid.");
+		return Return;
+	}
+	if (Identifier == NULL)
+	{
+		Engine_Ref_ArgsError("Scan_ResourceHeaderElementsSingle", "Identifier Invalid.");
+		return Return;
+	}
+#endif
+	ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, false, false, ThreadIndex);
+	if (pResourceHeader == NULL)
+		return;
+	for (size_t i = 0; i < pResourceHeader->Header.iElementsSize; i++) {
+		if (pResourceHeader->Header.iElements[i].Identifier == Identifier)
+			return pResourceHeader->Header.iElements[i];
+	}
+	End_ResourceHeaderPointer(Allocation, false, false, ThreadIndex);
+	return Return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2604,30 +3320,34 @@ ResourceHeader* Scan_ObjectHeadersSingle(ObjectAllocation Allocation, ResourceHe
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Register_ObjectSignature(ObjectSignature* pSignature)
-{
+TEXRESULT Register_ObjectSignature(ObjectSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("Register_ObjectSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->Identifier == NULL)
+	{
+		Engine_Ref_ArgsError("Register_ObjectSignature()", "pSignature->Identifier == NULL, This is invalid.");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ObjectSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ObjectSignaturesMutex);
 	for (size_t i = 0; i < Utils.ObjectSignaturesSize; i++)
 	{
 		if (Utils.ObjectSignatures[i]->Identifier == pSignature->Identifier)
 		{
 			Engine_Ref_ArgsError("Register_ObjectSignature()", "pSignature->Identifier Already Used.");
-			Engine_Ref_Unlock_Mutex(Utils.ObjectSignaturesMutex);
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			Engine_Ref_Unlock_Mutex(&Utils.ObjectSignaturesMutex);
+			return (Invalid_Parameter | Failure);
 		}
 	}
 	Resize_Array((void**)&Utils.ObjectSignatures, Utils.ObjectSignaturesSize, Utils.ObjectSignaturesSize + 1, sizeof(*Utils.ObjectSignatures));
 	Utils.ObjectSignatures[Utils.ObjectSignaturesSize] = pSignature;
 	Utils.ObjectSignaturesSize++;
-	Engine_Ref_Unlock_Mutex(Utils.ObjectSignaturesMutex);
-	return (TEXRESULT)(Success);
+	Engine_Ref_Unlock_Mutex(&Utils.ObjectSignaturesMutex);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -2636,30 +3356,34 @@ TEXRESULT Register_ObjectSignature(ObjectSignature* pSignature)
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Register_ResourceHeaderSignature(ResourceHeaderSignature* pSignature)
-{
+TEXRESULT Register_ResourceHeaderSignature(ResourceHeaderSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("Register_ResourceHeaderSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->Identifier == NULL)
+	{
+		Engine_Ref_ArgsError("Register_ResourceHeaderSignature()", "pSignature->Identifier == NULL, This is invalid.");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ResourceHeaderSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ResourceHeaderSignaturesMutex);
 	for (size_t i = 0; i < Utils.ResourceHeaderSignaturesSize; i++)
 	{
 		if (Utils.ResourceHeaderSignatures[i]->Identifier == pSignature->Identifier)
 		{
 			Engine_Ref_ArgsError("Register_ResourceHeaderSignature()", "pSignature->Identifier Already Used.");
-			Engine_Ref_Unlock_Mutex(Utils.ResourceHeaderSignaturesMutex);
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			Engine_Ref_Unlock_Mutex(&Utils.ResourceHeaderSignaturesMutex);
+			return (Invalid_Parameter | Failure);
 		}
 	}
 	Resize_Array((void**)&Utils.ResourceHeaderSignatures, Utils.ResourceHeaderSignaturesSize, Utils.ResourceHeaderSignaturesSize + 1, sizeof(*Utils.ResourceHeaderSignatures));
 	Utils.ResourceHeaderSignatures[Utils.ResourceHeaderSignaturesSize] = pSignature;
 	Utils.ResourceHeaderSignaturesSize++;
-	Engine_Ref_Unlock_Mutex(Utils.ResourceHeaderSignaturesMutex);
-	return (TEXRESULT)(Success);
+	Engine_Ref_Unlock_Mutex(&Utils.ResourceHeaderSignaturesMutex);
+	return (Success);
 }
 /*
 * Added in 1.0.0
@@ -2668,30 +3392,34 @@ TEXRESULT Register_ResourceHeaderSignature(ResourceHeaderSignature* pSignature)
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT Register_ElementSignature(ElementSignature* pSignature)
-{
+TEXRESULT Register_ElementSignature(ElementSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("Register_ElementSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->Identifier == NULL)
+	{
+		Engine_Ref_ArgsError("Register_ElementSignature()", "pSignature->Identifier == NULL, This is invalid.");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ElementSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ElementSignaturesMutex);
 	for (size_t i = 0; i < Utils.ElementSignaturesSize; i++)
 	{
 		if (Utils.ElementSignatures[i]->Identifier == pSignature->Identifier)
 		{
 			Engine_Ref_ArgsError("Register_ElementSignature()", "pSignature->Identifier Already Used.");
-			Engine_Ref_Unlock_Mutex(Utils.ElementSignaturesMutex);
-			return (TEXRESULT)(Invalid_Parameter | Failure);
+			Engine_Ref_Unlock_Mutex(&Utils.ElementSignaturesMutex);
+			return (Invalid_Parameter | Failure);
 		}
 	}
 	Resize_Array((void**)&Utils.ElementSignatures, Utils.ElementSignaturesSize, Utils.ElementSignaturesSize + 1, sizeof(*Utils.ElementSignatures));
 	Utils.ElementSignatures[Utils.ElementSignaturesSize] = pSignature;
 	Utils.ElementSignaturesSize++;
-	Engine_Ref_Unlock_Mutex(Utils.ElementSignaturesMutex);
-	return (TEXRESULT)(Success);
+	Engine_Ref_Unlock_Mutex(&Utils.ElementSignaturesMutex);
+	return (Success);
 } 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2705,29 +3433,38 @@ TEXRESULT Register_ElementSignature(ElementSignature* pSignature)
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT DeRegister_ObjectSignature(ObjectSignature* pSignature)
-{
+TEXRESULT DeRegister_ObjectSignature(ObjectSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("DeRegister_ObjectSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->AllocationsCount != NULL)
+	{
+		Engine_Ref_ArgsError("DeRegister_ObjectSignature()", "pSignature still has allocations, this is invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->ObjectsCount != NULL)
+	{
+		Engine_Ref_ArgsError("DeRegister_ObjectSignature()", "pSignature still has objects, this is invalid.");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ObjectSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ObjectSignaturesMutex);
 	for (size_t i = 0; i < Utils.ObjectSignaturesSize; i++)
 	{
 		if (Utils.ObjectSignatures[i] == pSignature)
 		{
 			RemoveMember_Array((void**)&Utils.ObjectSignatures, Utils.ObjectSignaturesSize, i, sizeof(*Utils.ObjectSignatures), 1);
 			Utils.ObjectSignaturesSize--;
-			Engine_Ref_Unlock_Mutex(Utils.ObjectSignaturesMutex);
-			return (TEXRESULT)(Success);
+			Engine_Ref_Unlock_Mutex(&Utils.ObjectSignaturesMutex);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("DeRegister_ObjectSignature()", "pSignature Not Found.");
-	Engine_Ref_Unlock_Mutex(Utils.ObjectSignaturesMutex);
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	Engine_Ref_Unlock_Mutex(&Utils.ObjectSignaturesMutex);
+	return (Invalid_Parameter | Failure);
 }
 /*
 * Added in 1.0.0
@@ -2736,29 +3473,38 @@ TEXRESULT DeRegister_ObjectSignature(ObjectSignature* pSignature)
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature)
-{
+TEXRESULT DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("DeRegister_ResourceHeaderSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->AllocationsCount != NULL)
+	{
+		Engine_Ref_ArgsError("DeRegister_ResourceHeaderSignature()", "pSignature still has allocations, this is invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->ResourceHeadersCount != NULL)
+	{
+		Engine_Ref_ArgsError("DeRegister_ResourceHeaderSignature()", "pSignature still has resourceheaders, this is invalid.");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ResourceHeaderSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ResourceHeaderSignaturesMutex);
 	for (size_t i = 0; i < Utils.ResourceHeaderSignaturesSize; i++)
 	{
 		if (Utils.ResourceHeaderSignatures[i] == pSignature)
 		{
 			RemoveMember_Array((void**)&Utils.ResourceHeaderSignatures, Utils.ResourceHeaderSignaturesSize, i, sizeof(*Utils.ResourceHeaderSignatures), 1);
 			Utils.ResourceHeaderSignaturesSize--;
-			Engine_Ref_Unlock_Mutex(Utils.ResourceHeaderSignaturesMutex);
-			return (TEXRESULT)(Success);
+			Engine_Ref_Unlock_Mutex(&Utils.ResourceHeaderSignaturesMutex);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("DeRegister_ResourceHeaderSignature()", "pSignature Not Found.");
-	Engine_Ref_Unlock_Mutex(Utils.ResourceHeaderSignaturesMutex);
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	Engine_Ref_Unlock_Mutex(&Utils.ResourceHeaderSignaturesMutex);
+	return (Invalid_Parameter | Failure);
 }
 /*
 * Added in 1.0.0
@@ -2767,153 +3513,147 @@ TEXRESULT DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature
 * @note Thread Safe.
 * @note Internally Synchronized.
 */
-TEXRESULT DeRegister_ElementSignature(ElementSignature* pSignature)
-{
+TEXRESULT DeRegister_ElementSignature(ElementSignature* pSignature) {
 #ifndef NDEBUG
 	if (pSignature == NULL)
 	{
 		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->AllocationsCount != NULL)
+	{
+		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature still has allocations, this is invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pSignature->ElementsCount != NULL)
+	{
+		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature still has elements, this is invalid.");
+		return (Invalid_Parameter | Failure);
 	}
 #endif
-	Engine_Ref_Lock_Mutex(Utils.ElementSignaturesMutex);
+	Engine_Ref_Lock_Mutex(&Utils.ElementSignaturesMutex);
 	for (size_t i = 0; i < Utils.ElementSignaturesSize; i++)
 	{
 		if (Utils.ElementSignatures[i] == pSignature)
 		{
 			RemoveMember_Array((void**)&Utils.ElementSignatures, Utils.ElementSignaturesSize, i, sizeof(*Utils.ElementSignatures), 1);
 			Utils.ElementSignaturesSize--;
-			Engine_Ref_Unlock_Mutex(Utils.ElementSignaturesMutex);
-			return (TEXRESULT)(Success);
+			Engine_Ref_Unlock_Mutex(&Utils.ElementSignaturesMutex);
+			return (Success);
 		}
 	}
 	Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature Not Found.");
-	Engine_Ref_Unlock_Mutex(Utils.ElementSignaturesMutex);
-	return (TEXRESULT)(Invalid_Parameter | Failure);
+	Engine_Ref_Unlock_Mutex(&Utils.ElementSignaturesMutex);
+	return (Invalid_Parameter | Failure);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//BIN Functions
+//Binary Export/Import Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
 * Added in 1.0.0
-* Documentation Incomplete
+* writes all objects into file, regardless of anything.
+* @param Path file path to save to, C format.
+* @note Thread Safe.
 */
-TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
-{
+TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex) {
 #ifndef NDEBUG
 	if (Path == NULL)
 	{
 		Engine_Ref_ArgsError("Read_TEIF()", "Path == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	FILE* file = fopen((char*)Path, "wb"); //open file
 	if (file == NULL)
 	{
 		Engine_Ref_ArgsError("Write_TEIF()", "Failed to open file.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 
 	uint64_t FinalObjectSize = 0;
 	uint64_t FinalResourceHeaderSize = 0;
 	uint64_t FinalElementSize = 0;
 	uint64_t FinalBufferSize = 0;
-
-	for (size_t i = 0; i < Utils.ObjectSignaturesSize; i++)
+	for (size_t i = 0; i < Utils.InternalObjectBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ObjectSignature* pSignature = Utils.ObjectSignatures[i];
-		if (pSignature->Buffer != NULL)
+		AllocationData* pAllocationData = &Utils.InternalObjectBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Object.Identifier != 0)
 		{
-			for (size_t i1 = 0; i1 < pSignature->Buffer->Size;)
+			Object* pObject = Get_ObjectPointer(pAllocationData->Allocation.Object, false, false, ThreadIndex);
+			if (pObject != NULL)
 			{
-				Object* pObject = &pSignature->Buffer->Buffer[i1];
-				if (pObject->Header.AllocationSize != NULL && pObject->Header.Allocation.Identifier == pSignature->Identifier)
+				ObjectSignature* pSignature = NULL;
+				Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature);
+				if (pSignature->Packer != NULL)
 				{
-					if (pSignature->Packer != NULL)
-					{
-						Pack_ObjectTemplate* func = *pSignature->Packer;
-						func(pObject, NULL, &FinalBufferSize, NULL, ThreadIndex);
-					}
-
-					FinalBufferSize += sizeof(*pObject->Header.iResourceHeaders) * pObject->Header.iResourceHeadersSize;
-					FinalBufferSize += sizeof(*pObject->Header.iChildren) * pObject->Header.iChildrenSize;
-
-					if (pObject->Header.Name != NULL)
-						FinalBufferSize += strlen((const char*)pObject->Header.Name) + 1;
-
-					FinalObjectSize += pObject->Header.AllocationSize;
-					i1 += pObject->Header.AllocationSize;
+					Pack_ObjectTemplate* func = *pSignature->Packer;
+					func(pObject, NULL, &FinalBufferSize, NULL, ThreadIndex);
 				}
-				else
-				{
-					i1++;
-				}
+
+				FinalBufferSize += sizeof(*pObject->Header.iResourceHeaders) * pObject->Header.iResourceHeadersSize;
+				FinalBufferSize += sizeof(*pObject->Header.iChildren) * pObject->Header.iChildrenSize;
+
+				if (pObject->Header.Name != NULL)
+					FinalBufferSize += strlen((const char*)pObject->Header.Name) + 1;
+
+				FinalObjectSize += pObject->Header.AllocationSize;
 			}
+			//End_ObjectPointer(i, false, ThreadIndex);
 		}
 	}
-	for (size_t i = 0; i < Utils.ResourceHeaderSignaturesSize; i++)
+	for (size_t i = 0; i < Utils.InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ResourceHeaderSignature* pSignature = Utils.ResourceHeaderSignatures[i];
-		if (pSignature->Buffer != NULL)
+		AllocationData* pAllocationData = &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier != 0)
 		{
-			for (size_t i1 = 0; i1 < pSignature->Buffer->Size;)
+			ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+			if (pResourceHeader != NULL)
 			{
-				ResourceHeader* pResourceHeader = &pSignature->Buffer->Buffer[i1];
-				if (pResourceHeader->Header.AllocationSize != NULL && pResourceHeader->Header.Allocation.Identifier == pSignature->Identifier)
+				ResourceHeaderSignature* pSignature = NULL;
+				Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature);
+				if (pSignature->Packer != NULL)
 				{
-					if (pSignature->Packer != NULL)
-					{
-						Pack_ResourceHeaderTemplate* func = *pSignature->Packer;
-						func(pResourceHeader, NULL, &FinalBufferSize, NULL, ThreadIndex);
-					}
-
-					FinalBufferSize += sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize;
-					FinalBufferSize += sizeof(*pResourceHeader->Header.iParents) * pResourceHeader->Header.iParentsSize;
-
-					if (pResourceHeader->Header.Name != NULL)
-						FinalBufferSize += strlen((const char*)pResourceHeader->Header.Name) + 1;
-
-					FinalResourceHeaderSize += pResourceHeader->Header.AllocationSize;
-					i1 += pResourceHeader->Header.AllocationSize;
+					Pack_ResourceHeaderTemplate* func = *pSignature->Packer;
+					func(pResourceHeader, NULL, &FinalBufferSize, NULL, ThreadIndex);
 				}
-				else
-				{
-					i1++;
-				}
+
+				FinalBufferSize += sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize;
+				FinalBufferSize += sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize;
+
+				if (pResourceHeader->Header.Name != NULL)
+					FinalBufferSize += strlen((const char*)pResourceHeader->Header.Name) + 1;
+
+				FinalResourceHeaderSize += pResourceHeader->Header.AllocationSize;
 			}
+			//End_ResourceHeaderPointer(i, false, ThreadIndex);
 		}
 	}
-	for (size_t i = 0; i < Utils.ElementSignaturesSize; i++)
+	for (size_t i = 0; i < Utils.InternalElementBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ElementSignature* pSignature = Utils.ElementSignatures[i];
-		if (pSignature->Buffer != NULL)
+		AllocationData* pAllocationData = &Utils.InternalElementBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Element.Identifier != 0)
 		{
-			for (size_t i1 = 0; i1 < pSignature->Buffer->Size;)
+			Element* pElement = Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+			if (pElement != NULL)
 			{
-				Element* pElement = &pSignature->Buffer->Buffer[i1];
-				if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == pSignature->Identifier)
+				ElementSignature* pSignature = NULL;
+				Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature);
+				if (pSignature->Packer != NULL)
 				{
-					if (pSignature->Packer != NULL)
-					{
-						Pack_ElementTemplate* func = *pSignature->Packer;
-						func(pElement, NULL, &FinalBufferSize, NULL, ThreadIndex);
-					}
-
-					FinalBufferSize += sizeof(*pElement->Header.iParents) * pElement->Header.iParentsSize;
-
-					if (pElement->Header.Name != NULL)
-						FinalBufferSize += strlen((const char*)pElement->Header.Name) + 1;
-
-					FinalElementSize += pElement->Header.AllocationSize;
-					i1 += pElement->Header.AllocationSize;
+					Pack_ElementTemplate* func = *pSignature->Packer;
+					func(pElement, NULL, &FinalBufferSize, NULL, ThreadIndex);
 				}
-				else
-				{
-					i1++;
-				}
+
+				FinalBufferSize += sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize;
+
+				if (pElement->Header.Name != NULL)
+					FinalBufferSize += strlen((const char*)pElement->Header.Name) + 1;
+
+				FinalElementSize += pElement->Header.AllocationSize;
 			}
+			//End_ElementPointer(i, false, ThreadIndex);
 		}
 	}
 
@@ -2929,7 +3669,7 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		if (ObjectsData == NULL)
 		{
 			Engine_Ref_ArgsError("Write_TEIF()", "Out Of Memory.");
-			return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+			return (Out_Of_Memory_Result | Failure);
 		}
 	}
 	ResourceHeader* ResourceHeadersData = NULL;
@@ -2940,7 +3680,7 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		if (ResourceHeadersData == NULL)
 		{
 			Engine_Ref_ArgsError("Write_TEIF()", "Out Of Memory.");
-			return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+			return (Out_Of_Memory_Result | Failure);
 		}
 	}
 	Element* ElementsData = NULL;
@@ -2951,7 +3691,7 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		if (ElementsData == NULL)
 		{
 			Engine_Ref_ArgsError("Write_TEIF()", "Out Of Memory.");
-			return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+			return (Out_Of_Memory_Result | Failure);
 		}
 	}
 	uint8_t* MiscDataBuffer = NULL;
@@ -2962,139 +3702,128 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		if (MiscDataBuffer == NULL)
 		{
 			Engine_Ref_ArgsError("Write_TEIF()", "Out Of Memory.");
-			return (TEXRESULT)(Out_Of_Memory_Result | Failure);
+			return (Out_Of_Memory_Result | Failure);
 		}
 	}
 
-	for (size_t i = 0; i < Utils.ObjectSignaturesSize; i++)
+	for (size_t i = 0; i < Utils.InternalObjectBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ObjectSignature* pSignature = Utils.ObjectSignatures[i];
-		if (pSignature->Buffer != NULL)
+		AllocationData* pAllocationData = &Utils.InternalObjectBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Object.Identifier != 0)
 		{
-			for (size_t i1 = 0; i1 < pSignature->Buffer->Size;)
+			Object* pObject = Get_ObjectPointer(pAllocationData->Allocation.Object, false, true, ThreadIndex);
+			if (pObject != NULL)
 			{
-				Object* pObject = &pSignature->Buffer->Buffer[i1];
-				if (pObject->Header.AllocationSize != NULL && pObject->Header.Allocation.Identifier == pSignature->Identifier)
+				memcpy(&ObjectsData[FinalObjectPointer], pObject, pObject->Header.AllocationSize * sizeof(Object));
+				Object* pCopiedObject = &ObjectsData[FinalObjectPointer];
+				ObjectSignature* pSignature = NULL;
+				Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature);
+				if (pSignature->Packer != NULL)
 				{
-					memcpy(&ObjectsData[FinalObjectPointer], pObject, pObject->Header.AllocationSize * sizeof(Object));
-					Object* pCopiedObject = &ObjectsData[FinalObjectPointer];
-					if (pSignature->Packer != NULL)
-					{
-						Pack_ObjectTemplate* func = *pSignature->Packer;
-						func(pObject, pCopiedObject, &FinalBufferPointer, MiscDataBuffer, ThreadIndex);
-					}
-					if (pObject->Header.iResourceHeadersSize != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pObject->Header.iResourceHeaders, sizeof(*pObject->Header.iResourceHeaders) * pObject->Header.iResourceHeadersSize);
-						pCopiedObject->Header.iResourceHeaders = (ResourceHeaderAllocation*)FinalBufferPointer;
-						FinalBufferPointer += sizeof(*pObject->Header.iResourceHeaders) * pObject->Header.iResourceHeadersSize;
-					}
-					if (pObject->Header.iChildrenSize != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pObject->Header.iChildren, sizeof(*pObject->Header.iChildren) * pObject->Header.iChildrenSize);
-						pCopiedObject->Header.iChildren = (ObjectAllocation*)FinalBufferPointer;
-						FinalBufferPointer += sizeof(*pObject->Header.iChildren) * pObject->Header.iChildrenSize;
-					}
-					if (pObject->Header.Name != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pObject->Header.Name, strlen((char*)pObject->Header.Name) + 1);
-						pCopiedObject->Header.Name = (UTF8*)FinalBufferPointer;
-						FinalBufferPointer += strlen((char*)pObject->Header.Name) + 1;
-					}
-					FinalObjectPointer += pObject->Header.AllocationSize;
-					i1 += pObject->Header.AllocationSize;
+					Pack_ObjectTemplate* func = *pSignature->Packer;
+					func(pObject, pCopiedObject, &FinalBufferPointer, MiscDataBuffer, ThreadIndex);
 				}
-				else
+				if (pObject->Header.iResourceHeadersSize != NULL)
 				{
-					i1++;
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pObject->Header.iResourceHeaders, sizeof(*pObject->Header.iResourceHeaders) * pObject->Header.iResourceHeadersSize);
+					pCopiedObject->Header.iResourceHeaders = (ResourceHeaderAllocation*)FinalBufferPointer;
+					FinalBufferPointer += sizeof(*pObject->Header.iResourceHeaders) * pObject->Header.iResourceHeadersSize;
 				}
+				if (pObject->Header.iChildrenSize != NULL)
+				{
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pObject->Header.iChildren, sizeof(*pObject->Header.iChildren) * pObject->Header.iChildrenSize);
+					pCopiedObject->Header.iChildren = (ObjectAllocation*)FinalBufferPointer;
+					FinalBufferPointer += sizeof(*pObject->Header.iChildren) * pObject->Header.iChildrenSize;
+				}
+				if (pObject->Header.Name != NULL)
+				{
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pObject->Header.Name, strlen((char*)pObject->Header.Name) + 1);
+					pCopiedObject->Header.Name = (UTF8*)FinalBufferPointer;
+					FinalBufferPointer += strlen((char*)pObject->Header.Name) + 1;
+				}
+				FinalObjectPointer += pObject->Header.AllocationSize;
+				End_ObjectPointer(pAllocationData->Allocation.Object, false, true, ThreadIndex);
+				End_ObjectPointer(pAllocationData->Allocation.Object, false, false, ThreadIndex);
 			}
 		}
 	}
-	for (size_t i = 0; i < Utils.ResourceHeaderSignaturesSize; i++)
+	for (size_t i = 0; i < Utils.InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ResourceHeaderSignature* pSignature = Utils.ResourceHeaderSignatures[i];
-		if (pSignature->Buffer != NULL)
+		AllocationData* pAllocationData = &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier != 0)
 		{
-			for (size_t i1 = 0; i1 < pSignature->Buffer->Size;)
+			ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+			if (pResourceHeader != NULL)
 			{
-				ResourceHeader* pResourceHeader = &pSignature->Buffer->Buffer[i1];
-				if (pResourceHeader->Header.AllocationSize != NULL && pResourceHeader->Header.Allocation.Identifier == pSignature->Identifier)
+				memcpy(&ResourceHeadersData[FinalResourceHeaderPointer], pResourceHeader, pResourceHeader->Header.AllocationSize * sizeof(ResourceHeader));
+				ResourceHeader* pCopiedResourceHeader = &ResourceHeadersData[FinalResourceHeaderPointer];
+				ResourceHeaderSignature* pSignature = NULL;
+				Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature);
+				if (pSignature->Packer != NULL)
 				{
-					memcpy(&ResourceHeadersData[FinalResourceHeaderPointer], pResourceHeader, pResourceHeader->Header.AllocationSize * sizeof(ResourceHeader));
-					ResourceHeader* pCopiedResourceHeader = &ResourceHeadersData[FinalResourceHeaderPointer];
-					if (pSignature->Packer != NULL)
-					{
-						Pack_ResourceHeaderTemplate* func = *pSignature->Packer;
-						func(pResourceHeader, pCopiedResourceHeader, &FinalBufferPointer, MiscDataBuffer, ThreadIndex);
-					}
-					if (pResourceHeader->Header.iElementsSize != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pResourceHeader->Header.iElements, sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize);
-						pCopiedResourceHeader->Header.iElements = (ElementAllocation*)FinalBufferPointer;
-						FinalBufferPointer += sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize;
-					}
-					if (pResourceHeader->Header.iParentsSize != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pResourceHeader->Header.iParents, sizeof(*pResourceHeader->Header.iParents) * pResourceHeader->Header.iParentsSize);
-						pCopiedResourceHeader->Header.iParents = (ObjectAllocation*)FinalBufferPointer;
-						FinalBufferPointer += sizeof(*pResourceHeader->Header.iParents) * pResourceHeader->Header.iParentsSize;
-					}
-					if (pResourceHeader->Header.Name != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pResourceHeader->Header.Name, strlen((char*)pResourceHeader->Header.Name) + 1);
-						pCopiedResourceHeader->Header.Name = (UTF8*)FinalBufferPointer;
-						FinalBufferPointer += strlen((char*)pResourceHeader->Header.Name) + 1;
-					}
-					FinalResourceHeaderPointer += pResourceHeader->Header.AllocationSize;
-					i1 += pResourceHeader->Header.AllocationSize;
+					Pack_ResourceHeaderTemplate* func = *pSignature->Packer;
+					func(pResourceHeader, pCopiedResourceHeader, &FinalBufferPointer, MiscDataBuffer, ThreadIndex);
 				}
-				else
+				if (pResourceHeader->Header.iElementsSize != NULL)
 				{
-					i1++;
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pResourceHeader->Header.iElements, sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize);
+					pCopiedResourceHeader->Header.iElements = (ElementAllocation*)FinalBufferPointer;
+					FinalBufferPointer += sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize;
 				}
+				if (pResourceHeader->Header.iObjectsSize != NULL)
+				{
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pResourceHeader->Header.iObjects, sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize);
+					pCopiedResourceHeader->Header.iObjects = (ObjectAllocation*)FinalBufferPointer;
+					FinalBufferPointer += sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize;
+				}
+				if (pResourceHeader->Header.Name != NULL)
+				{
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pResourceHeader->Header.Name, strlen((char*)pResourceHeader->Header.Name) + 1);
+					pCopiedResourceHeader->Header.Name = (UTF8*)FinalBufferPointer;
+					FinalBufferPointer += strlen((char*)pResourceHeader->Header.Name) + 1;
+				}
+				FinalResourceHeaderPointer += pResourceHeader->Header.AllocationSize;
+				End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, true, ThreadIndex);
+				End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 			}
 		}
 	}
-	for (size_t i = 0; i < Utils.ElementSignaturesSize; i++)
+	for (size_t i = 0; i < Utils.InternalElementBuffer.AllocationDatas.BufferSize; i++)
 	{
-		ElementSignature* pSignature = Utils.ElementSignatures[i];
-		if (pSignature->Buffer != NULL)
+		AllocationData* pAllocationData = &Utils.InternalElementBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Element.Identifier != 0)
 		{
-			for (size_t i1 = 0; i1 < pSignature->Buffer->Size;)
+			Element* pElement = Get_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+			if (pElement != NULL)
 			{
-				Element* pElement = &pSignature->Buffer->Buffer[i1];
-				if (pElement->Header.AllocationSize != NULL && pElement->Header.Allocation.Identifier == pSignature->Identifier)
+				memcpy(&ElementsData[FinalElementPointer], pElement, pElement->Header.AllocationSize * sizeof(Element));
+				Element* pCopiedElement = &ElementsData[FinalElementPointer];
+				ElementSignature* pSignature = NULL;
+				Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature);
+				if (pSignature->Packer != NULL)
 				{
-					memcpy(&ElementsData[FinalElementPointer], pElement, pElement->Header.AllocationSize * sizeof(Element));
-					Element* pCopiedElement = &ElementsData[FinalElementPointer];
-					if (pSignature->Packer != NULL)
-					{
-						Pack_ElementTemplate* func = *pSignature->Packer;
-						func(pElement, pCopiedElement, &FinalBufferPointer, MiscDataBuffer, ThreadIndex);
-					}
-					if (pElement->Header.iParentsSize != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pElement->Header.iParents, sizeof(*pElement->Header.iParents) * pElement->Header.iParentsSize);
-						pCopiedElement->Header.iParents = (ResourceHeaderAllocation*)FinalBufferPointer;
-						FinalBufferPointer += sizeof(*pElement->Header.iParents) * pElement->Header.iParentsSize;
-					}
-					if (pElement->Header.Name != NULL)
-					{
-						memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pElement->Header.Name, strlen((char*)pElement->Header.Name) + 1);
-						pCopiedElement->Header.Name = (UTF8*)FinalBufferPointer;
-						FinalBufferPointer += strlen((char*)pElement->Header.Name) + 1;
-					}
-					FinalElementPointer += pElement->Header.AllocationSize;
-					i1 += pElement->Header.AllocationSize;
+					Pack_ElementTemplate* func = *pSignature->Packer;
+					func(pElement, pCopiedElement, &FinalBufferPointer, MiscDataBuffer, ThreadIndex);
 				}
-				else
+				if (pElement->Header.iResourceHeadersSize != NULL)
 				{
-					i1++;
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pElement->Header.iResourceHeaders, sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize);
+					pCopiedElement->Header.iResourceHeaders = (ResourceHeaderAllocation*)FinalBufferPointer;
+					FinalBufferPointer += sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize;
 				}
+				if (pElement->Header.Name != NULL)
+				{
+					memcpy((void*)((uint64_t)MiscDataBuffer + FinalBufferPointer), pElement->Header.Name, strlen((char*)pElement->Header.Name) + 1);
+					pCopiedElement->Header.Name = (UTF8*)FinalBufferPointer;
+					FinalBufferPointer += strlen((char*)pElement->Header.Name) + 1;
+				}
+				FinalElementPointer += pElement->Header.AllocationSize;
+				End_ElementPointer(pAllocationData->Allocation.Element, false, true, ThreadIndex);
+				End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
 			}
 		}
 	}
+
 
 	header.DataBufferOffset = sizeof(TEIF_HEADER);
 	header.DataBufferSize = FinalBufferSize;
@@ -3107,7 +3836,6 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 
 	header.ElementsOffset = sizeof(TEIF_HEADER) + (FinalBufferSize + (FinalObjectSize * sizeof(Object)) + (FinalResourceHeaderSize * sizeof(ResourceHeader)));
 	header.ElementsSize = FinalElementSize;
-
 
 	fwrite(&header, sizeof(TEIF_HEADER), 1, file);
 
@@ -3134,16 +3862,18 @@ TEXRESULT Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 }
 /*
 * Added in 1.0.0
-* Documentation Incomplete
+* reads objects from file and imparts them
+* cant do partial load (Yet), whole system will be overwrriten. 
+* @param Path file path to load from, C format.
+* @note Thread Safe.
 */
-TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
-{
+TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex) {
 	TEXRESULT tres = Success;
 #ifndef NDEBUG
 	if (Path == NULL)
 	{
 		Engine_Ref_ArgsError("Read_TEIF()", "Path == NULLPTR");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
 #endif
 	FileData data = { 0, 0 };
@@ -3151,14 +3881,13 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 	if (data.pData == NULL)
 	{
 		Engine_Ref_ArgsError("Read_TEIF()", "Failed to open file.");
-		return (TEXRESULT)(Invalid_Parameter | Failure);
+		return (Invalid_Parameter | Failure);
 	}
-
 	TEIF_HEADER* pHeader = (TEIF_HEADER*)data.pData;
 	if (strncmp(pHeader->filecode, "TEIF", 4) != 0)
 	{
 		Engine_Ref_ArgsError("Read_TEIF()", "Filecode Not Equal To TEIF, Invalid File Format!");
-		return (TEXRESULT)(Invalid_Format | Failure);
+		return (Invalid_Format | Failure);
 	}
 
 	Object* pObjects = (Object*)((void*)((uint64_t)data.pData + (uint64_t)pHeader->ObjectsOffset));
@@ -3172,15 +3901,42 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 
 	uint8_t* pDataBuffer = (uint8_t*)((void*)((uint64_t)data.pData + (uint64_t)pHeader->DataBufferOffset));
 
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		Engine_Ref_Lock_Mutex(&Utils.InternalObjectBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&Utils.InternalResourceHeaderBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
+		Engine_Ref_Lock_Mutex(&Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
+	}
+
 	//place items in the buffers and unpack them
 	for (size_t i = 0; i < ObjectsSize;)
 	{
 		Object* pObject = &pObjects[i];
 
 		ObjectSignature* pSignature = NULL;
-		Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature, NULL);
+		Find_ObjectSignature(pObject->Header.Allocation.Identifier, &pSignature);
 
-		Object* pCopiedObject = &pSignature->Buffer->Buffer[pObject->Header.Allocation.Pointer];
+		AllocationData* pAllocationData = &Utils.InternalObjectBuffer.AllocationDatas.Buffer[pObject->Header.Allocation.Pointer];
+		//check if that pointer is already used. 
+		if (pAllocationData->Allocation.Object.Identifier != 0) {
+			//figure out what to do if pointer is used.;
+			Engine_Ref_FunctionError("Read_TEIF()", "Object Pointer Conflict, Can't Read TEIF file if its gonna overwrite existing allocations. Pointer == ", pObject->Header.Allocation.Pointer);
+		}
+		memset(pAllocationData, 0, sizeof(*pAllocationData));
+		//set all internal data to invalid number
+		for (size_t i = 0; i < maxthreads; i++)
+			c89atomic_store_32(&pAllocationData->Threads[i].Pointer, UINT32_MAX);
+		c89atomic_store_32(&pAllocationData->LatestPointer, UINT32_MAX);
+		//setting values to make allocation valid.
+		c89atomic_fetch_add_32(&Utils.InternalObjectBuffer.AllocationsCount, 1);
+		c89atomic_store_32(&pAllocationData->Allocation.Object.Identifier, pObject->Header.Allocation.Identifier);
+		c89atomic_store_32(&pAllocationData->Allocation.Object.Pointer, pObject->Header.Allocation.Pointer);
+
+		uint32_t Pointer = 0;
+		if ((tres = Allocate_Object(pSignature, pObject->Header.AllocationSize, pObject->Header.Allocation.Identifier, pObject->Header.Allocation, &Pointer, ThreadIndex)) != Success)
+			return tres;
+
+		Object* pCopiedObject = &Utils.InternalObjectBuffer.Buffer[Pointer];
 		memcpy(pCopiedObject, pObject, pObject->Header.AllocationSize * sizeof(*pObject));
 		if (pObject->Header.iResourceHeadersSize != NULL)
 		{
@@ -3209,6 +3965,8 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 			if ((tres = pFunction(pObject, ThreadIndex)) != Success)
 				return tres;
 		}
+		c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+		c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
 		i += pObject->Header.AllocationSize;
 	}
 	for (size_t i = 0; i < ResourceHeadersSize;)
@@ -3216,19 +3974,39 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		ResourceHeader* pResourceHeader = &pResourceHeaders[i];
 
 		ResourceHeaderSignature* pSignature = NULL;
-		Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature, NULL);
+		Find_ResourceHeaderSignature(pResourceHeader->Header.Allocation.Identifier, &pSignature);
 
-		ResourceHeader* pCopiedResourceHeader = &pSignature->Buffer->Buffer[pResourceHeader->Header.Allocation.Pointer];
+		AllocationData* pAllocationData = &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[pResourceHeader->Header.Allocation.Pointer];
+		//check if that pointer is already used. 
+		if (pAllocationData->Allocation.ResourceHeader.Identifier != 0) {
+			//figure out what to do if pointer is used.;
+			Engine_Ref_FunctionError("Read_TEIF()", "ResourceHeader Pointer Conflict, Can't Read TEIF file if its gonna overwrite existing allocations. Pointer == ", pResourceHeader->Header.Allocation.Pointer);
+		}
+		memset(pAllocationData, 0, sizeof(*pAllocationData));
+		//set all internal data to invalid number
+		for (size_t i = 0; i < maxthreads; i++)
+			c89atomic_store_32(&pAllocationData->Threads[i].Pointer, UINT32_MAX);
+		c89atomic_store_32(&pAllocationData->LatestPointer, UINT32_MAX);
+		//setting values to make allocation valid.
+		c89atomic_fetch_add_32(&Utils.InternalResourceHeaderBuffer.AllocationsCount, 1);
+		c89atomic_store_32(&pAllocationData->Allocation.ResourceHeader.Identifier, pResourceHeader->Header.Allocation.Identifier);
+		c89atomic_store_32(&pAllocationData->Allocation.ResourceHeader.Pointer, pResourceHeader->Header.Allocation.Pointer);
+
+		uint32_t Pointer = 0;
+		if ((tres = Allocate_ResourceHeader(pSignature, pResourceHeader->Header.AllocationSize, pResourceHeader->Header.Allocation.Identifier, pResourceHeader->Header.Allocation, &Pointer, ThreadIndex)) != Success)
+			return tres;
+
+		ResourceHeader* pCopiedResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
 		memcpy(pCopiedResourceHeader, pResourceHeader, pResourceHeader->Header.AllocationSize * sizeof(*pResourceHeader));
 		if (pResourceHeader->Header.iElementsSize != NULL)
 		{
 			pCopiedResourceHeader->Header.iElements = (ElementAllocation*)malloc(sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize);
 			memcpy(pCopiedResourceHeader->Header.iElements, (void*)((uint64_t)pDataBuffer + (uint64_t)pResourceHeader->Header.iElements), sizeof(*pResourceHeader->Header.iElements) * pResourceHeader->Header.iElementsSize);
 		}
-		if (pResourceHeader->Header.iParentsSize != NULL)
+		if (pResourceHeader->Header.iObjectsSize != NULL)
 		{
-			pCopiedResourceHeader->Header.iParents = (ObjectAllocation*)malloc(sizeof(*pResourceHeader->Header.iParents) * pResourceHeader->Header.iParentsSize);
-			memcpy(pCopiedResourceHeader->Header.iParents, (void*)((uint64_t)pDataBuffer + (uint64_t)pResourceHeader->Header.iParents), sizeof(*pResourceHeader->Header.iParents) * pResourceHeader->Header.iParentsSize);
+			pCopiedResourceHeader->Header.iObjects = (ObjectAllocation*)malloc(sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize);
+			memcpy(pCopiedResourceHeader->Header.iObjects, (void*)((uint64_t)pDataBuffer + (uint64_t)pResourceHeader->Header.iObjects), sizeof(*pResourceHeader->Header.iObjects) * pResourceHeader->Header.iObjectsSize);
 		}
 		if (pResourceHeader->Header.Name != NULL)
 		{
@@ -3247,6 +4025,8 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 			if ((tres = pFunction(pResourceHeader, ThreadIndex)) != Success)
 				return tres;
 		}
+		c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+		c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
 		i += pResourceHeader->Header.AllocationSize;
 	}
 	for (size_t i = 0; i < ElementsSize;)
@@ -3254,14 +4034,34 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 		Element* pElement = &pElements[i];	
 
 		ElementSignature* pSignature = NULL;
-		Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature, NULL);
+		Find_ElementSignature(pElement->Header.Allocation.Identifier, &pSignature);
+		
+		AllocationData* pAllocationData = &Utils.InternalElementBuffer.AllocationDatas.Buffer[pElement->Header.Allocation.Pointer];
+		//check if that pointer is already used. 
+		if (pAllocationData->Allocation.Element.Identifier != 0) {
+			//figure out what to do if pointer is used.;
+			Engine_Ref_FunctionError("Read_TEIF()", "Element Pointer Conflict, Can't Read TEIF file if its gonna overwrite existing allocations. Pointer == ", pElement->Header.Allocation.Pointer);
+		}
+		memset(pAllocationData, 0, sizeof(*pAllocationData));
+		//set all internal data to invalid number
+		for (size_t i = 0; i < maxthreads; i++)
+			c89atomic_store_32(&pAllocationData->Threads[i].Pointer, UINT32_MAX);
+		c89atomic_store_32(&pAllocationData->LatestPointer, UINT32_MAX);
+		//setting values to make allocation valid.
+		c89atomic_fetch_add_32(&Utils.InternalElementBuffer.AllocationsCount, 1);
+		c89atomic_store_32(&pAllocationData->Allocation.Element.Identifier, pElement->Header.Allocation.Identifier);
+		c89atomic_store_32(&pAllocationData->Allocation.Element.Pointer, pElement->Header.Allocation.Pointer);
 
-		Element* pCopiedElement = &pSignature->Buffer->Buffer[pElement->Header.Allocation.Pointer];
+		uint32_t Pointer = 0;
+		if ((tres = Allocate_Element(pSignature, pElement->Header.AllocationSize, pElement->Header.Allocation.Identifier, pElement->Header.Allocation, &Pointer, ThreadIndex)) != Success)
+			return tres;
+
+		Element* pCopiedElement = &Utils.InternalElementBuffer.Buffer[Pointer];
 		memcpy(pCopiedElement, pElement, pElement->Header.AllocationSize * sizeof(*pElement));
-		if (pElement->Header.iParentsSize != NULL)
+		if (pElement->Header.iResourceHeadersSize != NULL)
 		{
-			pCopiedElement->Header.iParents = (ResourceHeaderAllocation*)malloc(sizeof(*pElement->Header.iParents) * pElement->Header.iParentsSize);
-			memcpy(pCopiedElement->Header.iParents, (void*)((uint64_t)pDataBuffer + (uint64_t)pElement->Header.iParents), sizeof(*pElement->Header.iParents) * pElement->Header.iParentsSize);
+			pCopiedElement->Header.iResourceHeaders = (ResourceHeaderAllocation*)malloc(sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize);
+			memcpy(pCopiedElement->Header.iResourceHeaders, (void*)((uint64_t)pDataBuffer + (uint64_t)pElement->Header.iResourceHeaders), sizeof(*pElement->Header.iResourceHeaders) * pElement->Header.iResourceHeadersSize);
 		}
 		if (pElement->Header.Name != NULL)
 		{
@@ -3280,11 +4080,76 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 			if ((tres = pFunction(pElement, ThreadIndex)) != Success)
 				return tres;
 		}
+		c89atomic_store_32(&pAllocationData->Threads[ThreadIndex].Pointer, Pointer);
+		c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
 		i += pElement->Header.AllocationSize;
+	} 
+	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++)
+	{
+		Engine_Ref_Unlock_Mutex(&Utils.InternalObjectBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&Utils.InternalResourceHeaderBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
+		Engine_Ref_Unlock_Mutex(&Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
+
 	free(data.pData);
 	return Success;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//ResourceHeaders
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+TEXRESULT Destroy_SceneHeader(RHeaderScene* pResourceHeader, bool Full, uint32_t ThreadIndex)
+{
+	if (Full == true)
+	{
+
+	}
+	return (Success);
+}
+
+
+TEXRESULT Pack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex)
+{
+	if (pData != NULL)
+	{
+
+	}
+	else
+	{
+
+	}
+	return (Success);
+}
+
+TEXRESULT UnPack_SceneHeader(const RHeaderScene* pResourceHeader, RHeaderScene* pCopiedResourceHeader, void* pData, uint32_t ThreadIndex)
+{
+	return (Success);
+}
+
+
+TEXRESULT Create_SceneHeader(RHeaderScene* pResourceHeader, RHeaderSceneCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex)
+{
+	if (pResourceHeader == NULL)
+	{
+
+	}
+	else
+	{
+#ifndef NDEBUG
+		if (pCreateInfo == NULL)
+		{
+			Engine_Ref_ArgsError("Create_SceneHeader()", "pCreateInfo == NULLPTR");
+			return (Invalid_Parameter | Failure);
+		}
+#endif
+		pResourceHeader->Active = pCreateInfo->InitialActive;
+	}
+	*pAllocationSize = sizeof(RHeaderScene);
+	return (Success);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Main Functions
@@ -3293,41 +4158,23 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex)
 TEXRESULT Initialise_Objects()
 {
 	memset(&Utils, 0, sizeof(Utils));
-	memset(&Config, 0, sizeof(Config));
-	Config.InitialParametersMax = 1024;
+
+	//config 
+	Utils.Config.InitialItemsMax = 10024;
+	Utils.Config.ActiveMemoryResizing = true;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Engine_Ref_Create_Mutex(Utils.ObjectSignaturesMutex, MutexType_Plain);
-	Engine_Ref_Create_Mutex(Utils.ResourceHeaderSignaturesMutex, MutexType_Plain);
-	Engine_Ref_Create_Mutex(Utils.ElementSignaturesMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.ObjectSignaturesMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.ResourceHeaderSignaturesMutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&Utils.ElementSignaturesMutex, MutexType_Plain);
 
+	Create_ElementBuffer(&Utils.InternalElementBuffer, Utils.Config.InitialItemsMax);
+	Create_ResourceHeaderBuffer(&Utils.InternalResourceHeaderBuffer, Utils.Config.InitialItemsMax);
+	Create_ObjectBuffer(&Utils.InternalObjectBuffer, Utils.Config.InitialItemsMax);
 
-	Utils.InternalElementSig.Identifier = NULL;
-	Utils.InternalResourceHeaderSig.Identifier = NULL;
-	Utils.InternalObjectSig.Identifier = NULL;
-
-	Utils.InternalElementSig.ByteLength = sizeof(Element);
-	Utils.InternalResourceHeaderSig.ByteLength = sizeof(ResourceHeader);
-	Utils.InternalObjectSig.ByteLength = sizeof(Object);
-
-	Create_ElementBuffer(&Utils.InternalElementBuffer, Config.InitialParametersMax);
-	Create_ResourceHeaderBuffer(&Utils.InternalResourceHeaderBuffer, Config.InitialParametersMax);
-	Create_ObjectBuffer(&Utils.InternalObjectBuffer, Config.InitialParametersMax);
-
-	Utils.InternalElementSig.Buffer = &Utils.InternalElementBuffer;
-	Utils.InternalResourceHeaderSig.Buffer = &Utils.InternalResourceHeaderBuffer;
-	Utils.InternalObjectSig.Buffer = &Utils.InternalObjectBuffer;
-
-	Register_ElementSignature(&Utils.InternalElementSig);
-	Register_ResourceHeaderSignature(&Utils.InternalResourceHeaderSig);
-	Register_ObjectSignature(&Utils.InternalObjectSig);
-
-	Create_ElementBuffer(&Utils.GenericElementBuffer, Config.InitialParametersMax);
-	Create_ResourceHeaderBuffer(&Utils.GenericResourceHeaderBuffer, Config.InitialParametersMax);
-	Create_ObjectBuffer(&Utils.GenericObjectBuffer, Config.InitialParametersMax);
 
 	Utils.GenericElementSig.Identifier = (uint32_t)Element_Generic;
 	Utils.GenericResourceHeaderSig.Identifier = (uint32_t)ResourceHeader_Generic;
@@ -3337,35 +4184,33 @@ TEXRESULT Initialise_Objects()
 	Utils.GenericResourceHeaderSig.ByteLength = sizeof(ResourceHeader);
 	Utils.GenericObjectSig.ByteLength = sizeof(Object);
 
-	Utils.GenericElementSig.Buffer = &Utils.GenericElementBuffer;
-	Utils.GenericResourceHeaderSig.Buffer = &Utils.GenericResourceHeaderBuffer;
-	Utils.GenericObjectSig.Buffer = &Utils.GenericObjectBuffer;
-
 	Register_ElementSignature(&Utils.GenericElementSig);
 	Register_ResourceHeaderSignature(&Utils.GenericResourceHeaderSig);
 	Register_ObjectSignature(&Utils.GenericObjectSig);
+
+	Utils.RHeaderSceneSig.ByteLength = sizeof(RHeaderScene);
+	Utils.RHeaderSceneSig.Identifier = (uint32_t)ResourceHeader_Scene;
+	Utils.RHeaderSceneSig.Destructor = (Destroy_ResourceHeaderTemplate*)&Destroy_SceneHeader;
+	Utils.RHeaderSceneSig.Constructor = (Create_ResourceHeaderTemplate*)&Create_SceneHeader;
+	//Utils.RHeaderSceneSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_SceneHeader;
+	Utils.RHeaderSceneSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_SceneHeader;
+	Utils.RHeaderSceneSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_SceneHeader;
+	Register_ResourceHeaderSignature(&Utils.RHeaderSceneSig);
 
 	return Success;
 }
 
 TEXRESULT Destroy_Objects()
 {
-	Destroy_ElementBuffer(&Utils.GenericElementBuffer);
-	Destroy_ResourceHeaderBuffer(&Utils.GenericResourceHeaderBuffer);
-	Destroy_ObjectBuffer(&Utils.GenericObjectBuffer);
-
 	DeRegister_ElementSignature(&Utils.GenericElementSig);
 	DeRegister_ResourceHeaderSignature(&Utils.GenericResourceHeaderSig);
 	DeRegister_ObjectSignature(&Utils.GenericObjectSig);
 
-	//Destroy_ElementBuffer(&Utils.InternalElementBuffer);
-	//Destroy_ResourceHeaderBuffer(&Utils.InternalResourceHeaderBuffer);
-	//Destroy_ObjectBuffer(&Utils.InternalObjectBuffer);
+	DeRegister_ResourceHeaderSignature(&Utils.RHeaderSceneSig);
 
-	DeRegister_ElementSignature(&Utils.InternalElementSig);
-	DeRegister_ResourceHeaderSignature(&Utils.InternalResourceHeaderSig);
-	DeRegister_ObjectSignature(&Utils.InternalObjectSig);
-
+	Destroy_ElementBuffer(&Utils.InternalElementBuffer, 0);
+	Destroy_ResourceHeaderBuffer(&Utils.InternalResourceHeaderBuffer, 0);
+	Destroy_ObjectBuffer(&Utils.InternalObjectBuffer, 0);
 
 	if (Utils.ObjectSignatures != NULL && Utils.ObjectSignaturesSize != NULL)
 		free(Utils.ObjectSignatures);
@@ -3382,14 +4227,11 @@ TEXRESULT Destroy_Objects()
 	Utils.ElementSignatures = NULL;
 	Utils.ElementSignaturesSize = NULL;
 
-
-	Engine_Ref_Destroy_Mutex(Utils.ObjectSignaturesMutex, MutexType_Plain);
-	Engine_Ref_Destroy_Mutex(Utils.ResourceHeaderSignaturesMutex, MutexType_Plain);
-	Engine_Ref_Destroy_Mutex(Utils.ElementSignaturesMutex, MutexType_Plain);
-
+	Engine_Ref_Destroy_Mutex(&Utils.ObjectSignaturesMutex);
+	Engine_Ref_Destroy_Mutex(&Utils.ResourceHeaderSignaturesMutex);
+	Engine_Ref_Destroy_Mutex(&Utils.ElementSignaturesMutex);
 
 	memset(&Utils, 0, sizeof(Utils));
-	memset(&Config, 0, sizeof(Config));
 	return Success;
 }
 
@@ -3411,7 +4253,9 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	Engine_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 	
 	//Config
-	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData("Object::InitialParametersMax"), &Config.InitialParametersMax, 1, sizeof(Config.InitialParametersMax));
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData("Object::InitialItemsMax"), &Utils.Config.InitialItemsMax, 1, sizeof(Utils.Config.InitialItemsMax));
+
+	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Object::ActiveMemoryResizing"), &Utils.Config.ActiveMemoryResizing, 1, sizeof(Utils.Config.ActiveMemoryResizing));
 
 
 	//Resources
@@ -3422,13 +4266,25 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_Objects"), &ObjectsRes.pDestroy_Objects, &Destroy_Objects, Destruct, 10000.0f, 0, NULL);
 
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ObjectSignature"), &ObjectsRes.pFind_ObjectSignature, &Find_ObjectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ResourceHeaderSignature"), &ObjectsRes.pFind_ResourceHeaderSignature, &Find_ResourceHeaderSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ElementSignature"), &ObjectsRes.pFind_ElementSignature, &Find_ElementSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Compare_ObjectAllocation"), &ObjectsRes.pCompare_ObjectAllocation, &Compare_ObjectAllocation, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Compare_ResourceHeaderAllocation"), &ObjectsRes.pCompare_ResourceHeaderAllocation, &Compare_ResourceHeaderAllocation, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Compare_ElementAllocation"), &ObjectsRes.pCompare_ElementAllocation, &Compare_ElementAllocation, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ObjectAllocationData"), &ObjectsRes.pGet_ObjectAllocationData, &Get_ObjectAllocationData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ResourceHeaderAllocationData"), &ObjectsRes.pGet_ResourceHeaderAllocationData, &Get_ResourceHeaderAllocationData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ElementAllocationData"), &ObjectsRes.pGet_ElementAllocationData, &Get_ElementAllocationData, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ObjectPointer"), &ObjectsRes.pGet_ObjectPointer, &Get_ObjectPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ResourceHeaderPointer"), &ObjectsRes.pGet_ResourceHeaderPointer, &Get_ResourceHeaderPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Get_ElementPointer"), &ObjectsRes.pGet_ElementPointer, &Get_ElementPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::End_ObjectPointer"), &ObjectsRes.pEnd_ObjectPointer, &End_ObjectPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::End_ResourceHeaderPointer"), &ObjectsRes.pEnd_ResourceHeaderPointer, &End_ResourceHeaderPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::End_ElementPointer"), &ObjectsRes.pEnd_ElementPointer, &End_ElementPointer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ObjectSignature"), &ObjectsRes.pFind_ObjectSignature, &Find_ObjectSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ResourceHeaderSignature"), &ObjectsRes.pFind_ResourceHeaderSignature, &Find_ResourceHeaderSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Find_ElementSignature"), &ObjectsRes.pFind_ElementSignature, &Find_ElementSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ObjectBuffer"), &ObjectsRes.pCreate_ObjectBuffer, &Create_ObjectBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ResourceHeaderBuffer"), &ObjectsRes.pCreate_ResourceHeaderBuffer, &Create_ResourceHeaderBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -3442,10 +4298,6 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ResourceHeaderBuffer"), &ObjectsRes.pDestroy_ResourceHeaderBuffer, &Destroy_ResourceHeaderBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Destroy_ElementBuffer"), &ObjectsRes.pDestroy_ElementBuffer, &Destroy_ElementBuffer, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_Object"), &ObjectsRes.pCreateInstance_Object, &CreateInstance_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_ResourceHeader"), &ObjectsRes.pCreateInstance_ResourceHeader, &CreateInstance_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::CreateInstance_Element"), &ObjectsRes.pCreateInstance_Element, &CreateInstance_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_Object"), &ObjectsRes.pCreate_Object, &Create_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_ResourceHeader"), &ObjectsRes.pCreate_ResourceHeader, &Create_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Create_Element"), &ObjectsRes.pCreate_Element, &Create_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -3457,15 +4309,6 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_Object"), &ObjectsRes.pReCreate_Object, &ReCreate_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_ResourceHeader"), &ObjectsRes.pReCreate_ResourceHeader, &ReCreate_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::ReCreate_Element"), &ObjectsRes.pReCreate_Element, &ReCreate_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_Object"), &ObjectsRes.pStartThread_Object, &StartThread_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_ResourceHeader"), &ObjectsRes.pStartThread_ResourceHeader, &StartThread_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::StartThread_Element"), &ObjectsRes.pStartThread_Element, &StartThread_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_Object"), &ObjectsRes.pEndThread_Object, &EndThread_Object, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_ResourceHeader"), &ObjectsRes.pEndThread_ResourceHeader, &EndThread_ResourceHeader, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::EndThread_Element"), &ObjectsRes.pEndThread_Element, &EndThread_Element, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_ObjectChild"), &ObjectsRes.pAdd_ObjectChild, &Add_ObjectChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Add_Object_ResourceHeaderChild"), &ObjectsRes.pAdd_Object_ResourceHeaderChild, &Add_Object_ResourceHeaderChild, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -3483,15 +4326,16 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ResourceHeaderSignature"), &ObjectsRes.pDeRegister_ResourceHeaderSignature, &DeRegister_ResourceHeaderSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::DeRegister_ElementSignature"), &ObjectsRes.pDeRegister_ElementSignature, &DeRegister_ElementSignature, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
-
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectChilds"), &ObjectsRes.pScan_ObjectChilds, &Scan_ObjectChilds, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectParents"), &ObjectsRes.pScan_ObjectParents, &Scan_ObjectParents, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectHeaders"), &ObjectsRes.pScan_ObjectHeaders, &Scan_ObjectHeaders, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectHeadersSingle"), &ObjectsRes.pScan_ObjectHeadersSingle, &Scan_ObjectHeadersSingle, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectResourceHeaders"), &ObjectsRes.pScan_ObjectResourceHeaders, &Scan_ObjectResourceHeaders, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ResourceHeaderElements"), &ObjectsRes.pScan_ResourceHeaderElements, &Scan_ResourceHeaderElements, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ObjectResourceHeadersSingle"), &ObjectsRes.pScan_ObjectResourceHeadersSingle, &Scan_ObjectResourceHeadersSingle, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Scan_ResourceHeaderElementsSingle"), &ObjectsRes.pScan_ResourceHeaderElementsSingle, &Scan_ResourceHeaderElementsSingle, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Write_TEIF"), &ObjectsRes.pWrite_TEIF, &Write_TEIF, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Object::Read_TEIF"), &ObjectsRes.pRead_TEIF, &Read_TEIF, (CallFlagBits)NULL, 0.0f, NULL, NULL);
-	
-	
-
 }

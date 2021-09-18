@@ -17,11 +17,6 @@
 #define TEX_EXPOSE_CHEMISTRY
 #include "Chemistry.h"
 
-volatile struct
-{
-	uint32_t pad;
-}Config;
-
 volatile ChemistryUtils Utils;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1383,13 +1378,13 @@ SPIRV_Header(ButterflyVariables_MAX)\
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Draw_SimpleModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectSimpleModel* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex)
 {
 
 }
 
 void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFullModel* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex)
 {
 	vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
 
@@ -1398,7 +1393,8 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 
 	mat4 CameraPositionMatrix;
 	glm_mat4_identity(CameraPositionMatrix);
-	Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCamera->Header.iParents[0]);
+	Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCamera->Header.iObjects[0]);
+	//this is retarded;
 	glm_mat4_inv_precise_sse2(CameraPositionMatrix, CameraPositionMatrix);
 
 	vec4 Translation;
@@ -1428,9 +1424,9 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 }
 
 void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFundamental* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex)
 {	
-	Engine_Ref_Lock_Mutex(pEffect->mutex);
+	Engine_Ref_Lock_Mutex(&pEffect->mutex);
 	VkBuffer vkBuffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
 	VkDeviceSize VkOffset = pEffect->AllocationParticles1.Pointer;
 
@@ -1448,7 +1444,7 @@ void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
 	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 6, pEffect->ParticlesSize, 0, 0);
-	Engine_Ref_Unlock_Mutex(pEffect->mutex);
+	Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1456,32 +1452,32 @@ void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Update_SimpleModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectSimpleModel* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 	/*
-if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_R == KeyPress && press == false)
+if (EngineRes.pUtils->pWindows[0]->STATE_KEY_R == KeyPress && press == false)
 {
 	Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
 	memset(&pEffect->Particles[pEffect->ParticlesSize], 0, sizeof(*pEffect->Particles));
 	pEffect->Particles[pEffect->ParticlesSize].Size = 0.00054f;
 	pEffect->Particles[pEffect->ParticlesSize].Charge = -1.0f;
-	pEffect->Particles[pEffect->ParticlesSize].Position[0] = (((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position - 500) / 100;
-	pEffect->Particles[pEffect->ParticlesSize].Position[1] = -((((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position - 500) / 100);
+	pEffect->Particles[pEffect->ParticlesSize].Position[0] = (EngineRes.pUtils->MousePos_Callback_state.X_Position - 500) / 100;
+	pEffect->Particles[pEffect->ParticlesSize].Position[1] = -((EngineRes.pUtils->MousePos_Callback_state.Y_Position - 500) / 100);
 	pEffect->ParticlesSize++;
 	press = true;
 }
-if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_T == KeyPress && press == false)
+if (EngineRes.pUtils->pWindows[0]->STATE_KEY_T == KeyPress && press == false)
 {
 	Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
 	memset(&pEffect->Particles[pEffect->ParticlesSize], 0, sizeof(*pEffect->Particles));
 	pEffect->Particles[pEffect->ParticlesSize].Size = 1.0f;
 	pEffect->Particles[pEffect->ParticlesSize].Charge = 1.0f;
-	pEffect->Particles[pEffect->ParticlesSize].Position[0] = (((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.X_Position - 500) / 100;
-	pEffect->Particles[pEffect->ParticlesSize].Position[1] = -((((EngineUtils*)EngineRes.pUtils)->MousePos_Callback_state.Y_Position - 500) / 100);
+	pEffect->Particles[pEffect->ParticlesSize].Position[0] = (EngineRes.pUtils->MousePos_Callback_state.X_Position - 500) / 100;
+	pEffect->Particles[pEffect->ParticlesSize].Position[1] = -((EngineRes.pUtils->MousePos_Callback_state.Y_Position - 500) / 100);
 	pEffect->ParticlesSize++;
 	press = true;
 }
-if (((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_R == KeyRelease && ((EngineUtils*)EngineRes.pUtils)->pWindows[0]->STATE_KEY_T == KeyRelease)
+if (EngineRes.pUtils->pWindows[0]->STATE_KEY_R == KeyRelease && EngineRes.pUtils->pWindows[0]->STATE_KEY_T == KeyRelease)
 {
 	press = false;
 }
@@ -1539,7 +1535,7 @@ for (size_t i = 0; i < pEffect->ParticlesSize; i++)
 }
 
 void Update_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFullModel* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 	if (GPU_Buffers == NULL)
 	{
@@ -1547,9 +1543,9 @@ void Update_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 	}
 	else
 	{
-		RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-		RHeaderTexture* pTexture0 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture);
-		RHeaderTexture* pTexture1 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture);
+		RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+		RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+		RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
 
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//Updating Descriptor Sets
@@ -1574,11 +1570,15 @@ void Update_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 			ImageInfo.sampler = NULL;
 			Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pEffect->VkDescriptorSets[FrameIndex], 2, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, NULL, &ImageInfo);
 		}
+
+		Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+		Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+		Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
 	}
 }
 
 void Update_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFundamental* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 	if (GPU_Buffers == NULL)
 	{
@@ -1594,17 +1594,17 @@ void Update_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Obje
 //Effect Signataure Updates
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UpdateSignature_SimpleModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+void UpdateSignature_SimpleModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 
 }
 
-void UpdateSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+void UpdateSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 
 }
 
-void UpdateSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+void UpdateSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 
 }
@@ -1613,324 +1613,318 @@ void UpdateSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGra
 //Effect Signataure Draws
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawSignature_SimpleModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
+void DrawSignature_SimpleModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex)
 {
 }
 
-void DrawSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
-{
-	for (size_t i2 = 0; i2 < ((GraphicsUtils*)GraphicsRes.pUtils)->ElementGraphicsBuffer.Size;)
-	{
-		ElementGraphics* pElement = &((GraphicsUtils*)GraphicsRes.pUtils)->ElementGraphicsBuffer.Buffer[i2];
-		if (pElement->Header.AllocationSize != 0 && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-		{
-			uint64_t pointer = 0;
-			for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
-			{
-				ChemistryEffectFullModel* pEffect = (ChemistryEffectFullModel*)((void*)((uint64_t)pElement->Effects + pointer));
-				if (pEffect->Header.Identifier == ChemistryEffects_FullModel)
+void DrawSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex) {
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+			if (pElement != NULL) {
+				uint64_t pointer = 0;
+				for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
 				{
-					RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
-					RHeaderTexture* pTexture0 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture);
-					RHeaderTexture* pTexture1 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture);
-					
-					VkResult res = VK_SUCCESS;
-
-					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-					//Rendering
-					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-					Engine_Ref_Lock_Mutex(pEffect->mutex);
+					ChemistryEffectFullModel* pEffect = (ChemistryEffectFullModel*)((void*)((uint64_t)pElement->Effects + pointer));
+					if (pEffect->Header.Identifier == ChemistryEffects_FullModel)
 					{
-						VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pTexture0->GPU_Texture.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
+						RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+						RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+						RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
 
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
+						VkResult res = VK_SUCCESS;
+						//atomically increment pingpong so u can get away with no writes; aaaaaaaaaaaaaaaaaaaa;
+						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+						//Rendering
+						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+						Engine_Ref_Lock_Mutex(&pEffect->mutex);
+						{
+							VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+							Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+							Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+							Barrier.image = pTexture0->GPU_Texture.VkImage;
+							Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+							Barrier.subresourceRange.baseMipLevel = 0;
+							Barrier.subresourceRange.levelCount = 1;
+							Barrier.subresourceRange.baseArrayLayer = 0;
+							Barrier.subresourceRange.layerCount = 1;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = 0;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.pNext = NULL;
+
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+								0,
+								0, NULL,
+								0, NULL,
+								1, &Barrier
+							);
+						}
+						{
+							VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+							Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+							Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+							Barrier.image = pTexture1->GPU_Texture.VkImage;
+							Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+							Barrier.subresourceRange.baseMipLevel = 0;
+							Barrier.subresourceRange.levelCount = 1;
+							Barrier.subresourceRange.baseArrayLayer = 0;
+							Barrier.subresourceRange.layerCount = 1;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = 0;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.pNext = NULL;
+
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+								0,
+								0, NULL,
+								0, NULL,
+								1, &Barrier
+							);
+						}
+						{
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineComputeSource);
+
+							PushConstantsComputeFullModel PushConstants;
+							memset(&PushConstants, 0, sizeof(PushConstants));
+							PushConstants.PingPongIndex = pEffect->PingPongIndex;
+							PushConstants.Time = ((double)clock() / (double)CLOCKS_PER_SEC);
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+								pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
+
+							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
+						}
+						{
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineComputeField);
+
+							PushConstantsComputeFullModel PushConstants;
+							memset(&PushConstants, 0, sizeof(PushConstants));
+							PushConstants.PingPongIndex = pEffect->PingPongIndex;
+							PushConstants.Time = ((double)clock() / (double)CLOCKS_PER_SEC);
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+								pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
+
+							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8);
+						}
+						{
+							VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+							Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+							Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+							Barrier.image = pTexture0->GPU_Texture.VkImage;
+							Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+							Barrier.subresourceRange.baseMipLevel = 0;
+							Barrier.subresourceRange.levelCount = 1;
+							Barrier.subresourceRange.baseArrayLayer = 0;
+							Barrier.subresourceRange.layerCount = 1;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+							Barrier.pNext = NULL;
+
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+								0,
+								0, NULL,
+								0, NULL,
+								1, &Barrier
+							);
+						}
+						{
+							VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+							Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+							Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+							Barrier.image = pTexture1->GPU_Texture.VkImage;
+							Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+							Barrier.subresourceRange.baseMipLevel = 0;
+							Barrier.subresourceRange.levelCount = 1;
+							Barrier.subresourceRange.baseArrayLayer = 0;
+							Barrier.subresourceRange.layerCount = 1;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+							Barrier.pNext = NULL;
+
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+								0,
+								0, NULL,
+								0, NULL,
+								1, &Barrier
+							);
+						}
+						Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+						Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+						Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
+						pEffect->PingPongIndex = !pEffect->PingPongIndex;
+						Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 					}
-					{
-						VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pTexture1->GPU_Texture.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					{
-						vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineComputeSource);
-
-						PushConstantsComputeFullModel PushConstants;
-						memset(&PushConstants, 0, sizeof(PushConstants));
-						PushConstants.PingPongIndex = pEffect->PingPongIndex;
-						PushConstants.Time = ((double)clock() / (double)CLOCKS_PER_SEC);
-						vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-							pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
-
-						vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-							pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
-
-						vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
-					}
-					{
-						vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineComputeField);
-
-						PushConstantsComputeFullModel PushConstants;
-						memset(&PushConstants, 0, sizeof(PushConstants));
-						PushConstants.PingPongIndex = pEffect->PingPongIndex;
-						PushConstants.Time = ((double)clock() / (double)CLOCKS_PER_SEC);
-						vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-							pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
-
-						vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-							pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSets[FrameIndex], 0, NULL);
-
-						vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8, pEffect->SimulationResolution / 8);
-					}
-
-					{
-						VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pTexture0->GPU_Texture.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					{
-						VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-						Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-						Barrier.image = pTexture1->GPU_Texture.VkImage;
-						Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						Barrier.subresourceRange.baseMipLevel = 0;
-						Barrier.subresourceRange.levelCount = 1;
-						Barrier.subresourceRange.baseArrayLayer = 0;
-						Barrier.subresourceRange.layerCount = 1;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-							0,
-							0, NULL,
-							0, NULL,
-							1, &Barrier
-						);
-					}
-					pEffect->PingPongIndex = !pEffect->PingPongIndex;
-					Engine_Ref_Unlock_Mutex(pEffect->mutex);
+					pointer += pEffect->Header.AllocationSize;
 				}
-				pointer += pEffect->Header.AllocationSize;
+				Object_Ref_End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
 			}
-			i2 += pElement->Header.AllocationSize;
-		}
-		else
-		{
-			i2++;
 		}
 	}
 }
 
-void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers)
-{	
-	for (size_t i2 = 0; i2 < ((GraphicsUtils*)GraphicsRes.pUtils)->ElementGraphicsBuffer.Size;)
-	{
-		ElementGraphics* pElement = &((GraphicsUtils*)GraphicsRes.pUtils)->ElementGraphicsBuffer.Buffer[i2];
-		if (pElement->Header.AllocationSize != 0 && pElement->Header.Allocation.Identifier == (uint32_t)GraphicsElement_ElementGraphics)
-		{
-			uint64_t pointer = 0;
-			for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
-			{
-				ChemistryEffectFundamental* pEffect = (ChemistryEffectFundamental*)((void*)((uint64_t)pElement->Effects + pointer));
-				if (pEffect->Header.Identifier == ChemistryEffects_Fundamental)
+void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex) {	
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.Element.Identifier == GraphicsElement_ElementGraphics) {
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
+			if (pElement != NULL) {
+				uint64_t pointer = 0;
+				for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
 				{
-					VkResult res = VK_SUCCESS;
-
-					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-					//Rendering
-					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-					Engine_Ref_Lock_Mutex(pEffect->mutex);
+					ChemistryEffectFundamental* pEffect = (ChemistryEffectFundamental*)((void*)((uint64_t)pElement->Effects + pointer));
+					if (pEffect->Header.Identifier == ChemistryEffects_Fundamental)
 					{
-						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-						Barrier.buffer = pEffect->AllocationParticles0.Allocater.pArenaAllocater->VkBuffer;
-						Barrier.offset = pEffect->AllocationParticles0.Pointer;
-						Barrier.size = pEffect->AllocationParticles0.SizeBytes;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
+						VkResult res = VK_SUCCESS;
 
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							1, &Barrier,
-							0, NULL
-						);
-					}
-					{
-						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-						Barrier.buffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
-						Barrier.offset = pEffect->AllocationParticles1.Pointer;
-						Barrier.size = pEffect->AllocationParticles1.SizeBytes;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = 0;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.pNext = NULL;
-
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, NULL,
-							1, &Barrier,
-							0, NULL
-						);
-					}
-					{
-						vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineCompute);
-						vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-							pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSet, 0, NULL);
-						
+						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+						//Rendering
+						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+						Engine_Ref_Lock_Mutex(&pEffect->mutex);
 						{
-							PushConstantsComputeFundamental PushConstants;
-							memset(&PushConstants, 0, sizeof(PushConstants));
-							PushConstants.Part = 0;
-							PushConstants.Particles = pEffect->ParticlesSize;
-							//PushConstants.ChunkSize = pEffect->ChunkSize;
-							PushConstants.Resolution = pEffect->Resolution;
-							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+							Barrier.buffer = pEffect->AllocationParticles0.Allocater.pArenaAllocater->VkBuffer;
+							Barrier.offset = pEffect->AllocationParticles0.Pointer;
+							Barrier.size = pEffect->AllocationParticles0.SizeBytes;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = 0;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.pNext = NULL;
 
-							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+								0,
+								0, NULL,
+								1, &Barrier,
+								0, NULL
+							);
 						}
 						{
-							PushConstantsComputeFundamental PushConstants;
-							memset(&PushConstants, 0, sizeof(PushConstants));
-							PushConstants.Part = 1;
-							PushConstants.Particles = pEffect->ParticlesSize;
-							//PushConstants.ChunkSize = pEffect->ChunkSize;
-							PushConstants.Resolution = pEffect->Resolution;
-							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+							Barrier.buffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
+							Barrier.offset = pEffect->AllocationParticles1.Pointer;
+							Barrier.size = pEffect->AllocationParticles1.SizeBytes;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = 0;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.pNext = NULL;
 
-							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+								0,
+								0, NULL,
+								1, &Barrier,
+								0, NULL
+							);
 						}
-					}
-					{
-						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-						Barrier.buffer = pEffect->AllocationParticles0.Allocater.pArenaAllocater->VkBuffer;
-						Barrier.offset = pEffect->AllocationParticles0.Pointer;
-						Barrier.size = pEffect->AllocationParticles0.SizeBytes;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
+						{
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineCompute);
+							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+								pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSet, 0, NULL);
 
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-							0,
-							0, NULL,
-							1, &Barrier,
-							0, NULL
-						);
-					}
-					{
-						VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
-						Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-						Barrier.buffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
-						Barrier.offset = pEffect->AllocationParticles1.Pointer;
-						Barrier.size = pEffect->AllocationParticles1.SizeBytes;
-						Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-						Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-						Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						Barrier.pNext = NULL;
+							{
+								PushConstantsComputeFundamental PushConstants;
+								memset(&PushConstants, 0, sizeof(PushConstants));
+								PushConstants.Part = 0;
+								PushConstants.Particles = pEffect->ParticlesSize;
+								//PushConstants.ChunkSize = pEffect->ChunkSize;
+								PushConstants.Resolution = pEffect->Resolution;
+								vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
-						vkCmdPipelineBarrier(
-							pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-							0,
-							0, NULL,
-							1, &Barrier,
-							0, NULL
-						);
+								vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
+							}
+							{
+								PushConstantsComputeFundamental PushConstants;
+								memset(&PushConstants, 0, sizeof(PushConstants));
+								PushConstants.Part = 1;
+								PushConstants.Particles = pEffect->ParticlesSize;
+								//PushConstants.ChunkSize = pEffect->ChunkSize;
+								PushConstants.Resolution = pEffect->Resolution;
+								vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+
+								vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
+							}
+						}
+						{
+							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+							Barrier.buffer = pEffect->AllocationParticles0.Allocater.pArenaAllocater->VkBuffer;
+							Barrier.offset = pEffect->AllocationParticles0.Pointer;
+							Barrier.size = pEffect->AllocationParticles0.SizeBytes;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+							Barrier.pNext = NULL;
+
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+								0,
+								0, NULL,
+								1, &Barrier,
+								0, NULL
+							);
+						}
+						{
+							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
+							Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+							Barrier.buffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
+							Barrier.offset = pEffect->AllocationParticles1.Pointer;
+							Barrier.size = pEffect->AllocationParticles1.SizeBytes;
+							Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+							Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+							Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+							Barrier.pNext = NULL;
+
+							vkCmdPipelineBarrier(
+								pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer,
+								VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+								0,
+								0, NULL,
+								1, &Barrier,
+								0, NULL
+							);
+						}
+						Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 					}
-					Engine_Ref_Unlock_Mutex(pEffect->mutex);
+					pointer += pEffect->Header.AllocationSize;
 				}
-				pointer += pEffect->Header.AllocationSize;
+				Object_Ref_End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
 			}
-			i2 += pElement->Header.AllocationSize;
-		}
-		else
-		{
-			i2++;
 		}
 	}
 }
@@ -1939,130 +1933,142 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 //Effect Destructors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Destroy_SimpleModel(ElementGraphics* pElement, ChemistryEffectSimpleModel* pEffect, bool Full, uint32_t ThreadIndex)
-{
+TEXRESULT Destroy_SimpleModel(ElementGraphics* pElement, ElementGraphics* pElementOverlay, ChemistryEffectSimpleModel* pEffect, ChemistryEffectSimpleModel* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
 	return (Success);
 }
 
-TEXRESULT Destroy_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEffect, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
+TEXRESULT Destroy_FullModel(ElementGraphics* pElement, ElementGraphics* pElementOverlay, ChemistryEffectFullModel* pEffect, ChemistryEffectFullModel* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 
-	if (pEffect->VkPipelineComputeSource != NULL)
+	//if they are different its safe to destruct.
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineComputeSource != pEffectOverlay->VkPipelineComputeSource) : true) && pEffect->VkPipelineComputeSource != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineComputeSource, NULL);
-	pEffect->VkPipelineComputeSource = NULL;
-	if (pEffect->VkShaderComputeSource != NULL)
-		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderComputeSource, NULL);
-	pEffect->VkShaderComputeSource = NULL;
-
-	if (pEffect->VkPipelineComputeField != NULL)
-		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineComputeField, NULL);
-	pEffect->VkPipelineComputeField = NULL;
-	if (pEffect->VkShaderComputeField != NULL)
-		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderComputeField, NULL);
-	pEffect->VkShaderComputeField = NULL;
-
-
-	if (pEffect->VkPipelineLayout != NULL)
-		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineLayout, NULL);
-	pEffect->VkPipelineLayout = NULL;
-
-	if (pEffect->VkDescriptorSetLayout != NULL)
-		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorSetLayout, NULL);
-	pEffect->VkDescriptorSetLayout = NULL;
-
-	if (pEffect->VkDescriptorSets != NULL)
-	{
-		//vkFreeDescriptorSets(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkWindowDescriptorPool, pResourceHeader->CurrentFrameBuffersSize, pResourceHeader->VkDescriptorSetsInputAttachment);
-		free(pEffect->VkDescriptorSets);
+		pEffect->VkPipelineComputeSource = NULL;
 	}
-	pEffect->VkDescriptorSets = NULL;
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderComputeSource != pEffectOverlay->VkShaderComputeSource) : true) && pEffect->VkShaderComputeSource != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderComputeSource, NULL);
+		pEffect->VkShaderComputeSource = NULL;
+	}
 
-	if (pEffect->VkDescriptorPool != NULL)
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineComputeField != pEffectOverlay->VkPipelineComputeField) : true) && pEffect->VkPipelineComputeField != NULL) {
+		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineComputeField, NULL);
+		pEffect->VkPipelineComputeField = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderComputeField != pEffectOverlay->VkShaderComputeField) : true) && pEffect->VkShaderComputeField != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderComputeField, NULL);
+		pEffect->VkShaderComputeField = NULL;
+	}
+
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineLayout != pEffectOverlay->VkPipelineLayout) : true) && pEffect->VkPipelineLayout != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineLayout, NULL);
+		pEffect->VkPipelineLayout = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkDescriptorSetLayout != pEffectOverlay->VkDescriptorSetLayout) : true) && pEffect->VkDescriptorSetLayout != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorSetLayout, NULL);
+		pEffect->VkDescriptorSetLayout = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkDescriptorSets != pEffectOverlay->VkDescriptorSets) : true) && pEffect->VkDescriptorSets != NULL) {
+		free(pEffect->VkDescriptorSets);
+		pEffect->VkDescriptorSets = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkDescriptorPool != pEffectOverlay->VkDescriptorPool) : true) && pEffect->VkDescriptorPool != NULL) {
 		vkDestroyDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorPool, NULL);
-	pEffect->VkDescriptorPool = NULL;
+		pEffect->VkDescriptorPool = NULL;
+	}
 
-
-
-	if (pEffect->VkPipeline != NULL)
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipeline != pEffectOverlay->VkPipeline) : true) && pEffect->VkPipeline != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipeline, NULL);
-	pEffect->VkPipeline = NULL;
-	if (pEffect->VkShaderVertex != NULL)
+		pEffect->VkPipeline = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderVertex != pEffectOverlay->VkShaderVertex) : true) && pEffect->VkShaderVertex != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
-	pEffect->VkShaderVertex = NULL;
-	if (pEffect->VkShaderFragment != NULL)
+		pEffect->VkShaderVertex = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderFragment != pEffectOverlay->VkShaderFragment) : true) && pEffect->VkShaderFragment != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
-	pEffect->VkShaderFragment = NULL;
+		pEffect->VkShaderFragment = NULL;
+	}
 
-	Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles);
+	if (((pEffectOverlay != NULL) ? (memcmp(&pEffect->AllocationParticles, &pEffectOverlay->AllocationParticles, sizeof(pEffect->AllocationParticles)) != 0) : true) && TestNULL(&pEffect->AllocationParticles, sizeof(pEffect->AllocationParticles)) != Success) {
+		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles);
+		memset(&pEffect->AllocationParticles, 0, sizeof(pEffect->AllocationParticles));
+	}
+	if (((pEffectOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pEffect->mutex, &pEffectOverlay->mutex) != Success) : true) && TestNULL(&pEffect->mutex, sizeof(pEffect->mutex)) != Success) {
+		Engine_Ref_Destroy_Mutex(&pEffect->mutex);
+		memset(&pEffect->mutex, 0, sizeof(pEffect->mutex));
+	}
 
-	Engine_Ref_Destroy_Mutex(pEffect->mutex);
-
-	if (Full == true)
-	{
-		if (pEffect->Particles != NULL)
-			free(pEffect->Particles);
+	//for full destruct items.
+	if ((((pEffectOverlay != NULL) ? (pEffect->Particles != pEffectOverlay->Particles) : false) || Full == true) && pEffect->Particles != NULL) {
+		free(pEffect->Particles);
 		pEffect->Particles = NULL;
 		pEffect->ParticlesSize = 0;
 	}
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT Destroy_Fundamental(ElementGraphics* pElement, ChemistryEffectFundamental* pEffect, bool Full, uint32_t ThreadIndex)
-{
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
+TEXRESULT Destroy_Fundamental(ElementGraphics* pElement, ElementGraphics* pElementOverlay, ChemistryEffectFundamental* pEffect, ChemistryEffectFundamental* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 
-	if (pEffect->VkPipelineCompute != NULL)
+
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineCompute != pEffectOverlay->VkPipelineCompute) : true) && pEffect->VkPipelineCompute != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineCompute, NULL);
-	pEffect->VkPipelineCompute = NULL;
-	if (pEffect->VkShaderCompute != NULL)
-		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderCompute, NULL);
-	pEffect->VkShaderCompute = NULL;
-
-
-	if (pEffect->VkPipelineLayout != NULL)
-		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineLayout, NULL);
-	pEffect->VkPipelineLayout = NULL;
-
-	if (pEffect->VkDescriptorSetLayout != NULL)
-		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorSetLayout, NULL);
-	pEffect->VkDescriptorSetLayout = NULL;
-
-	if (pEffect->VkDescriptorSet != NULL)
-	{
-		//vkFreeDescriptorSets(pResourceHeader->pLogicalDevice->VkLogicalDevice, pResourceHeader->VkWindowDescriptorPool, pResourceHeader->CurrentFrameBuffersSize, pResourceHeader->VkDescriptorSetsInputAttachment);
-		//free(pEffect->VkDescriptorSets);
+		pEffect->VkPipelineCompute = NULL;
 	}
-	pEffect->VkDescriptorSet = NULL;
-
-	if (pEffect->VkDescriptorPool != NULL)
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineCompute != pEffectOverlay->VkShaderCompute) : true) && pEffect->VkShaderCompute != NULL) {
+		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderCompute, NULL);
+		pEffect->VkShaderCompute = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineLayout != pEffectOverlay->VkPipelineLayout) : true) && pEffect->VkPipelineLayout != NULL) {
+		vkDestroyPipelineLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineLayout, NULL);
+		pEffect->VkPipelineLayout = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkDescriptorSetLayout != pEffectOverlay->VkDescriptorSetLayout) : true) && pEffect->VkDescriptorSetLayout != NULL) {
+		vkDestroyDescriptorSetLayout(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorSetLayout, NULL);
+		pEffect->VkDescriptorSetLayout = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkDescriptorSet != pEffectOverlay->VkDescriptorSet) : true) && pEffect->VkDescriptorSet != NULL) {
+		pEffect->VkDescriptorSet = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkDescriptorPool != pEffectOverlay->VkDescriptorPool) : true) && pEffect->VkDescriptorPool != NULL) {
 		vkDestroyDescriptorPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkDescriptorPool, NULL);
-	pEffect->VkDescriptorPool = NULL;
-
-
-
-	if (pEffect->VkPipeline != NULL)
+		pEffect->VkDescriptorPool = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkPipeline != pEffectOverlay->VkPipeline) : true) && pEffect->VkPipeline != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipeline, NULL);
-	pEffect->VkPipeline = NULL;
-	if (pEffect->VkShaderVertex != NULL)
+		pEffect->VkPipeline = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderVertex != pEffectOverlay->VkShaderVertex) : true) && pEffect->VkShaderVertex != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderVertex, NULL);
-	pEffect->VkShaderVertex = NULL;
-	if (pEffect->VkShaderFragment != NULL)
+		pEffect->VkPipeline = NULL;
+	}
+	if (((pEffectOverlay != NULL) ? (pEffect->VkShaderFragment != pEffectOverlay->VkShaderFragment) : true) && pEffect->VkShaderFragment != NULL) {
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
-	pEffect->VkShaderFragment = NULL;
+		pEffect->VkShaderFragment = NULL;
+	}
 
-	Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles0);
-	Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles1);
+	if (((pEffectOverlay != NULL) ? (memcmp(&pEffect->AllocationParticles0, &pEffectOverlay->AllocationParticles0, sizeof(pEffect->AllocationParticles0)) != 0) : true) && TestNULL(&pEffect->AllocationParticles0, sizeof(pEffect->AllocationParticles0)) != Success) {
+		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles0);
+		memset(&pEffect->AllocationParticles0, 0, sizeof(pEffect->AllocationParticles0));
+	}
+	if (((pEffectOverlay != NULL) ? (memcmp(&pEffect->AllocationParticles1, &pEffectOverlay->AllocationParticles1, sizeof(pEffect->AllocationParticles1)) != 0) : true) && TestNULL(&pEffect->AllocationParticles1, sizeof(pEffect->AllocationParticles1)) != Success) {
+		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles1);
+		memset(&pEffect->AllocationParticles1, 0, sizeof(pEffect->AllocationParticles1));
+	}
+	if (((pEffectOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pEffect->mutex, &pEffectOverlay->mutex) != Success) : true) && TestNULL(&pEffect->mutex, sizeof(pEffect->mutex)) != Success) {
+		Engine_Ref_Destroy_Mutex(&pEffect->mutex);
+		memset(&pEffect->mutex, 0, sizeof(pEffect->mutex));
+	}
 
-	Engine_Ref_Destroy_Mutex(pEffect->mutex);
-
-	if (Full == true)
-	{
-		if (pEffect->Particles != NULL)
-			free(pEffect->Particles);
+	//for full destruct items.
+	if ((((pEffectOverlay != NULL) ? (pEffect->Particles != pEffectOverlay->Particles) : false) || Full == true) && pEffect->Particles != NULL) {
+		free(pEffect->Particles);
 		pEffect->Particles = NULL;
 		pEffect->ParticlesSize = 0;
 	}
+
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -2285,24 +2291,24 @@ TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel
 #endif
 	VkResult res = VK_SUCCESS;
 	TEXRESULT tres = Success;
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
-	RHeaderMaterial* pMaterial = (RHeaderMaterial*)Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pMaterial->BaseColourTexture.iTexture) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->BaseColourTexture.iTexture) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->BaseColourTexture.iTexture Invalid");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
 
-	RHeaderTexture* pTexture0 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture);
-	RHeaderImageSource* pImageSource0 = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource);
+	RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
+	RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
 
-	RHeaderTexture* pTexture1 = (RHeaderTexture*)Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture);
-	RHeaderImageSource* pImageSource1 = (RHeaderImageSource*)Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource);
+	RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+	RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
 
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pTexture0->iImageSource) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture0->iImageSource) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->BaseColourTexture.iTexture->iImageSource Invalid");
 		return (Invalid_Parameter | Failure);
@@ -2312,7 +2318,7 @@ TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel
 		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->BaseColourTexture.iTexture->iImageSource->ImageData == NULLPTR");
 		return (Invalid_Parameter | Failure);
 	}
-	if (Object_Ref_Get_ResourceHeaderAllocationValidity(pTexture1->iImageSource) != Success)
+	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture1->iImageSource) == NULL)
 	{
 		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->EmissiveTexture.iTexture->iImageSource Invalid");
 		return (Invalid_Parameter | Failure);
@@ -2337,7 +2343,7 @@ TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel
 	pImageSource1->ImageData->MipmapCount = 1;
 	Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, NULL, ThreadIndex);
 
-	Engine_Ref_Create_Mutex(pEffect->mutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//DescriptorLayout
@@ -2685,17 +2691,15 @@ TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel
 		//free(DataVertex.pData);
 		free(DataFragment.pData);
 	}
-	return (Success);
-}
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 
-int cmpfunc(const void* a, const void* b) {
-	float chunk = 10.f;
-	if ((round(((GPU_Particle*)a)->Position[0] / chunk) * chunk) > (round(((GPU_Particle*)b)->Position[0] / chunk) * chunk) &&
-		(round(((GPU_Particle*)a)->Position[1] / chunk) * chunk) > (round(((GPU_Particle*)b)->Position[1] / chunk) * chunk) &&
-		(round(((GPU_Particle*)a)->Position[2] / chunk) * chunk) > (round(((GPU_Particle*)b)->Position[2] / chunk) * chunk) == true)
-	{
-		return true;
-	}
+	Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
+
+	Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
+	return (Success);
 }
 
 TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundamental* pEffect, uint32_t ThreadIndex)
@@ -2714,94 +2718,10 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 #endif
 	VkResult res = VK_SUCCESS;
 	TEXRESULT tres = Success;
-	RHeaderGraphicsWindow* pGraphicsWindow = (RHeaderGraphicsWindow*)Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow);
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 
-	Engine_Ref_Create_Mutex(pEffect->mutex, MutexType_Plain);
+	Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//Calculation
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-	qsort(&pEffect->Particles[0], pEffect->ParticlesSize, sizeof(*pEffect->Particles), cmpfunc);
-
-	//clearing
-	/*
-	for (int i = 0; i < pEffect->ParticlesSize; i++)
-	{
-		pEffect->Particles[i].PositionVelocity[3] = -1.0f;
-		pEffect->Particles[i].level = -1;
-		for (int i00 = 0; i00 < 2; i00++) {
-			for (int i10 = 0; i10 < 2; i10++) {
-				for (int i20 = 0; i20 < 2; i20++) {
-					pEffect->Particles[i].Info0[i00][i10][i20] = -1;
-				}
-			}
-		}
-	}
-	pEffect->Particles[0].PositionVelocity[3] = 0;
-	pEffect->Particles[0].level = 0;
-	
-	int level = 0;
-	bool end = false;
-	while (end == false)
-	{
-		for (int i0 = 0; i0 < pEffect->ParticlesSize; i0++) //make sure correct level
-		{		
-			//if has parent node
-			if (pEffect->Particles[i0].PositionVelocity[3] != -1 && pEffect->Particles[i0].level == level) // 
-			{			
-				float LevelChunkSize = ((float)pEffect->Resolution / pow(2.0f, ((float)level)));
-				float ChunkSizeOffset = ((LevelChunkSize / 2.0f));
-
-				vec3 ChunkPosition = {	(round(pEffect->Particles[i0].Position[0] / ChunkSizeOffset) * ChunkSizeOffset),
-										(round(pEffect->Particles[i0].Position[1] / ChunkSizeOffset) * ChunkSizeOffset),
-										(round(pEffect->Particles[i0].Position[2] / ChunkSizeOffset) * ChunkSizeOffset) };
-				end = true;		
-				for (int i1 = 0; i1 < pEffect->ParticlesSize; i1++) //make sure not already a parent ffs
-				{
-					if ((pEffect->Particles[i1].Position[0]) <= (ChunkPosition[0] + (LevelChunkSize * 8)) &&
-						(pEffect->Particles[i1].Position[0]) >= (ChunkPosition[0] - (LevelChunkSize * 8)) &&
-						(pEffect->Particles[i1].Position[1]) <= (ChunkPosition[1] + (LevelChunkSize * 8)) &&
-						(pEffect->Particles[i1].Position[1]) >= (ChunkPosition[1] - (LevelChunkSize * 8)) &&
-						(pEffect->Particles[i1].Position[2]) <= (ChunkPosition[2] + (LevelChunkSize * 8)) &&
-						(pEffect->Particles[i1].Position[2]) >= (ChunkPosition[2] - (LevelChunkSize * 8)) &&
-						i1 != i0 && 
-						pEffect->Particles[i1].PositionVelocity[3] == -1)
-					{
-						int coord[3] = {glm_clamp((((pEffect->Particles[i1].Position[0] - ChunkPosition[0]) + 1.0f) / 2), 0.0, 1.0),
-										glm_clamp((((pEffect->Particles[i1].Position[1] - ChunkPosition[1]) + 1.0f) / 2), 0.0, 1.0),
-										glm_clamp((((pEffect->Particles[i1].Position[2] - ChunkPosition[2]) + 1.0f) / 2), 0.0, 1.0) };
-
-
-
-						if (pEffect->Particles[i0].Info0[coord[0]][coord[1]][coord[2]] == -1.0f)
-						{			
-							char buffer[256];
-							snprintf(buffer, 256, "%i %i C: %i %i %i P: %f %f %f CP: %f %f %f CS: %f ",
-								i0, i1, coord[0], coord[1], coord[2],
-								pEffect->Particles[i1].Position[0], pEffect->Particles[i1].Position[1], pEffect->Particles[i1].Position[2],
-								ChunkPosition[0], ChunkPosition[1], ChunkPosition[2],
-								LevelChunkSize);
-
-							Engine_Ref_FunctionError(buffer, " a", 0);
-						
-							pEffect->Particles[i1].level = level + 1;
-							pEffect->Particles[i1].PositionVelocity[3] = i0;
-							pEffect->Particles[i0].Info0[coord[0]][coord[1]][coord[2]] = i1;
-						}
-					}
-					if (pEffect->Particles[i1].PositionVelocity[3] == -1)
-					{
-						end = false;
-					}
-				}	
-			}
-		}
-		level++;
-	}
-	pEffect->Particles[0].PositionVelocity[3] = -1;
-	*/
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//DescriptorLayout
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3483,6 +3403,7 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 	vkFreeCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 	vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
 	*/
+	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -3687,8 +3608,9 @@ TEXRESULT Create_Fundamental(ElementGraphics* pElement, ChemistryEffectFundament
 //Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Initialise_Chemistry()
-{
+TEXRESULT Initialise_Chemistry() {
+	memset(&Utils, 0, sizeof(Utils));
+
 	Utils.SimpleModelSignature.Identifier = (uint32_t)ChemistryEffects_SimpleModel;
 	Utils.SimpleModelSignature.Constructor = (Create_GraphicsEffectTemplate*)&Create_SimpleModel;
 	Utils.SimpleModelSignature.ReConstructor = (ReCreate_GraphicsEffectTemplate*)&ReCreate_SimpleModel;
@@ -3697,8 +3619,8 @@ TEXRESULT Initialise_Chemistry()
 	Utils.SimpleModelSignature.UnPacker = (UnPack_GraphicsEffectTemplate*)&UnPack_SimpleModel;
 	Utils.SimpleModelSignature.Update = (Update_GraphicsEffectTemplate*)&Update_SimpleModel;
 	Utils.SimpleModelSignature.Draw = (Draw_GraphicsEffectTemplate*)&Draw_SimpleModel;
-	Utils.SimpleModelSignature.UpdateSignature = &UpdateSignature_SimpleModel;
-	Utils.SimpleModelSignature.DrawSignature = &DrawSignature_SimpleModel;
+	Utils.SimpleModelSignature.UpdateSignature = (UpdateSignature_GraphicsEffectTemplate*)&UpdateSignature_SimpleModel;
+	Utils.SimpleModelSignature.DrawSignature = (DrawSignature_GraphicsEffectTemplate*)&DrawSignature_SimpleModel;
 	Utils.SimpleModelSignature.SignatureGPUBuffersSize = ChemistrySimpleModelBuffersCount;
 	Graphics_Effects_Ref_Register_GraphicsEffectSignature(&Utils.SimpleModelSignature);
 
@@ -3710,8 +3632,8 @@ TEXRESULT Initialise_Chemistry()
 	Utils.FullModelSignature.UnPacker = (UnPack_GraphicsEffectTemplate*)&UnPack_FullModel;
 	Utils.FullModelSignature.Update = (Update_GraphicsEffectTemplate*)&Update_FullModel;
 	Utils.FullModelSignature.Draw = (Draw_GraphicsEffectTemplate*)&Draw_FullModel;
-	Utils.FullModelSignature.UpdateSignature = &UpdateSignature_FullModel;
-	Utils.FullModelSignature.DrawSignature = &DrawSignature_FullModel;
+	Utils.FullModelSignature.UpdateSignature = (UpdateSignature_GraphicsEffectTemplate*)&UpdateSignature_FullModel;
+	Utils.FullModelSignature.DrawSignature = (DrawSignature_GraphicsEffectTemplate*)&DrawSignature_FullModel;
 	Utils.FullModelSignature.SignatureGPUBuffersSize = ChemistryFullModelBuffersCount;
 	Graphics_Effects_Ref_Register_GraphicsEffectSignature(&Utils.FullModelSignature);
 
@@ -3723,19 +3645,22 @@ TEXRESULT Initialise_Chemistry()
 	Utils.FundamentalSignature.UnPacker = (UnPack_GraphicsEffectTemplate*)&UnPack_Fundamental;
 	Utils.FundamentalSignature.Update = (Update_GraphicsEffectTemplate*)&Update_Fundamental;
 	Utils.FundamentalSignature.Draw = (Draw_GraphicsEffectTemplate*)&Draw_Fundamental;
-	Utils.FundamentalSignature.UpdateSignature = &UpdateSignature_Fundamental;
-	Utils.FundamentalSignature.DrawSignature = &DrawSignature_Fundamental;
+	Utils.FundamentalSignature.UpdateSignature = (UpdateSignature_GraphicsEffectTemplate*)&UpdateSignature_Fundamental;
+	Utils.FundamentalSignature.DrawSignature = (DrawSignature_GraphicsEffectTemplate*)&DrawSignature_Fundamental;
 	Utils.FundamentalSignature.SignatureGPUBuffersSize = ChemistryFundamentalBuffersCount;
 	Graphics_Effects_Ref_Register_GraphicsEffectSignature(&Utils.FundamentalSignature);
 
-	return (TEXRESULT)(Success);
+	return (Success);
 }
 
-TEXRESULT Destroy_Chemistry()
-{
+TEXRESULT Destroy_Chemistry() {
 	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.SimplifiedMolecularSignature);
 
 	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.QuantumAtomicSignature);
+
+
+	memset(&Utils, 0, sizeof(Utils));
+
 	return Success;
 }
 

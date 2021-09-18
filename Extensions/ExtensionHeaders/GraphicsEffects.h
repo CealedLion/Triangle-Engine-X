@@ -2,6 +2,8 @@
 Triangle Engine X Additional Graphics Effects.
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+#pragma once
+#define TEX_GRAPHICSEFFECTS
 
 /*
 * Added in 1.0.0
@@ -10,8 +12,10 @@ Triangle Engine X Additional Graphics Effects.
 typedef enum GraphicsEffectsHeaderType{
 	GraphicsEffectsHeader_WaterRender = 5000
 }GraphicsEffectsHeaderType;
-
-
+/*
+* Added in 1.0.0
+* GraphicsEffects Uses enums from 5000
+*/
 typedef enum GraphicsEffectsEffectsType{
 	GraphicsEffectsEffect_Water = 5000
 }GraphicsEffectsEffectsType;
@@ -20,6 +24,10 @@ typedef enum GraphicsEffectsEffectsType{
 //structs
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/*
+* Added in 1.0.0
+* PushConstants for water shader.
+*/ 
 typedef struct WaterPushConstants {
 	//uvec4
 	uint32_t WaterResolution;
@@ -43,12 +51,12 @@ typedef struct WaterPushConstants {
 
 /*
 * Added in 1.0.0
-* Renders a water shader heightmap to a texture.
+* Renders a water shader heightmap to specified texture using specified noise.
 */
 typedef struct RHeaderWaterRenderCreateInfo {
-	RHeaderGraphicsWindow* pGraphicsWindow; //required
-	RHeaderTexture* pTextureTarget; //required
-	RHeaderTexture* pNoise; //required
+	ResourceHeaderAllocation iGraphicsWindow; //Required
+	ResourceHeaderAllocation iTextureTarget; //Required
+	ResourceHeaderAllocation iNoise; //Required
 
 	uint32_t WaterResolution; //res 256
 	uint32_t WaterL; // = 1000
@@ -74,6 +82,8 @@ typedef struct RHeaderWaterRender {
 	float Waterl;
 
 	double Time;
+
+
 
 	vec2 FlowDirection;
 
@@ -159,32 +169,26 @@ typedef struct RHeaderWaterRender {
 //Utils
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef TEX_EXPOSE_GRAPHICSEFFECTS
-typedef struct GraphicsEffectsUtils
-{	
-	ResourceHeaderBuffer RHeaderWaterRenderBuffer;
+typedef struct GraphicsEffectsUtils {	
+	struct {
+		uint64_t pad;
+	}Config;
+
+	//Signatures
 	ResourceHeaderSignature RHeaderWaterRenderSig;
-
 	GraphicsEffectSignature WaterSig;
-
 }GraphicsEffectsUtils;
-#endif
 
-
-struct GraphicsEffectsResStruct
-{
-	void* pUtils;
+struct GraphicsEffectsResStruct {
+	GraphicsEffectsUtils* pUtils;
 
 	void* pInitialise_GraphicsEffects;
 	void* pDestroy_GraphicsEffects;
 	void* pUpdate_GraphicsEffects;
-
-
 }GraphicsEffectsRes;
 
 //Initialise_Resources MUST be called to use the library in your dll
-void GraphicsEffects_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
-{
+void GraphicsEffects_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize) {
 	memset(&GraphicsEffectsRes, 0, sizeof(GraphicsEffectsRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"GraphicsEffects::Utils"), &GraphicsEffectsRes.pUtils);

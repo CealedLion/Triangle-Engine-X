@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <atomic/atomic.h>
 //Platform specific includes 
 #if defined(_TEX_POSIX_)
 #include <xcb/xcb.h>
@@ -45,7 +46,6 @@ BinaryType EngineBinType = Debug;
 
 volatile EngineUtils Utils;
 
-
 /* Mutex */
 #if defined(_TEX_WIN32_)
 typedef struct {
@@ -76,6 +76,13 @@ typedef struct {
 #else
 typedef pthread_cond_t cnd_t;
 #endif
+
+/* Shared mutex */
+typedef struct {
+	mtx_t mutex;
+	c89atomic_uint32 ReadCount;
+}mtxshared_t;
+
 
 #ifdef _TEX_WIN32_
 typedef struct {
@@ -152,6 +159,23 @@ void ArgsError(const UTF8* FunctionName, const UTF8* Error)
 #endif
 }
 
+/*
+* Added in 1.0.0
+* Compares two mutexes to see if they are the same thing.
+* @return @ref Success if same, or @ref Failure if different.
+*/
+TEXRESULT Compare_Mutex(mtx_t* pMutex0, mtx_t* pMutex1) {
+#ifdef _TEX_WIN32_
+	if (memcmp(&pMutex0->mHandle, &pMutex1->mHandle, sizeof(pMutex0->mHandle)) != 0) {
+		return (Failure);
+	}
+#else
+	if (memcmp(pMutex0, pMutex1, sizeof(*pMutex0)) != 0) {
+		return (Failure);
+	}
+#endif
+	return (Success);
+}
 /*
 * Added in 1.0.0
 * Create a mutex object.
@@ -654,7 +678,199 @@ TEXRESULT TimedWait_Condition(cnd_t* pCondition, mtx_t* pMutex, const struct tim
 	return ret == 0 ? Success : Failure;
 #endif
 }
-
+/*
+* Added in 1.0.0
+* Compares two mutexes to see if they are the same thing.
+* @return @ref Success if same, or @ref Failure if different.
+*/
+TEXRESULT Compare_SharedMutex(mtxshared_t* pMutex0, mtxshared_t* pMutex1) {
+#ifdef _TEX_WIN32_
+	if (memcmp(&pMutex0->mutex.mHandle, &pMutex1->mutex.mHandle, sizeof(pMutex0->mutex.mHandle)) != 0) {
+		return (Failure);
+	}
+#else
+	if (memcmp(&pMutex0->mutex, &pMutex1->mutex, sizeof(pMutex0->mutex)) != 0) {
+		return (Failure);
+	}
+#endif
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Create a mutex object.
+* @param mtx A mutex object.
+* @param type Bit-mask that must have one of the following six values:
+*   @li @c mtx_plain for a simple non-recursive mutex
+*   @li @c mtx_timed for a non-recursive mutex that supports timeout
+*   @li @c mtx_plain | @c mtx_recursive (same as @c mtx_plain, but recursive)
+*   @li @c mtx_timed | @c mtx_recursive (same as @c mtx_timed, but recursive)
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
+TEXRESULT Create_SharedMutex(mtxshared_t* pMutex, MutexType Type)
+{
+	TEXRESULT tres = Success;
+	if ((tres = Create_Mutex(&pMutex->mutex, Type)) != Success)
+		return tres;
+	c89atomic_store_32(&pMutex->ReadCount, 0);
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Release any resources used by the given mutex.
+* @param mtx A mutex object.
+*/
+void Destroy_SharedMutex(mtxshared_t* pMutex)
+{
+	Destroy_Mutex(&pMutex->mutex);
+	c89atomic_store_32(&pMutex->ReadCount, 0);
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Lock the given mutex.
+* Blocks until the given mutex can be locked. If the mutex is non-recursive, and
+* the calling thread already has a lock on the mutex, this call will block
+* forever.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
+TEXRESULT LockWrite_SharedMutex(mtxshared_t* pMutex)
+{
+	TEXRESULT tres = Success;
+	if ((tres = Lock_Mutex(&pMutex->mutex)) != Success)
+		return tres;
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Lock the given mutex, or block until a specific point in time.
+* Blocks until either the given mutex can be locked, or the specified TIME_UTC
+* based time.
+* @param mtx A mutex object.
+* @param ts A UTC based calendar time
+* @return @ref The mtx_timedlock function returns thrd_success on success, or
+* thrd_timedout if the time specified was reached without acquiring the
+* requested resource, or thrd_error if the request could not be honored.
+*/
+TEXRESULT TimedLockWrite_SharedMutex(mtxshared_t* pMutex, const struct timespec* ts)
+{
+	TEXRESULT tres = Success;
+	if ((tres = TimedLock_Mutex(&pMutex->mutex, ts)) != Success)
+		return tres;
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Try to lock the given mutex.
+* The specified mutex shall support either test and return or timeout. If the
+* mutex is already locked, the function returns without blocking.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_busy if the resource
+* requested is already in use, or @ref thrd_error if the request could not be
+* honored.
+*/
+TEXRESULT TryLockWrite_SharedMutex(mtxshared_t* pMutex)
+{
+	TEXRESULT tres = Success;
+	if ((tres = TryLock_Mutex(&pMutex->mutex)) != Success)
+		return tres;
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Unlock the given mutex.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
+TEXRESULT UnlockWrite_SharedMutex(mtxshared_t* pMutex)
+{
+	TEXRESULT tres = Success;
+	if ((tres = Unlock_Mutex(&pMutex->mutex)) != Success)
+		return tres;
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Lock the given mutex.
+* Blocks until the given mutex can be locked. If the mutex is non-recursive, and
+* the calling thread already has a lock on the mutex, this call will block
+* forever.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
+TEXRESULT LockRead_SharedMutex(mtxshared_t* pMutex)
+{
+	TEXRESULT tres = Success;
+	if (c89atomic_fetch_add_32(&pMutex->ReadCount, 1) == 0)
+	{
+		if ((tres = Lock_Mutex(&pMutex->mutex)) != Success)
+			return tres;
+	}
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Lock the given mutex, or block until a specific point in time.
+* Blocks until either the given mutex can be locked, or the specified TIME_UTC
+* based time.
+* @param mtx A mutex object.
+* @param ts A UTC based calendar time
+* @return @ref The mtx_timedlock function returns thrd_success on success, or
+* thrd_timedout if the time specified was reached without acquiring the
+* requested resource, or thrd_error if the request could not be honored.
+*/
+TEXRESULT TimedLockRead_SharedMutex(mtxshared_t* pMutex, const struct timespec* ts)
+{
+	TEXRESULT tres = Success;
+	if (c89atomic_fetch_add_32(&pMutex->ReadCount, 1) == 0)
+	{
+		if ((tres = TimedLock_Mutex(&pMutex->mutex, ts)) != Success)
+			return tres;
+	}
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Try to lock the given mutex.
+* The specified mutex shall support either test and return or timeout. If the
+* mutex is already locked, the function returns without blocking.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_busy if the resource
+* requested is already in use, or @ref thrd_error if the request could not be
+* honored.
+*/
+TEXRESULT TryLockRead_SharedMutex(mtxshared_t* pMutex)
+{
+	TEXRESULT tres = Success;
+	if (c89atomic_fetch_add_32(&pMutex->ReadCount, 0) == 0)
+	{
+		if ((tres = TryLock_Mutex(&pMutex->mutex)) != Success)
+			return tres;
+		c89atomic_fetch_add_32(&pMutex->ReadCount, 1);
+	}
+	return (Success);
+}
+/*
+* Added in 1.0.0
+* Unlock the given mutex.
+* @param mtx A mutex object.
+* @return @ref thrd_success on success, or @ref thrd_error if the request could
+* not be honored.
+*/
+TEXRESULT UnlockRead_SharedMutex(mtxshared_t* pMutex)
+{
+	TEXRESULT tres = Success;
+	if (c89atomic_fetch_sub_32(&pMutex->ReadCount, 1) == 1)
+	{
+		if ((tres = Unlock_Mutex(&pMutex->mutex)) != Success)
+			return tres;
+	}
+	return (Success);
+}
 /*
 //If TIME_UTC is missing, provide it and provide a wrapper for timespec_get.
 #ifndef TIME_UTC
@@ -791,6 +1007,22 @@ TEXRESULT ThreadEqual(Thread* Thread0, Thread* Thread1)
 #else
 	return (pthread_equal(Thread0, Thread1)) ? Success : Failure;
 #endif
+}
+/*
+* Added in 1.0.0
+* Compare two thread identifiers.
+* The function determines if two thread identifiers refer to the same thread.
+* @return Zero if the two thread identifiers refer to different threads.
+* Otherwise a nonzero value is returned.
+*/
+uint32_t Get_ThreadIndex(Thread* Thread)
+{
+#ifdef _TEX_WIN32_
+	//return (GetThreadId(Thread0) == GetThreadId(Thread1)) ? Success : Failure;
+#else
+	//return (pthread_equal(Thread0, Thread1)) ? Success : Failure;
+#endif
+	return UINT32_MAX;
 }
 /*
 * Added in 1.0.0
@@ -1140,7 +1372,7 @@ TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCr
 		return Invalid_Parameter | Failure;
 	}
 #endif
-	Lock_Mutex(Utils.ExtensionBuffer.mutex);
+	Lock_Mutex(&Utils.ExtensionBuffer.mutex);
 
 	ExtensionData* pExtensionData = NULL;
 
@@ -1242,7 +1474,7 @@ TEXRESULT Create_ExtensionData(ExtensionAllocation* pAllocation, ExtensionDataCr
 			return Failure;
 		}
 	}
-	Unlock_Mutex(Utils.ExtensionBuffer.mutex);
+	Unlock_Mutex(&Utils.ExtensionBuffer.mutex);
 	return Success;
 }
 /*
@@ -1323,7 +1555,7 @@ TEXRESULT Create_ExtensionDataBuffer(uint64_t InitialSize)
 	Utils.ExtensionBuffer.Buffer = (ExtensionData*)calloc(InitialSize, sizeof(*Utils.ExtensionBuffer.Buffer));
 	Utils.ExtensionBuffer.Max = InitialSize;
 
-	Create_Mutex(Utils.ExtensionBuffer.mutex, MutexType_Plain);
+	Create_Mutex(&Utils.ExtensionBuffer.mutex, MutexType_Plain);
 
 	return Success;
 }
@@ -1341,10 +1573,10 @@ TEXRESULT Resize_ExtensionDataBuffer(uint64_t NewSize)
 		return Invalid_Parameter;
 	}
 #endif
-	Lock_Mutex(Utils.ExtensionBuffer.mutex);
+	Lock_Mutex(&Utils.ExtensionBuffer.mutex);
 	Resize_Array((void**)&Utils.ExtensionBuffer.Buffer, Utils.ExtensionBuffer.Max, NewSize, sizeof(*Utils.ExtensionBuffer.Buffer));
 	Utils.ExtensionBuffer.Max = NewSize;
-	Unlock_Mutex(Utils.ExtensionBuffer.mutex);
+	Unlock_Mutex(&Utils.ExtensionBuffer.mutex);
 	return Success;
 }
 /*
@@ -1353,7 +1585,7 @@ TEXRESULT Resize_ExtensionDataBuffer(uint64_t NewSize)
 */
 void Destroy_ExtensionDataBuffer()
 {
-	Lock_Mutex(Utils.ExtensionBuffer.mutex);
+	Lock_Mutex(&Utils.ExtensionBuffer.mutex);
 
 	for (size_t i = 0; i < Utils.ExtensionBuffer.Max;)
 	{
@@ -1374,7 +1606,7 @@ void Destroy_ExtensionDataBuffer()
 	if (Utils.ExtensionBuffer.Buffer != NULL)
 		free(Utils.ExtensionBuffer.Buffer);
 
-	Destroy_Mutex(Utils.ExtensionBuffer.mutex);
+	Destroy_Mutex(&Utils.ExtensionBuffer.mutex);
 
 	memset(&Utils.ExtensionBuffer, 0, sizeof(Utils.ExtensionBuffer));
 }
@@ -2250,12 +2482,12 @@ TEXRESULT Create_Window(Window** ppWindow, uint32_t Width, uint32_t Height, cons
 		return Invalid_Parameter | Failure;
 	}
 #endif
-	Lock_Mutex(Utils.WindowsMutex);
+	Lock_Mutex(&Utils.WindowsMutex);
 	Resize_Array((void**)&Utils.pWindows, Utils.pWindowsSize, Utils.pWindowsSize + 1, sizeof(*Utils.pWindows));
 	Utils.pWindows[Utils.pWindowsSize] = (Window*)calloc(1, sizeof(Window));
 	Window* pWindow = Utils.pWindows[Utils.pWindowsSize];
 	Utils.pWindowsSize += 1;
-	Unlock_Mutex(Utils.WindowsMutex);
+	Unlock_Mutex(&Utils.WindowsMutex);
 #ifdef _WIN32
 	/*
 	HICON hIcon3;      // icon handle 
@@ -2412,7 +2644,7 @@ TEXRESULT Destroy_Window(Window* pWindow, const UTF8* Name)
 		return Invalid_Parameter | Failure;
 	}
 #endif
-	Lock_Mutex(Utils.WindowsMutex);
+	Lock_Mutex(&Utils.WindowsMutex);
 	for (size_t i = 0; i < Utils.pWindowsSize; i++)
 	{
 		if (Utils.pWindows[i] == pWindow)
@@ -2433,7 +2665,7 @@ TEXRESULT Destroy_Window(Window* pWindow, const UTF8* Name)
 			return Success;
 		}
 	}
-	Unlock_Mutex(Utils.WindowsMutex);
+	Unlock_Mutex(&Utils.WindowsMutex);
 	FunctionError("Destroy_Window()", "Window Not Found, Window == ", pWindow);
 	return Invalid_Parameter | Failure;
 }
@@ -2478,14 +2710,14 @@ TEXRESULT Read_ClipboardUTF8(Window* pWindow, UTF8* pData, uint64_t* pDataSize)
 #ifdef _WIN32
 	if (OpenClipboard(pWindow->Window) == 0){
 		FunctionError("Read_Clipboard()", "OpenClipboard() Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 
 	HANDLE hClipboardData = GetClipboardData(CF_UNICODETEXT);
 	if (hClipboardData == NULL){
 		CloseClipboard();
 		FunctionError("Read_Clipboard()", "GetClipboardData() Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 
 	LPWSTR string = GlobalLock(hClipboardData);
@@ -2503,7 +2735,7 @@ TEXRESULT Read_ClipboardUTF8(Window* pWindow, UTF8* pData, uint64_t* pDataSize)
 
 	if (CloseClipboard() == 0) {
 		FunctionError("Read_Clipboard()", "CloseClipboard() Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 #endif
 }
@@ -2517,12 +2749,12 @@ TEXRESULT Write_ClipboardUTF8(Window* pWindow, UTF8* pData)
 #ifdef _WIN32
 	if (OpenClipboard(pWindow->Window) == 0){
 		FunctionError("Write_Clipboard()", "OpenClipboard Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 	if (EmptyClipboard(pWindow->Window) == 0) {
 		CloseClipboard();
 		FunctionError("Write_Clipboard()", "EmptyClipboard Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 
 	LPWSTR string = NULL;
@@ -2532,7 +2764,7 @@ TEXRESULT Write_ClipboardUTF8(Window* pWindow, UTF8* pData)
 	if (hglb == NULL){
 		CloseClipboard();
 		FunctionError("Write_Clipboard()", "GlobalAlloc Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 
 	string = GlobalLock(hglb);
@@ -2544,12 +2776,12 @@ TEXRESULT Write_ClipboardUTF8(Window* pWindow, UTF8* pData)
 	if (hClipboardData == NULL) {
 		CloseClipboard();
 		FunctionError("Write_Clipboard()", "GetClipboardData() Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 
 	if (CloseClipboard() == 0) {
 		FunctionError("Write_Clipboard()", "CloseClipboard Failed, Result == ", GetLastError());
-		return (TEXRESULT)(Failure);
+		return (Failure);
 	}
 #endif
 }
@@ -2757,7 +2989,7 @@ TEXRESULT Initialize()
 
 	Config.InitialExtensionMax = 1024;
 
-	Create_Mutex(Utils.WindowsMutex, MutexType_Plain);
+	Create_Mutex(&Utils.WindowsMutex, MutexType_Plain);
 
 	Create_ExtensionDataBuffer(Config.InitialExtensionMax);
 
@@ -2799,12 +3031,26 @@ TEXRESULT Initialize()
 
 
 	//Threading
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Compare_Mutex"), &EngineRes.pCompare_Mutex, &Compare_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Mutex"), &EngineRes.pCreate_Mutex, &Create_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Mutex"), &EngineRes.pDestroy_Mutex, &Destroy_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Lock_Mutex"), &EngineRes.pLock_Mutex, &Lock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedLock_Mutex"), &EngineRes.pTimedLock_Mutex, &TimedLock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TryLock_Mutex"), &EngineRes.pTryLock_Mutex, &TryLock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Unlock_Mutex"), &EngineRes.pUnlock_Mutex, &Unlock_Mutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Compare_SharedMutex"), &EngineRes.pCompare_SharedMutex, &Compare_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_SharedMutex"), &EngineRes.pCreate_SharedMutex, &Create_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_SharedMutex"), &EngineRes.pDestroy_SharedMutex, &Destroy_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::LockWrite_SharedMutex"), &EngineRes.pLockWrite_SharedMutex, &LockWrite_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedLockWrite_SharedMutex"), &EngineRes.pTimedLockWrite_SharedMutex, &TimedLockWrite_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TryLockWrite_SharedMutex"), &EngineRes.pTryLockWrite_SharedMutex, &TryLockWrite_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::UnlockWrite_SharedMutex"), &EngineRes.pUnlockWrite_SharedMutex, &UnlockWrite_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::LockRead_SharedMutex"), &EngineRes.pLockRead_SharedMutex, &LockRead_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TimedLockRead_SharedMutex"), &EngineRes.pTimedLockRead_SharedMutex, &TimedLockRead_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::TryLockRead_SharedMutex"), &EngineRes.pTryLockRead_SharedMutex, &TryLockRead_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::UnlockRead_SharedMutex"), &EngineRes.pUnlockRead_SharedMutex, &UnlockRead_SharedMutex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+
 
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Create_Condition"), &EngineRes.pCreate_Condition, &Create_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Destroy_Condition"), &EngineRes.pDestroy_Condition, &Destroy_Condition, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -2817,6 +3063,7 @@ TEXRESULT Initialize()
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Current_Thread"), &EngineRes.pCurrent_Thread, &Current_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Detach_Thread"), &EngineRes.pDetach_Thread, &Detach_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::ThreadEqual"), &EngineRes.pThreadEqual, &ThreadEqual, (CallFlagBits)NULL, 0.0f, NULL, NULL);
+	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Get_ThreadIndex"), &EngineRes.pGet_ThreadIndex, &Get_ThreadIndex, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Exit_Thread"), &EngineRes.pExit_Thread, &Exit_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Join_Thread"), &EngineRes.pJoin_Thread, &Join_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
 	FunctionExport(&pEngineExtension->pFunctions, &pEngineExtension->pFunctionsSize, (const UTF8*)CopyData("Engine::Sleep_Thread"), &EngineRes.pSleep_Thread, &Sleep_Thread, (CallFlagBits)NULL, 0.0f, NULL, NULL);
@@ -2836,7 +3083,7 @@ TEXRESULT Initialize()
 	UTF8* CommandLinePointer = Utils.win32.CommandLine;
 	while (*CommandLinePointer != '\0')
 	{
-		uint64_t it = Find_first_of(CommandLinePointer, ",");
+		uint64_t it = Find_First_Of(CommandLinePointer, ",");
 	
 		UTF8* tempstring = NULL;
 		uint64_t tempstringpointer = 0;
@@ -2921,7 +3168,7 @@ TEXRESULT Destroy()
 	Utils.pWindows = NULL;
 	Utils.pWindowsSize = NULL;
 
-	Destroy_Mutex(Utils.WindowsMutex);
+	Destroy_Mutex(&Utils.WindowsMutex);
 
 	memset(&Config, 0, sizeof(Config));
 	memset(&Utils, 0, sizeof(Utils));

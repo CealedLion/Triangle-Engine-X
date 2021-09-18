@@ -1,10 +1,20 @@
+/*//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Property Of the National People's Republic Of The Ocean
+
+SPECIFICATION:
+
+* Simulations of the (Standard Model Of Physics In The N.P.R.O), not to be confused with (Standard Model) physics of the land lovers.
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 #pragma once
+#define TEX_CHEMISTRY
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Enums
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
 * Added in 1.0.0
+* Identifiers of all the elements.
 */
 typedef enum ChemistryElementType {
 	ChemistryElementType_Hydrogen = 1,
@@ -128,6 +138,7 @@ typedef enum ChemistryElementType {
 }ChemistryElementType;
 /*
 * Added in 1.0.0
+* All the elements and their electron counts and shells
 */
 const uint8_t ChemistryElementsElectrons[][8] = {
 	{0, 0, 0, 0, 0, 0, 0, 0,}, //UNDEFEIND
@@ -334,7 +345,6 @@ typedef struct ChemistryEffectSimpleModel {
 * Added in 1.0.0
 */
 typedef struct ChemistryEffectCreateInfoFullModel {
-
 	uint32_t SimulationResolution;
 
 	uint64_t ParticlesSize;
@@ -342,27 +352,21 @@ typedef struct ChemistryEffectCreateInfoFullModel {
 }ChemistryEffectCreateInfoFullModel;
 typedef struct ChemistryEffectFullModel {
 	GraphicsEffectTemplate Header;
-
+	
 	uint32_t SimulationResolution;
-
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
 
 	//every reinit
 	int32_t PingPongIndex;
-
 	Mutex mutex;
-
 	GPU_Allocation AllocationParticles;
-
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipelineComputeSource;
 	VkShaderModule VkShaderComputeSource;
 
 	VkPipeline VkPipelineComputeField;
 	VkShaderModule VkShaderComputeField;
-
-
 
 	VkPipelineLayout VkPipelineLayout;
 	VkDescriptorSetLayout VkDescriptorSetLayout;
@@ -380,7 +384,6 @@ typedef struct ChemistryEffectFullModel {
 	void** VkDescriptorSets;
 	void* VkDescriptorPool;
 #endif
-
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipeline;
 	VkShaderModule VkShaderVertex;
@@ -444,8 +447,6 @@ typedef struct ChemistryEffectFundamental {
 #endif
 }ChemistryEffectFundamental;
 
-
-
 #ifdef TEX_EXPOSE_CHEMISTRY
 #define ChemistrySimpleModelBuffersCount 1
 
@@ -454,24 +455,26 @@ typedef struct ChemistryEffectFundamental {
 
 #define ChemistryFundamentalBuffersCount 2
 #define ChemistryFundamentalImagesCount 2
+#endif
+typedef struct ChemistryUtils {
+	struct {
+		uint32_t pad;
+	}Config;
 
-typedef struct ChemistryUtils{
 	GraphicsEffectSignature SimpleModelSignature;
 	GraphicsEffectSignature FullModelSignature;
 	GraphicsEffectSignature FundamentalSignature;
 }ChemistryUtils;
-#endif
 
-struct ChemistryResStruct{
-	void* pUtils;
+struct ChemistryResStruct {
+	ChemistryUtils* pUtils;
 	void* pInitialise_Chemistry;
 	void* pDestroy_Chemistry;
 	void* pUpdate_Chemistry;
 }ChemistryRes;
 
 //Initialise_Resources MUST be called to use the library in your dll
-void Chemistry_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
-{
+void Chemistry_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize) {
 	memset(&ChemistryRes, 0, sizeof(ChemistryRes));
 }
 

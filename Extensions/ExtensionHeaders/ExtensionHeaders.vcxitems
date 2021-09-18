@@ -16,6 +16,7 @@
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)Audio.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Chemistry.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Common.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)GraphicsEffects.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)GraphicsShaders.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)GUI.h" />

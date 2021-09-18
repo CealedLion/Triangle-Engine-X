@@ -7,11 +7,12 @@ SPECIFICATION:
 
  * set "TEX_EXPOSE_VULKAN" define to expose native vulkan if you are into that. 
 
+ * Much of this api is inspired by GLTF so check out GLTF v2 spec to understand more.
+
  * Utils can be imported. Graphics::Utils
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 #pragma once
-
 #define TEX_GRAPHICS_API
 
 #include <cglm/cglm.h>
@@ -23,6 +24,8 @@ SPECIFICATION:
 /*
 * Added in 1.0.0
 * Redefine of VkFormat.
+* define a common set of formats
+* https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkFormat.html
 */
 typedef enum GraphicsFormat{
 	GraphicsFormat_Undefined = 0,
@@ -213,11 +216,11 @@ typedef enum GraphicsFormat{
 
 }GraphicsFormat;
 
-//define a common set of formats
-//https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkFormat.html
-
-//amount of bits each channel in format is
-//compressed are undefined
+/*
+* Added in 1.0.0
+* amount of bits each channel in format has
+* compressed are undefined
+*/
 const uint8_t GraphicsFormatBitsPerChannels[][4] = {
 	{0, 0, 0, 0}, //UNDEFEIND
 	{4, 4, 0, 0}, //VK_FORMAT_R4G4_UNORM_PACK8
@@ -405,7 +408,10 @@ const uint8_t GraphicsFormatBitsPerChannels[][4] = {
 	{128, 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_UNORM_BLOCK = 183,
 	{128, 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,
 };
-//ChannelIndentifiers format has
+/*
+* Added in 1.0.0
+* ChannelIndentifiers format has
+*/
 const char GraphicsFormatChannelIndentifiers[][4] = {
 	{0, 0, 0, 0}, //UNDEFEIND
 	{'R', 'G', 0, 0}, //VK_FORMAT_R4G4_UNORM_PACK8
@@ -593,7 +599,10 @@ const char GraphicsFormatChannelIndentifiers[][4] = {
 	{ 'R', 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_UNORM_BLOCK = 183,
 	{ 'R', 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,
 };
-//amount of bit stride each format has
+/*
+* Added in 1.0.0
+* amount of bit stride each format has
+*/
 const uint8_t GraphicsFormatStrides[] = {
 
 	0, //UNDEFEIND
@@ -830,7 +839,10 @@ VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT = 1000066013,
 */
 
 };
-//amount of components each format has
+/*
+* Added in 1.0.0
+* amount of components each format has
+*/
 const uint8_t GraphicsFormatChannelCounts[] = {
 	0, //UNDEFEIND
 	2, //VK_FORMAT_R4G4_UNORM_PACK8
@@ -1020,7 +1032,10 @@ const uint8_t GraphicsFormatChannelCounts[] = {
 	{128, 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,
 	*/
 };
-//datatype of each vkformat
+/*
+* Added in 1.0.0
+* datatype of each vkformat
+*/
 const DataType GraphicsFormatDataType[][4] = {
 
 	{Undefined, Undefined, Undefined, Undefined}, //UNDEFEIND
@@ -1210,7 +1225,10 @@ const DataType GraphicsFormatDataType[][4] = {
 	{128, 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_UNORM_BLOCK = 183,
 	{128, 0, 0, 0 }, //VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,*/
 };
-//string representation of VK formats
+/*
+* Added in 1.0.0
+* string representation of VK formats
+*/
 const char* VkFormatChars[] = {
 
 	"VK_FORMAT_UNDEFINED",
@@ -1477,17 +1495,16 @@ typedef enum GraphicsHeaderType{
 	GraphicsHeader_ImageSource = 1001,
 	GraphicsHeader_BufferSource = 1002,
 	GraphicsHeader_GraphicsWindow = 1005,
-	GraphicsHeader_Scene = 1006,
-	GraphicsHeader_Camera = 1007,
-	GraphicsHeader_Light = 1008,
-	GraphicsHeader_Skin = 1009,
-	GraphicsHeader_Position = 1010,
-	GraphicsHeader_AnimationChannel = 1011,
-	GraphicsHeader_Animation = 1012,
-	GraphicsHeader_Material = 1013,
-	GraphicsHeader_Texture = 1014,
-	GraphicsHeader_Buffer = 1015,
-	GraphicsHeader_Render = 1016,
+	GraphicsHeader_Camera = 1006,
+	GraphicsHeader_Light = 1007,
+	GraphicsHeader_Skin = 1008,
+	GraphicsHeader_Position = 109,
+	GraphicsHeader_AnimationChannel = 1010,
+	GraphicsHeader_Animation = 1011,
+	GraphicsHeader_Material = 1012,
+	GraphicsHeader_Texture = 1013,
+	GraphicsHeader_Buffer = 1014,
+	GraphicsHeader_Render = 1015,
 }GraphicsHeaderType;
 /*
 * Added in 1.0.0
@@ -1614,9 +1631,9 @@ typedef enum LightType{
 	LightType_Directional,
 	LightType_Point
 }LightType;
-//Ports From Vulkan
 /*
 * Added in 1.0.0
+* Defined by VkFilter
 */
 typedef enum TextureFilterMode {
 	TextureFilterMode_Nearest = 0,
@@ -1625,6 +1642,7 @@ typedef enum TextureFilterMode {
 }TextureFilterMode;
 /*
 * Added in 1.0.0
+* Defined by VkSamplerAddressMode
 */
 typedef enum TextureAddressMode {
 	TextureAddressMode_Repeat = 0,
@@ -1635,6 +1653,7 @@ typedef enum TextureAddressMode {
 }TextureAddressMode;
 /*
 * Added in 1.0.0
+* Defined by VkVertexInputRate
 */
 typedef enum AttributeInputRate {
 	AttributeInputRate_Vertex = 0,
@@ -1649,7 +1668,7 @@ typedef enum AttributeInputRate {
 * Added in 1.0.0
 * Defined by VkImageUsageFlagBits.
 */
-typedef enum TextureUsageFlags{   //vkcompatible
+typedef enum TextureUsageFlags{
 	TextureUsage_TransferSrcBit = 0x00000001,
 	TextureUsage_TransferDstBit = 0x00000002,
 	TextureUsage_SampledBit = 0x00000004,
@@ -1665,7 +1684,7 @@ typedef enum TextureUsageFlags{   //vkcompatible
 * Added in 1.0.0
 * Defined by VkBufferUsageFlagBits.
 */
-typedef enum BufferUsageFlags { //vkcompatible
+typedef enum BufferUsageFlags {
 	BufferUsage_TransferSrcBit = 0x00000001,
 	BufferUsage_TransferDstBit = 0x00000002,
 	BufferUsage_UniformTexelBit = 0x00000004,
@@ -1691,20 +1710,18 @@ typedef enum BufferUsageFlags { //vkcompatible
 * Created with GPUmalloc and GPUfree, this is the custom GPU allocator for this API.
 */
 struct GPU_ArenaAllocater;
-typedef struct GPU_Allocation{
+typedef struct GPU_Allocation {
 	uint64_t Pointer; //really just offset from the gpu memory buffer start to the allocation start
 	uint64_t SizeBytes;
 	TargetMemoryType TargetMemory;
 	AllocationType AllocationType;
 #ifdef TEX_EXPOSE_GRAPHICS
-	struct
-	{
+	struct {
 		struct GPU_ArenaAllocater* pArenaAllocater;
 		VkDeviceMemory VkMemory;
 	}Allocater;
 #else
-	struct
-	{
+	struct {
 		void* pArenaAllocater;
 		void* VkMemory;
 	}Allocater;
@@ -1721,16 +1738,6 @@ typedef struct GPU_Allocation{
 //for internal API use or low level API use.
 #ifdef TEX_EXPOSE_GRAPHICS
 
-
-const VkFormat DeferredFormats[DeferredImageCount] = {
-	VK_FORMAT_B8G8R8A8_UNORM, //ALBEDO
-	VK_FORMAT_R16G16B16A16_SFLOAT, //POSITION
-	VK_FORMAT_R16G16B16A16_SFLOAT, //NORMAL
-	VK_FORMAT_B8G8R8A8_UNORM, //PBR
-	VK_FORMAT_B8G8R8A8_UNORM, //accum
-	VK_FORMAT_B8G8R8A8_UNORM, //revealage
-	VK_FORMAT_D32_SFLOAT_S8_UINT  //DEPTH
-};
 const VkImageUsageFlags DeferredImageUsages[DeferredImageCount] = {
 	VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 	VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -1750,6 +1757,16 @@ const VkImageAspectFlags DeferredImageAspects[DeferredImageCount] = {
 	VK_IMAGE_ASPECT_DEPTH_BIT
 };
 
+#define DeferredFormatPrioritySize 1
+const VkFormat DeferredFormatPriorities[DeferredImageCount][DeferredFormatPrioritySize] = {
+	{VK_FORMAT_B8G8R8A8_UNORM}, //ALBEDO
+	{VK_FORMAT_R16G16B16A16_SFLOAT}, //POSITION
+	{VK_FORMAT_R16G16B16A16_SFLOAT}, //NORMAL
+	{VK_FORMAT_B8G8R8A8_UNORM}, //PBR
+	{VK_FORMAT_B8G8R8A8_UNORM}, //accum
+	{VK_FORMAT_B8G8R8A8_UNORM}, //revealage
+	{VK_FORMAT_D32_SFLOAT_S8_UINT}  //DEPTH
+};
 #define SwapChainPresentModePrioritySize 1
 const VkPresentModeKHR SwapChainPresentModePriority[SwapChainPresentModePrioritySize] = {
 	VK_PRESENT_MODE_IMMEDIATE_KHR
@@ -1776,6 +1793,7 @@ const char* LogicalDeviceExtensions[] = {
 /*
 * Added in 1.0.0
 * for multithread safety GPU malloc
+* one for each thread.
 */
 typedef struct GPU_ArenaAllocater {
 	uint64_t Size;
@@ -1789,15 +1807,17 @@ typedef struct GPU_ArenaAllocater {
 	VkBuffer VkBuffer;
 	VkDeviceMemory VkMemory;
 
-	void* MappedMemory;
+	void* MappedMemory; //only valid if memory type is src
 }GPU_ArenaAllocater;
 /*
 * Added in 1.0.0
 * for GPU malloc
+* when created it initializes arena allocater for each thread, the size of each
+  is Size property, they arent allocated until they are needed.
 */
-typedef struct GPU_MemoryBuffer{
+typedef struct GPU_MemoryBuffer {
 	uint64_t Size;
-	uint64_t Alignment;
+	TargetMemoryType Type;
 
 	GPU_ArenaAllocater* ArenaAllocaters; //size of CPU.MaxThreads
 	uint32_t* Indexes; //size of CPU.MaxThreads
@@ -1805,7 +1825,7 @@ typedef struct GPU_MemoryBuffer{
 /*
 * Added in 1.0.0
 */
-typedef struct PhysicalDevice{
+typedef struct PhysicalDevice {
 	VkPhysicalDevice VkPhysicalDevice;
 	VkPhysicalDeviceProperties Properties;
 	VkPhysicalDeviceFeatures Features;
@@ -1820,7 +1840,7 @@ typedef struct PhysicalDevice{
 /*
 * Added in 1.0.0
 */
-typedef struct LogicalDevice{
+typedef struct LogicalDevice {
 	const PhysicalDevice* pPhysicalDevice;
 	VkDevice VkLogicalDevice;
 	//Graphics Command Queue
@@ -1847,7 +1867,7 @@ typedef struct LogicalDevice{
 * Can be compressed but then only can be used by GPU
 * can ONLY be a pointer
 */
-typedef struct TEXI_HEADER{
+typedef struct TEXI_HEADER {
 	uint64_t Width;
 	uint64_t Height;
 	uint64_t Depth;
@@ -1872,22 +1892,34 @@ typedef uint32_t SPIRV;
 /*
 * Added in 1.0.0
 */
-typedef struct DeferredImage{
+typedef struct GPU_Texture {
 #ifdef TEX_EXPOSE_GRAPHICS
-	VkImage Image;
-	VkImageView ImageView;
-	VkDeviceMemory Memory;
+	VkImage VkImage;
+	VkImageView VkImageView;
+	VkSampler VkSampler;
 #else
-	void* Image;
-	void* ImageView;
-	void* Memory;
+	void* VkImage;
+	void* VkImageView;
+	void* VkSampler;
 #endif
-}DeferredImage;
+	GPU_Allocation Allocation;
+}GPU_Texture;
+/*
+* Added in 1.0.0
+*/
+typedef struct GPU_Buffer {
+#ifdef TEX_EXPOSE_GRAPHICS
+	VkBuffer VkBuffer;
+#else
+	void* VkBuffer;
+#endif
+	GPU_Allocation Allocation;
+}GPU_Buffer;
 /*
 * Added in 1.0.0
 */
 struct RHeaderGraphicsWindow;
-typedef struct SwapChainFrameBuffer{
+typedef struct SwapChainFrameBuffer {
 	struct RHeaderGraphicsWindow* pGraphicsWindow;
 	uint32_t FrameIndex;
 	uint32_t QueueIndex;
@@ -1917,18 +1949,17 @@ typedef struct SwapChainFrameBuffer{
 	void* VkSwapChainImage;
 	void* VkSwapChainImageView;
 #endif
-	DeferredImage DeferredImages[DeferredImageCount];
+	GPU_Texture DeferredImages[DeferredImageCount];
 }SwapChainFrameBuffer;
 /*
 * Added in 1.0.0
 */
-typedef struct SwapChain{
+typedef struct SwapChain {
 	SwapChainFrameBuffer* FrameBuffers;
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkSwapchainKHR VkSwapChain;
 #else
 	void* VkSwapChain;
-
 #endif
 }SwapChain;
 /*
@@ -1942,7 +1973,7 @@ typedef struct PushConstantsDeferred {
 * Added in 1.0.0
 * additional pushconstants for Generic3D.
 */
-typedef struct PushConstantsGeneric3D{
+typedef struct PushConstantsGeneric3D {
 	mat4 VP;
 	uint32_t InfosOffset;
 	uint32_t WeightsOffset;
@@ -1953,7 +1984,7 @@ typedef struct PushConstantsGeneric3D{
 * Added in 1.0.0
 * additional pushconstants for Generic2D.
 */
-typedef struct PushConstantsGeneric2D{
+typedef struct PushConstantsGeneric2D {
 	mat4 VP;
 	uint32_t pad;
 	uint32_t pad1;
@@ -1968,7 +1999,7 @@ typedef struct Generic3DInfo {
 /*
 * Added in 1.0.0
 */
-typedef struct PerspectiveCamera{
+typedef struct PerspectiveCamera {
 	double AspectRatio;  // min > 0
 	double y_fov;         // required. min > 0
 	double z_far;         // min > 0
@@ -1977,7 +2008,7 @@ typedef struct PerspectiveCamera{
 /*
 * Added in 1.0.0
 */
-typedef struct OrthographicCamera{
+typedef struct OrthographicCamera {
 	double x_mag;   // required. must not be zero.
 	double y_mag;   // required. must not be zero.
 	double z_far;   // required. `zfar` must be greater than `znear`.
@@ -1986,26 +2017,26 @@ typedef struct OrthographicCamera{
 /*
 * Added in 1.0.0
 */
-typedef struct SpotLight{
+typedef struct SpotLight {
 	double InnerConeAngle;
 	double OuterConeAngle;
 }SpotLight;
 /*
 * Added in 1.0.0
 */
-typedef struct DirectionalLight{
+typedef struct DirectionalLight {
 	double pad;
 }DirectionalLight;
 /*
 * Added in 1.0.0
 */
-typedef struct PointLight{
+typedef struct PointLight {
 	double pad;
 }PointLight;
 /*
 * Added in 1.0.0
 */
-typedef struct Accessor{
+typedef struct Accessor {
 	ResourceHeaderAllocation iBuffer; // Required
 	uint64_t ByteOffset;  // minimum 0, default 0
 	uint64_t ByteStride;  // default 0 = tightly packed
@@ -2019,7 +2050,7 @@ typedef struct Accessor{
 /*
 * Added in 1.0.0
 */
-typedef struct AnimationSampler{
+typedef struct AnimationSampler {
 	Accessor Input;                  // required
 	Accessor Output;                 // required
 	InterpolationType Interpolation; // default "LINEAR"
@@ -2027,7 +2058,7 @@ typedef struct AnimationSampler{
 /*
 * Added in 1.0.0
 */
-typedef struct Attribute{
+typedef struct Attribute {
 	Accessor Accessor;
 	AttributeType AttribType;
 	uint32_t TargetGroup;//index telling what "target group" each attribute belongs to, 0 if default target ie original mesh
@@ -2035,37 +2066,10 @@ typedef struct Attribute{
 /*
 * Added in 1.0.0
 */
-typedef struct TextureInfo{
+typedef struct TextureInfo {
 	ResourceHeaderAllocation iTexture;  // required.
 	uint32_t UVIndex;    // The set index of texture's TEXCOORD attribute used for
 }TextureInfo;
-
-/*
-* Added in 1.0.0
-*/
-typedef struct GPU_Texture{
-#ifdef TEX_EXPOSE_GRAPHICS
-	VkImage VkImage;
-	VkImageView VkImageView;
-	VkSampler VkSampler;
-#else
-	void* VkImage;
-	void* VkImageView;
-	void* VkSampler;
-#endif
-	GPU_Allocation Allocation;
-}GPU_Texture;
-/*
-* Added in 1.0.0
-*/
-typedef struct GPU_Buffer{
-#ifdef TEX_EXPOSE_GRAPHICS
-	VkBuffer VkBuffer;
-#else
-	void* VkBuffer;
-#endif
-	GPU_Allocation Allocation;
-}GPU_Buffer;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //ResourceHeaders
@@ -2074,15 +2078,14 @@ typedef struct GPU_Buffer{
 /*
 * Added in 1.0.0
 */
-typedef struct RHeaderImageSourceCreateInfo{
+typedef struct RHeaderImageSourceCreateInfo {
 	TEXI_HEADER* ImageData;
 }RHeaderImageSourceCreateInfo;
-typedef struct RHeaderImageSource{
+typedef struct RHeaderImageSource {
 	ResourceHeaderTEMPLATE Header;
 	//custom
 	TEXI_HEADER* ImageData;
 }RHeaderImageSource;
-
 /*
 * Added in 1.0.0
 * Multiple Parents Undefined.
@@ -2093,8 +2096,7 @@ typedef struct RHeaderGraphicsWindowCreateInfo {
 	uint32_t TargetExtentWidth;
 }RHeaderGraphicsWindowCreateInfo;
 typedef struct RHeaderGraphicsWindow {
-	ResourceHeaderTEMPLATE Header;
-	
+	ResourceHeaderTEMPLATE Header;	
 	//custom
 	uint32_t TargetFrameBuffersSize;
 	uint32_t TargetExtentHeight;
@@ -2104,7 +2106,9 @@ typedef struct RHeaderGraphicsWindow {
 	uint32_t CurrentFrameBuffersSize;
 	uint32_t CurrentExtentHeight;
 	uint32_t CurrentExtentWidth;
+
 #ifdef TEX_EXPOSE_GRAPHICS
+	VkFormat CurrentDeferredFormats[DeferredImageCount];
 	VkFormat CurrentSurfaceFormat;
 	VkColorSpaceKHR CurrentSurfaceColourSpace;
 	VkPresentModeKHR CurrentSurfacePresentMode;
@@ -2112,6 +2116,7 @@ typedef struct RHeaderGraphicsWindow {
 	LogicalDevice* pLogicalDevice;
 	VkSurfaceKHR VkSurface;
 #else
+	GraphicsFormat CurrentDeferredFormats[DeferredImageCount];
 	GraphicsFormat CurrentSurfaceFormat;
 	uint32_t CurrentSurfaceColourSpace;
 	uint32_t CurrentSurfacePresentMode;
@@ -2154,16 +2159,14 @@ typedef struct RHeaderGraphicsWindow {
 	void* VkPipelineDeferred;
 #endif
 }RHeaderGraphicsWindow;
-
 /*
 * Added in 1.0.0
 * Creates a texture ready for use in the graphics API.
 * To Create an empty image make pImageSource->ImageData->LinearSize = NULL && pImageSource->ImageData->ImageSize
 */
-typedef struct RHeaderTextureCreateInfo{
-	RHeaderGraphicsWindow* pGraphicsWindow; //required
-	RHeaderImageSource* pImageSource; //required
-
+typedef struct RHeaderTextureCreateInfo {
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iImageSource; //required
 	//Sampler
 	TextureFilterMode MinFilter; //default nearest
 	TextureFilterMode MagFilter; //default nearest
@@ -2174,9 +2177,8 @@ typedef struct RHeaderTextureCreateInfo{
 
 	AllocationType AllocationType; //default linear
 }RHeaderTextureCreateInfo;
-typedef struct RHeaderTexture{
+typedef struct RHeaderTexture {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
 	ResourceHeaderAllocation iGraphicsWindow; //required
 	ResourceHeaderAllocation iImageSource; //required
@@ -2193,39 +2195,35 @@ typedef struct RHeaderTexture{
 	//per initialization
 	GPU_Texture GPU_Texture;
 }RHeaderTexture;
-
 /*
 * Added in 1.0.0
 */
-typedef struct RHeaderBufferSourceCreateInfo{
+typedef struct RHeaderBufferSourceCreateInfo {
 	FileData Data;
 }RHeaderBufferSourceCreateInfo;
-typedef struct RHeaderBufferSource{
+typedef struct RHeaderBufferSource {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
 	FileData Data;
 }RHeaderBufferSource;
-
 
 /*
 * Added in 1.0.0
 * Creates a buffer ready for use in the graphics API.
 * To Create an empty buffer make pBufferSource->BufferData = NULL
 */
-typedef struct RHeaderBufferCreateInfo{
-	RHeaderGraphicsWindow* pGraphicsWindow; //required
-	RHeaderBufferSource* pBufferSource;
+typedef struct RHeaderBufferCreateInfo {
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iBufferSource; //required
 
 	AllocationType AllocationType; //default linear
 	BufferUsageFlags BufferUsage;  //default VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
 }RHeaderBufferCreateInfo;
-typedef struct RHeaderBuffer{
+typedef struct RHeaderBuffer {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
-	ResourceHeaderAllocation iGraphicsWindow;
-	ResourceHeaderAllocation iBufferSource;
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iBufferSource; //required
 
 	AllocationType AllocationType; //default linear
 	BufferUsageFlags BufferUsage; //default VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
@@ -2233,62 +2231,50 @@ typedef struct RHeaderBuffer{
 	//per initialization
 	GPU_Buffer GPU_Buffer;
 }RHeaderBuffer;
-
 /*
 * Added in 1.0.0
 * PositonHeaders give gameobjets position component that will be applied to gameobjects.
 * Multiple position headers in a gameobject will just multiply with eachother.
 */
-typedef struct RHeaderPositionCreateInfo{
+typedef struct RHeaderPositionCreateInfo {
 	mat4 Matrix; //model matrix //optional
 }RHeaderPositionCreateInfo;
-typedef struct RHeaderPosition{
+typedef struct RHeaderPosition {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
 	mat4 Matrix;
 }RHeaderPosition;
-
 /*
 * Added in 1.0.0
 * RHeaderLight will add a light source to a gameobject.
 */
-typedef struct RHeaderLightCreateInfo{
+typedef struct RHeaderLightCreateInfo {
 	LightType Type;
-
 	double Intensity;
 	double Range;
 	double Colour[3];
-
 	union
 	{
 		SpotLight Spot;
 		DirectionalLight Directional;
 		PointLight Point;
 	}LightU;
-
 }RHeaderLightCreateInfo;
-typedef struct RHeaderLight{
+typedef struct RHeaderLight {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
+	LightType Type;
 	double Intensity;
 	double Range;
 	double Colour[3];
-
 	union
 	{
 		SpotLight Spot;
 		DirectionalLight Directional;
 		PointLight Point;
 	}LightU;
-
-	LightType Type;
-
-
 }RHeaderLight;
-
-typedef struct GPU_RHeaderLight{
+typedef struct GPU_RHeaderLight {
 	//custom
 	float Intensity;
 	float Range;
@@ -2297,7 +2283,6 @@ typedef struct GPU_RHeaderLight{
 
 	vec4 Colour;
 	vec4 Position;
-
 
 	LightType Type;
 	uint32_t a;
@@ -2311,12 +2296,10 @@ typedef struct GPU_RHeaderLight{
 	uint32_t bds;
 	uint32_t cds;
 }GPU_RHeaderLight;
-
-
 /*
 * Added in 1.0.0
 */
-typedef struct RHeaderCameraCreateInfo{
+typedef struct RHeaderCameraCreateInfo {
 	CameraType Type;
 	union
 	{
@@ -2324,9 +2307,8 @@ typedef struct RHeaderCameraCreateInfo{
 		OrthographicCamera Orthographic;
 	}CameraU;
 }RHeaderCameraCreateInfo;
-typedef struct RHeaderCamera{
+typedef struct RHeaderCamera {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
 	CameraType Type;
 	union
@@ -2334,14 +2316,12 @@ typedef struct RHeaderCamera{
 		PerspectiveCamera Perspective;
 		OrthographicCamera Orthographic;
 	}CameraU;
-
 }RHeaderCamera;
-
 /*
 * Added in 1.0.0
 */
-typedef struct RHeaderMaterialCreateInfo{
-	RHeaderGraphicsWindow* pGraphicsWindow;
+typedef struct RHeaderMaterialCreateInfo {
+	ResourceHeaderAllocation iGraphicsWindow; //required
 
 	vec4 BaseColourFactor; //default [1,1,1,1]
 	vec4 EmissiveFactor; //default [0,0,0,0] //w channel not really supported
@@ -2364,11 +2344,10 @@ typedef struct RHeaderMaterialCreateInfo{
 	MaterialTextureMode BaseColourMode;
 
 }RHeaderMaterialCreateInfo;
-typedef struct RHeaderMaterial{
+typedef struct RHeaderMaterial {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
-	ResourceHeaderAllocation iGraphicsWindow;
+	ResourceHeaderAllocation iGraphicsWindow; //required
 
 	vec4 BaseColourFactor; //default [1,1,1,1]
 	vec4 EmissiveFactor; //default [0,0,0,0] //w channel not really supported
@@ -2392,7 +2371,6 @@ typedef struct RHeaderMaterial{
 
 	//every reinit
 #ifdef TEX_EXPOSE_GRAPHICS
-
 	VkDescriptorSet* VkMaterialDescriptorSets;  //size of iGraphicsWindow framebuffers
 	VkDescriptorPool VkMaterialDescriptorPool;
 #else
@@ -2400,7 +2378,7 @@ typedef struct RHeaderMaterial{
 	void* VkMaterialDescriptorPool;
 #endif
 }RHeaderMaterial;
-typedef struct GPU_RHeaderMaterial{
+typedef struct GPU_RHeaderMaterial {
 	//vec4
 	vec4 BaseColourFactor;
 	//vec4
@@ -2431,18 +2409,17 @@ typedef struct GPU_RHeaderMaterial{
 	uint32_t OcclusionTextureIndex;
 
 }GPU_RHeaderMaterial;
-
 /*
 * Added in 1.0.0
 * Weights always have to be at least 1 in size for this header to be valid.
 */
-typedef struct RHeaderWeightsCreateInfo{
+typedef struct RHeaderWeightsCreateInfo {
 	uint64_t WeightsSize;
 	float* Weights;
 } RHeaderWeightsCreateInfo;
-typedef struct RHeaderWeights{
+typedef struct RHeaderWeights {
 	ResourceHeaderTEMPLATE Header;
-
+	//custom
 	uint64_t WeightsSize;
 	float Weights[];
 }RHeaderWeights;
@@ -2454,90 +2431,62 @@ https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#ani
 CreateInfo Parameters:
 * 
 */
-typedef struct RHeaderAnimationCreateInfo{
-	ResourceHeaderAllocation* pChannels; //optional
-	uint64_t pChannelsSize;
+typedef struct RHeaderAnimationCreateInfo {
+	ResourceHeaderAllocation* iChannels; //optional
+	uint64_t iChannelsSize;
 
 	AnimationPlaybackMode PlaybackMode;
 	double Speed;
 }RHeaderAnimationCreateInfo;
-typedef struct RHeaderAnimation{
+typedef struct RHeaderAnimation {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
 	AnimationPlaybackMode PlaybackMode;
 	double Speed;
 	double Time;
 	double LastTime;
-
 	uint64_t longest;
 
 	uint64_t iChannelsSize;
 	ResourceHeaderAllocation iChannels[];
 }RHeaderAnimation;
-
 /*
 * Added in 1.0.0
 * subserviant to RHeaderAnimation
 * Drop this into a gameobject for it to be animated by a animation.
 */
 typedef struct RHeaderAnimationChannelCreateInfo {
-	AnimationSampler Sampler;              // required
+	ResourceHeaderAllocation iAnimation; //required
+	AnimationSampler Sampler; //required
 	AnimationTargetType Target; //required
-	RHeaderAnimation* pAnimation;  //required
 }RHeaderAnimationChannelCreateInfo;
 typedef struct RHeaderAnimationChannel {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
-	AnimationSampler Sampler; // required
-	AnimationTargetType Target; //required
 	ResourceHeaderAllocation iAnimation; //required
+	AnimationSampler Sampler; //required
+	AnimationTargetType Target; //required
 	int64_t KeyFrame; //current keyframe
 }RHeaderAnimationChannel;
-
 /*
 * Added in 1.0.0
+* skin/skeletal animator
 * must be child of all joints and skeleton itself.
 */
-typedef struct RHeaderSkinCreateInfo
-{
-	Object* pSkeleton;
-
-	Accessor InverseBindMatrices;  //accessor for ibm matrices, a set of 4x4 matrices that corrospond to joints. //required
-	Object** pJoints; //Refrences to the nodes of the skeletons.  //required
-	uint64_t JointsSize;
+typedef struct RHeaderSkinCreateInfo {
+	ObjectAllocation iSkeleton; //Optional Skeleton Root.
+	Accessor InverseBindMatrices; //accessor for ibm matrices, a set of 4x4 matrices that corrospond to joints. //required
+	ObjectAllocation* iJoints; //Refrences to the nodes of the skeletons.  //required
+	uint64_t iJointsSize;
 }RHeaderSkinCreateInfo;
-typedef struct RHeaderSkin //skin/skeletal animator
-{
+typedef struct RHeaderSkin {
 	ResourceHeaderTEMPLATE Header;
-
 	//custom
+	ObjectAllocation iSkeleton; //Optional Skeleton Root.
 	Accessor InverseBindMatrices;  //accessor for ibm matrices, a set of 4x4 matrices that corrospond to joints. //required
-
-	ObjectAllocation iSkeleton;
-
-	uint64_t JointsSize;
+	uint64_t iJointsSize;
 	ObjectAllocation iJoints[]; //Refrences to the nodes of the skeletons.  //required
 }RHeaderSkin;
-
-/*
-* Added in 1.0.0
-* when an object has a scene header it becomes scene root.
-* Scenes can be toggled active or inactive.
-*/
-typedef struct RHeaderSceneCreateInfo
-{
-	bool InitialActive;
-}RHeaderSceneCreateInfo;
-typedef struct RHeaderScene
-{
-	ResourceHeaderTEMPLATE Header;
-
-	bool Active;
-
-}RHeaderScene;
-
 /*
 * Added in 1.0.0
 * Renders create renderpasses and also render to a texture.
@@ -2546,24 +2495,22 @@ typedef struct RHeaderScene
 CreateInfo Parameters:
 * pTextureTarget is a pointer to a RHeaderTexture that doesnt have to be initialized, and will serve as the product image. //required
 * pGraphicsWindow is the window that the render will get all its resources from and will render from.
-* pScenes is a pointer to an array of scenes that this render header will render.  //required
+* pScenes is a pointer to an array of scenes that this render header will render and display.  //required
 */
-typedef struct RHeaderRenderCreateInfo
-{
+typedef struct RHeaderRenderCreateInfo {
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iTextureTarget; //required
 	vec4 Clear;
-	RHeaderTexture* pTextureTarget; //required
-	RHeaderGraphicsWindow* pGraphicsWindow;  //required
-	uint64_t pScenesSize;
-	RHeaderScene** pScenes;
-}RHeaderRenderCreateInfo;
-typedef struct RHeaderRender
-{
-	ResourceHeaderTEMPLATE Header;
 
+	uint64_t iScenesSize;
+	ResourceHeaderAllocation* iScenes;
+}RHeaderRenderCreateInfo;
+typedef struct RHeaderRender {
+	ResourceHeaderTEMPLATE Header;
 	//custom
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iTextureTarget; //required
 	vec4 Clear;
-	ResourceHeaderAllocation iGraphicsWindow;
-	ResourceHeaderAllocation iTextureTarget;
 	//per initialization
 	uint32_t pFrameBuffersSize;
 #ifdef TEX_EXPOSE_GRAPHICS
@@ -2579,32 +2526,30 @@ typedef struct RHeaderRender
 //Element
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef struct ElementGraphicsCreateInfoEffect
-{
-	GraphicsEffectIdentifier Identifier;
-	void* pEffectCreateInfo; //pointer to an effect create info of the corrosponding identifier.
-}ElementGraphicsCreateInfoEffect;
-
 /*
 * Added in 1.0.0
 */
-typedef struct ElementGraphicsCreateInfo
-{
-	RHeaderGraphicsWindow* pGraphicsWindow; //required
-	RHeaderMaterial* pMaterial; //required
+typedef struct ElementGraphicsCreateInfoEffect {
+	GraphicsEffectIdentifier Identifier;
+	void* pEffectCreateInfo; //pointer to an effect create info of the corrosponding identifier.
+}ElementGraphicsCreateInfoEffect;
+/*
+* Added in 1.0.0
+* Graphics Element.
+*/
+typedef struct ElementGraphicsCreateInfo {
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iMaterial; //required
 
 	uint64_t EffectCreateInfosSize;
 	ElementGraphicsCreateInfoEffect* EffectCreateInfos;
 }ElementGraphicsCreateInfo;
-typedef struct ElementGraphics
-{
+typedef struct ElementGraphics {
 	ElementTEMPLATE Header;
-
 	//custom
-	ResourceHeaderAllocation iGraphicsWindow;
-	ResourceHeaderAllocation iMaterial;
-
-	//effects
+	ResourceHeaderAllocation iGraphicsWindow; //required
+	ResourceHeaderAllocation iMaterial; //required
+	//Effects
 	uint64_t EffectsSize; //size in effects
 	uint8_t Effects[]; //raw data array / struct extension
 }ElementGraphics;
@@ -2614,30 +2559,27 @@ typedef struct ElementGraphics
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TEXRESULT(Create_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, const void* pEffectCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex);
-typedef TEXRESULT(Destroy_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, bool Full, uint32_t ThreadIndex);
+typedef TEXRESULT(Destroy_GraphicsEffectTemplate)(ElementGraphics* pElement, ElementGraphics* pElementOverlay, void* pEffect, void* pEffectOverlay, bool Full, uint32_t ThreadIndex);
 
 typedef TEXRESULT(ReCreate_GraphicsEffectTemplate)(ElementGraphics* pElement, void* pEffect, uint32_t ThreadIndex);
 
 typedef TEXRESULT(Pack_GraphicsEffectTemplate)(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const void* pEffect, void* pCopiedEffect, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex);
 typedef TEXRESULT(UnPack_GraphicsEffectTemplate)(const ElementGraphics* pElement, ElementGraphics* pCopiedElement, const void* pEffect, void* pCopiedEffect, const void* pData, uint32_t ThreadIndex);
 
-
 struct GraphicsEffectSignature;
-
 /*
 * All objects provided are multithread secure, please use them in your function.
 */
 typedef void(UpdateSignature_GraphicsEffectTemplate)(struct GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow,
-	uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers);
+	uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex);
 typedef void(Update_GraphicsEffectTemplate)(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pGameObject, void* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers); //index of swapchain image
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex);
 
 
 typedef void(DrawSignature_GraphicsEffectTemplate)(struct GraphicsEffectSignature* pSignature, RHeaderGraphicsWindow* pGraphicsWindow,
-	uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers);
+	uint32_t FrameIndex, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, uint32_t ThreadIndex);
 typedef void(Draw_GraphicsEffectTemplate)(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pGameObject, void* pEffect,
-	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP);
-
+	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex);
 
 /*
 * Added in 1.0.0
@@ -2673,7 +2615,6 @@ typedef struct GraphicsEffectTemplate {
 typedef struct GraphicsEffect {
 	GraphicsEffectTemplate Header;
 }GraphicsEffect;
-
 /*
 * Added in 1.0.0
 CreateInfo Parameters:
@@ -2715,8 +2656,6 @@ typedef struct GraphicsEffectGeneric3D {
 	Attribute* UsedAttributes; //reordered on the go
 	Attribute Attributes[];
 }GraphicsEffectGeneric3D;
-
-
 /*
 * Added in 1.0.0
 CreateInfo Parameters:
@@ -2771,15 +2710,11 @@ typedef struct GPU_GraphicsEffectGeneric2D {
 	int TextureSize[2];
 }GPU_GraphicsEffectGeneric2D;
 
-
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-#ifdef TEX_EXPOSE_GRAPHICS
 typedef struct ConverterXtoTEXI {
 	ConvertXtoTEXI* pFunction;
 	uint32_t Identifier;
@@ -2791,6 +2726,7 @@ typedef struct ConverterTEXItoX {
 
 
 typedef struct GraphicsGenericResources {
+#ifdef TEX_EXPOSE_GRAPHICS
 	VkDescriptorSetLayout VkDescriptorSetLayoutMaterial;
 	//3d
 	VkDescriptorSetLayout VkDescriptorSetLayoutStorageBuffers;
@@ -2799,43 +2735,64 @@ typedef struct GraphicsGenericResources {
 	VkPipelineLayout PipelineLayout3D;
 	//2d	
 	VkPipelineLayout PipelineLayout2D;
+#else
+	void* VkDescriptorSetLayoutMaterial;
+	//3d
+	void* VkDescriptorSetLayoutStorageBuffers;
+	void** VkDescriptorSetsStorageBuffers;
+	void* VkDescriptorPool3D;
+	void* PipelineLayout3D;
+	//2d	
+	void* PipelineLayout2D;
+#endif
 }GraphicsGenericResources;
 
 typedef struct GraphicsUtils {
-	VkInstance Instance;
+	
+	struct {
+		uint64_t ExtensionsEnabledSize;
+		char* ExtensionsEnabled[3];
 
+		uint64_t ValidationLayersEnabledSize;
+		char* ValidationLayersEnabled[1];
+
+		uint64_t InitialNativeGPUBufferSize;
+		uint64_t InitialStagingGPUBufferSize;
+
+#ifdef TEX_EXPOSE_GRAPHICS
+		VkSampleCountFlagBits Samples;
+#else
+		uint32_t Samples;
+#endif
+
+		uint32_t MaxAnisotropy;
+		bool AnisotropicFiltering;
+
+		bool ActiveGPUMemoryResizing; //set to true for gpu buffers to be automatically managed. More for development rather then end product.
+	}Config;
+	
+#ifdef TEX_EXPOSE_GRAPHICS
+	VkInstance Instance;
 	//Devices
 	size_t DevicesSize;
 	PhysicalDevice* PhysicalDevices;
 	LogicalDevice* LogicalDevices;
+#else
+	void* Instance;
+	//Devices
+	size_t DevicesSize;
+	void* PhysicalDevices;
+	void* LogicalDevices;
+#endif
 
 	GraphicsGenericResources* GenericResources; //devicessize
 
 	//Signatures
-	ElementBuffer ElementGraphicsBuffer;
-	ResourceHeaderBuffer RHeaderWeightsBuffer;
-	ResourceHeaderBuffer RHeaderImageSourceBuffer;
-	ResourceHeaderBuffer RHeaderBufferSourceBuffer;
-	ResourceHeaderBuffer RHeaderGraphicsWindowBuffer;
-	ResourceHeaderBuffer RHeaderSceneBuffer;
-	ResourceHeaderBuffer RHeaderCameraBuffer;
-	ResourceHeaderBuffer RHeaderLightBuffer;
-	ResourceHeaderBuffer RHeaderSkinBuffer;
-	ResourceHeaderBuffer RHeaderPositionBuffer;
-	ResourceHeaderBuffer RHeaderAnimationChannelBuffer;
-	ResourceHeaderBuffer RHeaderAnimationBuffer;
-	ResourceHeaderBuffer RHeaderMaterialBuffer;
-	ResourceHeaderBuffer RHeaderTextureBuffer;
-	ResourceHeaderBuffer RHeaderBufferBuffer;
-	ResourceHeaderBuffer RHeaderRenderBuffer;
-
-	//Signature Buffers
 	ElementSignature ElementGraphicsSig;
 	ResourceHeaderSignature RHeaderWeightsSig;
 	ResourceHeaderSignature RHeaderImageSourceSig;
 	ResourceHeaderSignature RHeaderBufferSourceSig;
 	ResourceHeaderSignature RHeaderGraphicsWindowSig;
-	ResourceHeaderSignature RHeaderSceneSig;
 	ResourceHeaderSignature RHeaderCameraSig;
 	ResourceHeaderSignature RHeaderLightSig;
 	ResourceHeaderSignature RHeaderSkinSig;
@@ -2865,12 +2822,10 @@ typedef struct GraphicsUtils {
 	uint64_t GraphicsEffectSignaturesSize;
 	Mutex GraphicsEffectSignaturesMutex;
 }GraphicsUtils;
-#endif
 
 
-struct GraphicsResStruct
-{
-	void* pUtils;
+struct GraphicsResStruct {
+	GraphicsUtils* pUtils;
 
 	void* pInitialise_Graphics;
 	void* pDestroy_Graphics;
@@ -2907,15 +2862,10 @@ struct GraphicsResStruct
 	void* pDestroy_GPU_Buffer;
 
 	void* pGet_DeviceIndex;
-
-	void* pDestroy_SwapChain;
-	void* pReCreate_SwapChain;
-
 }GraphicsRes;
 
 //Initialise_Resources MUST be called to use the library in your dll
-void Graphics_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize)
-{
+void Graphics_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize) {
 	memset(&GraphicsRes, 0, sizeof(GraphicsRes));
 
 	ResourceImport(pExternResources, pExternResourcesSize, (const UTF8*)CopyData((void*)"Graphics::Utils"), &GraphicsRes.pUtils);
@@ -2954,8 +2904,6 @@ void Graphics_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* p
 
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Get_DeviceIndex"), &GraphicsRes.pGet_DeviceIndex);
 
-	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::Destroy_SwapChain"), &GraphicsRes.pDestroy_SwapChain);
-	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Graphics::ReCreate_SwapChain"), &GraphicsRes.pReCreate_SwapChain);
 
 }
 
@@ -2979,7 +2927,7 @@ void Graphics_Ref_Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent)
 	void(*function)(mat4 * pMatrix, ObjectAllocation Parent) =
 		(void(*)(mat4 * pMatrix, ObjectAllocation Parent))GraphicsRes.pCalculate_TotalMatrix;
 
-	return function(pMatrix, Parent);
+	function(pMatrix, Parent);
 }
 
 #ifdef TEX_EXPOSE_GRAPHICS
@@ -2998,12 +2946,12 @@ TEXRESULT Graphics_Ref_Create_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, Logica
 
 	return function(pBuffer, pLogicalDevice, Size, Type);
 }
-TEXRESULT Graphics_Ref_ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize, TargetMemoryType Type)
+TEXRESULT Graphics_Ref_ReCreate_GPU_MemoryBuffer(GPU_MemoryBuffer* pBuffer, LogicalDevice* pLogicalDevice, uint64_t NewSize)
 {
-	TEXRESULT(*function)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize, TargetMemoryType Type) =
-		(TEXRESULT(*)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize, TargetMemoryType Type))GraphicsRes.pReCreate_GPU_MemoryBuffer;
+	TEXRESULT(*function)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize) =
+		(TEXRESULT(*)(GPU_MemoryBuffer * pBuffer, LogicalDevice * pLogicalDevice, uint64_t NewSize))GraphicsRes.pReCreate_GPU_MemoryBuffer;
 
-	return function(pBuffer, pLogicalDevice, NewSize, Type);
+	return function(pBuffer, pLogicalDevice, NewSize);
 }
 
 
@@ -3164,23 +3112,6 @@ uint64_t Graphics_Ref_Get_DeviceIndex(const LogicalDevice* pLogicalDevice)
 	return function(pLogicalDevice);
 }
 #endif
-
-void Graphics_Ref_Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct)
-{
-	void (*function)(RHeaderGraphicsWindow * pGraphicsWindow, bool FullDestruct) =
-		(void(*)(RHeaderGraphicsWindow * pGraphicsWindow, bool FullDestruct))GraphicsRes.pDestroy_SwapChain;
-
-	function(pGraphicsWindow, FullDestruct);
-}
-
-TEXRESULT Graphics_Ref_ReCreate_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool FullDestruct)
-{
-	TEXRESULT(*function)(RHeaderGraphicsWindow * pGraphicsWindow, bool FullDestruct) =
-		(TEXRESULT(*)(RHeaderGraphicsWindow * pGraphicsWindow, bool FullDestruct))GraphicsRes.pReCreate_SwapChain;
-
-	return function(pGraphicsWindow, FullDestruct);
-}
-
 
 #define CompileVkShaderModule(LogicalDevice, VkShader, ShaderSource, ShaderSourceSize, FunctionName)\
 {\

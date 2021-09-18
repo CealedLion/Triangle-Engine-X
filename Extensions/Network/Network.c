@@ -10,11 +10,6 @@
 #define TEX_EXPOSE_NETWORK
 #include "Network.h"
 
-volatile struct
-{
-	uint64_t test;
-}Config;
-
 volatile NetworkUtils Utils;
 
 
@@ -180,7 +175,6 @@ TEXRESULT Poll_Events()
 TEXRESULT Initialise_Network()
 {
 	memset((void*)&Utils, 0, sizeof(Utils));
-	memset((void*)&Config, 0, sizeof(Config));
 
 	if (WSAStartup(MAKEWORD(2, 2), &Utils.wsa) != 0)
 	{
@@ -194,7 +188,6 @@ TEXRESULT Destroy_Network()
 {
 	WSACleanup();
 	memset((void*)&Utils, 0, sizeof(Utils));
-	memset((void*)&Config, 0, sizeof(Config));
 	return (Success);
 }
 
