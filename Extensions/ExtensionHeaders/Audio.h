@@ -626,12 +626,12 @@ void Audio_Ref_Pause_OutputStream(ElementAudio* pElement, bool pause)
 	function(pElement, pause);
 }
 
-TEXRESULT Audio_Ref_Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat)
+TEXRESULT Audio_Ref_Convert_AudioData(TEXA_HEADER* src, TEXA_HEADER** dst, AudioFormat dstformat)
 {
-	TEXRESULT(*function)(TEXA_HEADER * *src, AudioFormat dstformat) =
-		(TEXRESULT(*)(TEXA_HEADER * *src, AudioFormat dstformat))AudioRes.pConvert_AudioData;
+	TEXRESULT(*function)(TEXA_HEADER * src, TEXA_HEADER * *dst, AudioFormat dstformat) =
+		(TEXRESULT(*)(TEXA_HEADER * src, TEXA_HEADER * *dst, AudioFormat dstformat))AudioRes.pConvert_AudioData;
 
-	return function(src, dstformat);
+	return function(src, dst, dstformat);
 }
 
 TEXRESULT Audio_Ref_Create_DummyTEXA(TEXA_HEADER** pDst, AudioFormat Format, uint32_t SampleRate, uint32_t ChannelCount,

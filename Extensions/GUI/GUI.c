@@ -303,7 +303,12 @@ void UpdateSignature_Text(GraphicsEffectSignature* pSignature, RHeaderGraphicsWi
 
 TEXRESULT Destroy_Text(ElementGraphics* pElement, ElementGraphics* pElementOverlay, GraphicsEffectText* pEffect, GraphicsEffectText* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Destroy_Text()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	//if they are different its safe to destruct.
 	if (((pEffectOverlay != NULL) ? (pEffect->GPU_GraphicsEffectInfos != pEffectOverlay->GPU_GraphicsEffectInfos) : true) && pEffect->GPU_GraphicsEffectInfos != NULL) {
 		free(pEffect->GPU_GraphicsEffectInfos);
@@ -322,12 +327,11 @@ TEXRESULT Destroy_Text(ElementGraphics* pElement, ElementGraphics* pElementOverl
 		vkDestroyShaderModule(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkShaderFragment, NULL);
 		pEffect->VkShaderFragment = NULL;
 	}
-	//for full destruct items.
-	/*
+	//for full destruct items.	
 	if ((((pEffectOverlay != NULL) ? (pEffect->UTF8_Text != pEffectOverlay->UTF8_Text) : false) || Full == true) && pEffect->UTF8_Text != NULL) {
 		free(pEffect->UTF8_Text);
 		pEffect->UTF8_Text = NULL;
-	}*/
+	}
 	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
@@ -337,22 +341,21 @@ TEXRESULT Destroy_Text(ElementGraphics* pElement, ElementGraphics* pElementOverl
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
+	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 #ifndef NDEBUG
-	if (pElement == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_Text()", "pElement == NULLPTR");
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("ReCreate_Text()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	if (pEffect == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_Text()", "pEffect == NULLPTR");
+	if (pMaterial == NULL) {
+		Engine_Ref_ObjectError("ReCreate_Text()", "pElement", pElement, "ElementGraphics.iMaterial Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
+
 	TEXRESULT tres = Success;
 	VkResult res = VK_SUCCESS;
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 
 	pEffect->GPU_GraphicsEffectInfos = NULL;
 	pEffect->GPU_GraphicsEffectInfosSize = NULL;
@@ -437,12 +440,12 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 				RHeaderFont* pFont = NULL;
 
 				for (size_t i = 0; i < pEffect->iFontsSize; i++) {
-					pFont = Object_Ref_Get_ResourceHeaderPointer(pEffect->iFonts[i], false, false, ThreadIndex);
+					pFont = Object_Ref_Get_ResourceHeaderPointer(pEffect->iFonts[i], true, false, ThreadIndex);
 					GlyphIndex = FT_Get_Char_Index(pFont->FtFace, CurrentCodePoint);
 					//fix this font shit
-					Object_Ref_End_ResourceHeaderPointer(pEffect->iFonts[i], false, false, ThreadIndex);
 					if (GlyphIndex != NULL)
 						break;
+					Object_Ref_End_ResourceHeaderPointer(pEffect->iFonts[i], true, false, ThreadIndex);
 				}
 				if (GlyphIndex == NULL) {
 					Engine_Ref_FunctionError("ReCreate_TextHeader()", "No Suitable Glyph Found. UTF32 == ", CurrentCodePoint);
@@ -568,60 +571,89 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 				//AdvanceY += (pFont->FtFace->glyph->advance.y >> 6);
 				glm_vec2_copy(pEffect->BoundingBoxPosition, pGPU_effect->BoundingBoxPosition);
 				glm_vec2_copy(pEffect->BoundingBoxSize, pGPU_effect->BoundingBoxSize);
+				Object_Ref_End_ResourceHeaderPointer(pFont->Header.Allocation, true, false, ThreadIndex);
 			}
 			PreviousCodePoint = CurrentCodePoint;
 		}
 		free(UTF32_Text);
 		if (pTextImages1Size != NULL)
 		{
-			RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
-			RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
-			//if (pImageSource1->ImageData != NULL)
-			//	free(pImageSource1->ImageData);
-			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages1, pTextImages1Size, &pImageSource1->ImageData)) != Success)
+			RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);		
+#ifndef NDEBUG
+			if (pTexture == NULL) {
+				Engine_Ref_ObjectError("ReCreate_Text()", "pMaterial", pMaterial, "RHeaderMaterial.EmissiveTexture.iTexture Invalid.");
+				return (Invalid_Parameter | Failure);
+			}
+#endif
+			RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
+#ifndef NDEBUG
+			if (pMaterial == NULL) {
+				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
+				return (Invalid_Parameter | Failure);
+			}
+#endif
+			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages1, pTextImages1Size, &pImageSource->ImageData)) != Success)
 				return tres;
-			Object_Ref_ReCreate_ResourceHeader(pImageSource1->Header.Allocation, ThreadIndex);
-			Object_Ref_End_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
+			Object_Ref_ReCreate_ResourceHeader(pImageSource->Header.Allocation, ThreadIndex);
+			Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 
 			for (size_t i = 0; i < pTextImages1Size; i++)
 				free(pTextImages1[i]);
 			free(pTextImages1);
 
-			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, ThreadIndex);
+			Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
 		}
 		else
 		{
-			RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
-			RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
-			//if (pImageSource1->ImageData != NULL)
-			//	free(pImageSource1->ImageData);
-			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource1->ImageData)) != Success)
+			RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+#ifndef NDEBUG
+			if (pTexture == NULL) {
+				Engine_Ref_ObjectError("ReCreate_Text()", "pMaterial", pMaterial, "RHeaderMaterial.EmissiveTexture.iTexture Invalid.");
+				return (Invalid_Parameter | Failure);
+			}
+#endif
+			RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
+#ifndef NDEBUG
+			if (pMaterial == NULL) {
+				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
+				return (Invalid_Parameter | Failure);
+			}
+#endif
+			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource->ImageData)) != Success)
 				return tres;
-			Object_Ref_ReCreate_ResourceHeader(pImageSource1->Header.Allocation, ThreadIndex);
-			Object_Ref_End_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
+			Object_Ref_ReCreate_ResourceHeader(pImageSource->Header.Allocation, ThreadIndex);
+			Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 
-			Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, ThreadIndex);
+			Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
 		}
 		if (pTextImages0Size != NULL)
 		{
-			RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
-			//AllocationData* pallocdata = Object_Ref_Get_ResourceHeaderAllocationData(pTexture0->Header.Allocation);
-			//Engine_Ref_FunctionError("PTR", "AAA", pallocdata->Allocation.ResourceHeader.Pointer);
-			RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
-			//if (pImageSource0->ImageData != NULL)
-			//	free(pImageSource0->ImageData);
-			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource0->ImageData)) != Success)
+			RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
+#ifndef NDEBUG
+			if (pTexture == NULL) {
+				Engine_Ref_ObjectError("ReCreate_Text()", "pMaterial", pMaterial, "RHeaderMaterial.BaseColourTexture.iTexture Invalid.");
+				return (Invalid_Parameter | Failure);
+			}
+#endif
+			RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
+#ifndef NDEBUG
+			if (pMaterial == NULL) {
+				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
+				return (Invalid_Parameter | Failure);
+			}
+#endif
+			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource->ImageData)) != Success)
 				return tres;
-			Object_Ref_ReCreate_ResourceHeader(pImageSource0->Header.Allocation, ThreadIndex);
-			Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
+			Object_Ref_ReCreate_ResourceHeader(pImageSource->Header.Allocation, ThreadIndex);
+			Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 
 			for (size_t i = 0; i < pTextImages0Size; i++)
 				free(pTextImages0[i]);
 			free(pTextImages0);
 
-			Object_Ref_ReCreate_ResourceHeader(pTexture0->Header.Allocation, ThreadIndex);
+			Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
 		}
 	}
@@ -979,68 +1011,76 @@ void Check_Click(ElementAllocation* pReturnElement, ResourceHeaderAllocation* pR
 			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
 			if (pElement != NULL) {
 				RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-				for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++) {
-					ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
-					for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++) {
-						Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
-						ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
-						RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
-						if (pSceneHeader->Active == true) {
-							uint64_t pointer = 0;
-							for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++) {
-								GraphicsEffect* pEffect = (GraphicsEffect*)((void*)((uint64_t)pElement->Effects + pointer));
-								GraphicsEffectSignature* pSignature = NULL;
-								GraphicsEffectBufferIndex BufferIndex = NULL;
-								Graphics_Effects_Ref_Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
-								if (pEffect->Header.Identifier == GraphicsEffect_Generic2D) {
-									GraphicsEffectGeneric2D* pEffect1 = pEffect;
+				if (pGraphicsWindow != NULL) {
+					for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++) {
+						ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
+						if (pParentHeader != NULL) {
+							for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++) {
+								Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+								if (pObject != NULL) {
+									ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
+									RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+									if (pSceneHeader != NULL) {
+										if (pSceneHeader->Active == true) {
+											uint64_t pointer = 0;
+											for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++) {
+												GraphicsEffect* pEffect = (GraphicsEffect*)((void*)((uint64_t)pElement->Effects + pointer));
+												GraphicsEffectSignature* pSignature = NULL;
+												GraphicsEffectBufferIndex BufferIndex = NULL;
+												Graphics_Effects_Ref_Find_GraphicsEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
+												if (pEffect->Header.Identifier == GraphicsEffect_Generic2D) {
+													GraphicsEffectGeneric2D* pEffect1 = pEffect;
 
-									float px = ((pEffect1->BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
-									float py = ((pEffect1->BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
+													float px = ((pEffect1->BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
+													float py = ((pEffect1->BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
 
-									float sx = ((pEffect1->BoundingBoxSize[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
-									float sy = ((pEffect1->BoundingBoxSize[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
+													float sx = ((pEffect1->BoundingBoxSize[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
+													float sy = ((pEffect1->BoundingBoxSize[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
 
-									if (x > (px - sx) &&
-										x < (px + sx) &&
-										y > (py - sy) &&
-										y < (py + sy) &&
-										pEffect1->Position[2] < lowest) {
-										lowest = pEffect1->Position[2];
-										*pReturnElement = pElement->Header.Allocation;
-										*pReturnResourceHeader = pParentHeader->Header.Allocation;
-										*pReturnObject = pObject->Header.Allocation;
+													if (x > (px - sx) &&
+														x < (px + sx) &&
+														y >(py - sy) &&
+														y < (py + sy) &&
+														pEffect1->Position[2] < lowest) {
+														lowest = pEffect1->Position[2];
+														*pReturnElement = pElement->Header.Allocation;
+														*pReturnResourceHeader = pParentHeader->Header.Allocation;
+														*pReturnObject = pObject->Header.Allocation;
+													}
+												}
+												else if (pEffect->Header.Identifier == GUIEffect_Text) {
+													GraphicsEffectText* pEffect1 = pEffect;
+
+													float px = ((pEffect1->BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
+													float py = ((pEffect1->BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
+
+													float sx = ((pEffect1->BoundingBoxSize[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
+													float sy = ((pEffect1->BoundingBoxSize[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
+
+													if (x > (px - sx) &&
+														x < (px + sx) &&
+														y >(py - sy) &&
+														y < (py + sy) &&
+														pEffect1->Position[2] < lowest) {
+														lowest = pEffect1->Position[2];
+														*pReturnElement = pElement->Header.Allocation;
+														*pReturnResourceHeader = pParentHeader->Header.Allocation;
+														*pReturnObject = pObject->Header.Allocation;
+													}
+												}
+												pointer += pEffect->Header.AllocationSize;
+											}
+										}
+										Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 									}
+									Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 								}
-								else if (pEffect->Header.Identifier == GUIEffect_Text) {
-									GraphicsEffectText* pEffect1 = pEffect;
-
-									float px = ((pEffect1->BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
-									float py = ((pEffect1->BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
-
-									float sx = ((pEffect1->BoundingBoxSize[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
-									float sy = ((pEffect1->BoundingBoxSize[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
-
-									if (x > (px - sx) &&
-										x < (px + sx) &&
-										y > (py - sy) &&
-										y < (py + sy) &&
-										pEffect1->Position[2] < lowest) {
-										lowest = pEffect1->Position[2];
-										*pReturnElement = pElement->Header.Allocation;
-										*pReturnResourceHeader = pParentHeader->Header.Allocation;
-										*pReturnObject = pObject->Header.Allocation;
-									}
-								}
-								pointer += pEffect->Header.AllocationSize;
 							}
+							Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 						}
-						Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
-						Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 					}
-					Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 				}
-				Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 				Object_Ref_End_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
 			}			
 		}
@@ -1059,30 +1099,36 @@ TEXRESULT Update_GUI() {
 		Object_Ref_Get_ElementAllocationData(ClickedElement) != NULL)
 	{
 		Object* pObject = Object_Ref_Get_ObjectPointer(ClickedObject, false, false, 0);
-		for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
+		if (pObject != NULL)
 		{
-			RHeaderButton* pButton = Object_Ref_Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], false, false, 0);
-			if (pButton->Header.Allocation.Identifier == GUIHeader_Button)
-			{				
-				Button_Callback* ButtonCallbackFunction = (Button_Callback*)pButton->Callback_Function;
-				ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Hover);
-				if (EngineRes.pUtils->MouseButton_Callback_state.State == KeyRelease)
-					ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Release);
-				if (EngineRes.pUtils->MouseButton_Callback_state.State == KeyPress)
-					ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Press);
-				if (EngineRes.pUtils->MouseButton_Callback_state.State == KeyRepeat)
-					ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Repeat);
+			for (size_t i = 0; i < pObject->Header.iResourceHeadersSize; i++)
+			{
+				RHeaderButton* pButton = Object_Ref_Get_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], false, false, 0);
+				if (pButton != NULL)
+				{
+					if (pButton->Header.Allocation.Identifier == GUIHeader_Button)
+					{
+						Button_Callback* ButtonCallbackFunction = (Button_Callback*)pButton->Callback_Function;
+						ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Hover);
+						if (EngineRes.pUtils->MouseButton_Callback_state.State == KeyRelease)
+							ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Release);
+						if (EngineRes.pUtils->MouseButton_Callback_state.State == KeyPress)
+							ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Press);
+						if (EngineRes.pUtils->MouseButton_Callback_state.State == KeyRepeat)
+							ButtonCallbackFunction(ClickedElement, ClickedResourceHeader, ClickedObject, pObject->Header.iResourceHeaders[i], GUIButtonState_Repeat);
+					}
+					Object_Ref_End_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], false, false, 0);
+				}
 			}
-			Object_Ref_End_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], false, false, 0);
+			Object_Ref_End_ObjectPointer(ClickedObject, false, false, 0);
 		}
-		Object_Ref_End_ObjectPointer(ClickedObject, false, false, 0);
 	}
 	return Success;
 }
 
 TEXRESULT Initialise_GUI() {
 	memset(&Utils, 0, sizeof(Utils));
-
+	uint32_t ThreadIndex = 0;
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Config
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1101,7 +1147,7 @@ TEXRESULT Initialise_GUI() {
 	Utils.RHeaderButtonSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_ButtonHeader;
 	Utils.RHeaderButtonSig.Packer =		(Pack_ResourceHeaderTemplate*)&Pack_ButtonHeader;
 	Utils.RHeaderButtonSig.UnPacker =	(UnPack_ResourceHeaderTemplate*)&UnPack_ButtonHeader;
-	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderButtonSig);
+	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderButtonSig, ThreadIndex);
 
 	Utils.RHeaderFontSig.ByteLength = sizeof(RHeaderFont);
 	Utils.RHeaderFontSig.Identifier = (uint32_t)GUIHeader_Font;
@@ -1110,7 +1156,7 @@ TEXRESULT Initialise_GUI() {
 	Utils.RHeaderFontSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_FontHeader;
 	Utils.RHeaderFontSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_FontHeader;
 	Utils.RHeaderFontSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_FontHeader;
-	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderFontSig);
+	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderFontSig, ThreadIndex);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Effects
@@ -1142,21 +1188,18 @@ TEXRESULT Initialise_GUI() {
 }
 
 TEXRESULT Destroy_GUI() {
+	uint32_t ThreadIndex = 0;
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderButtonSig);	
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderFontSig);
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderButtonSig, ThreadIndex);
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderFontSig, ThreadIndex);
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//effects
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	
 	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.TextSig);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	//other
+	//Other
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	FT_Error err = 0;
@@ -1168,7 +1211,6 @@ TEXRESULT Destroy_GUI() {
 	Utils.FtLibrary = NULL;
 
 	//memset(&Utils, 0, sizeof(Utils));
-	//memset(&Config, 0, sizeof(Config));
 	return Success;
 }
 

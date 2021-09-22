@@ -24,10 +24,10 @@
 //}Config;
 
 const float speed = 0.001f;
-const float mouseSpeed = 0.00000001f;
+const float mouseSpeed = 0.00000005f;
 const float ScrollSpeed = 50.0f;
 
-ResourceHeaderAllocation iGraphicsWindow;
+ResourceHeaderAllocation iGraphicsWindow = {0, 0};
 
 /////////////////////////////////////////////
 //reactor shit
@@ -137,37 +137,65 @@ void Add_PrevText(GraphicsEffectText* pEffect)
 	PreviousTextsSize += 1;
 }
 
-void Update_Cursor(RHeaderGraphicsWindow* pGraphicsWindow, GraphicsEffectText* pEffect, GPU_GraphicsEffectText* pTargetElement)
-{
+void Update_Cursor(RHeaderGraphicsWindow* pGraphicsWindow, GraphicsEffectText* pEffect, GPU_GraphicsEffectText* pTargetElement) {
 	ElementGraphics* pElementTextCursor = Object_Ref_Get_ElementPointer(iTextCursor, true, false, 0);
+#ifndef NDEBUG
+	if (pElementTextCursor == NULL) {
+		Engine_Ref_ObjectError("Update_Cursor()", "pElementTextCursor", pElementTextCursor, "iTextCursor Invalid.");
+		return;
+	}
+#endif
 	GraphicsEffectGeneric2D* pEffect2D = NULL;
 	Graphics_Effects_Ref_Get_GraphicsEffect(pElementTextCursor, GraphicsEffect_Generic2D, &pEffect2D);
 
 	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElementTextCursor->iMaterial, false, false, 0);
-	RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, 0);
-	RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, false, false, 0);
+	RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, 0);
+	RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, false, false, 0);
 	
-	float scalefactor = ((float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / (float)(pImageSource0->ImageData->Height) / 2);
-	pEffect2D->Size[0] = (((float)(pImageSource0->ImageData->Width * scalefactor) / 2) / (float)pGraphicsWindow->CurrentExtentWidth);
-	pEffect2D->Size[1] = (((float)(pImageSource0->ImageData->Height * scalefactor) / 2) / (float)pGraphicsWindow->CurrentExtentHeight);
+#ifndef NDEBUG
+	if (pMaterial == NULL) {
+		Engine_Ref_ObjectError("Update_Cursor()", "pElementTextCursor", pElementTextCursor, "ElementGraphics.iMaterial Invalid.");
+		return;
+	}
+	if (pTexture == NULL) {
+		Engine_Ref_ObjectError("Update_Cursor()", "pMaterial", pMaterial, "RHeaderMaterial.BaseColourTexture.iTexture Invalid.");
+		return;
+	}
+	if (pImageSource == NULL) {
+		Engine_Ref_ObjectError("Update_Cursor()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
+		return;
+	}
+	if (pImageSource->ImageData == NULL) {
+		Engine_Ref_ObjectError("Update_Cursor()", "pImageSource", pImageSource, "RHeaderImageSource.ImageData Invalid.");
+		return;
+	}
+#endif
+
+	float scalefactor = ((float)((pEffect->FontSize * GUIRes.pUtils->Config.DPI) / 72) / (float)(pImageSource->ImageData->Height) / 2);
+	pEffect2D->Size[0] = (((float)(pImageSource->ImageData->Width * scalefactor) / 2) / (float)pGraphicsWindow->CurrentExtentWidth);
+	pEffect2D->Size[1] = (((float)(pImageSource->ImageData->Height * scalefactor) / 2) / (float)pGraphicsWindow->CurrentExtentHeight);
 
 	pEffect2D->Position[0] = (pEffect->Position[0] - pEffect->Size[0]) + ((pTargetElement->AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
 	pEffect2D->Position[1] = (pEffect->Position[1] - pEffect->Size[1]) - pEffect2D->Size[1] + ((pTargetElement->AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
 	pEffect2D->Position[2] = pEffect->Position[2];
 
-
 	Object_Ref_End_ResourceHeaderPointer(pElementTextCursor->iMaterial, false, false, 0);
 	Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, 0);
-	Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, false, false, 0);
+	Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, false, false, 0);
 
 	glm_vec2_copy(pEffect2D->Size, pEffect2D->BoundingBoxSize);
 	glm_vec2_copy(pEffect2D->Position, pEffect2D->BoundingBoxPosition);
 	Object_Ref_End_ElementPointer(iTextCursor, true, false, 0);
 }
 
-void InsertCodepoint(RHeaderGraphicsWindow* pGraphicsWindow, UTF32 codepoint)
-{
+void InsertCodepoint(RHeaderGraphicsWindow* pGraphicsWindow, UTF32 codepoint) {
 	ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+	if (pElementGraphics == NULL) {
+		Engine_Ref_ObjectError("InsertCodepoint()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+		return;
+	}
+#endif
 	GraphicsEffectText* pEffect = NULL;
 	Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -199,17 +227,21 @@ void InsertCodepoint(RHeaderGraphicsWindow* pGraphicsWindow, UTF32 codepoint)
 		InsertMember_Array(&UTF32_Text, UTF32strlen(UTF32_Text) + 1, CurClickedElementTextIterator, sizeof(*UTF32_Text), &codepoint, 1);
 		CurClickedElementTextIterator++;
 	}
-	free(pEffect->UTF8_Text);
+	//free(pEffect->UTF8_Text);
 	UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
 	Object_Ref_ReCreate_Element(CurClickedElement, 0);
 	Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 	Update_Cursor(pGraphicsWindow, pEffect, &pEffect->GPU_GraphicsEffectInfos[CurClickedElementTextIterator]);
 }
 
-void RemoveCodepoint(RHeaderGraphicsWindow* pGraphicsWindow)
-{
+void RemoveCodepoint(RHeaderGraphicsWindow* pGraphicsWindow) {
 	ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
-
+#ifndef NDEBUG
+	if (pElementGraphics == NULL) {
+		Engine_Ref_ObjectError("RemoveCodepoint()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+		return;
+	}
+#endif
 	GraphicsEffectText* pEffect = NULL;
 	Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -244,7 +276,7 @@ void RemoveCodepoint(RHeaderGraphicsWindow* pGraphicsWindow)
 			CurClickedElementTextIterator--;
 		}
 	}
-	free(pEffect->UTF8_Text);
+	//free(pEffect->UTF8_Text);
 	UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
 	Object_Ref_ReCreate_Element(CurClickedElement, 0);
 	Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
@@ -262,9 +294,15 @@ TEXRESULT Close_Callback()
 	return (Success);
 }
 
-TEXRESULT Character_Callback()
-{
+TEXRESULT Character_Callback() {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Character_Callback()", "pGraphicsWindow", pGraphicsWindow, "iGraphicsWindow Invalid.");
+		return (Failure);
+	}
+#endif
+
 	if (EngineRes.pUtils->Character_Callback_state.CodePoint == 'm')
 	{
 		Engine_Ref_Set_WindowFullScreen(pGraphicsWindow->pWindow, !pGraphicsWindow->pWindow->FullScreen);
@@ -274,6 +312,12 @@ TEXRESULT Character_Callback()
 	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_V == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Character_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -317,7 +361,7 @@ TEXRESULT Character_Callback()
 			free(UTF32_ClipboardText);
 		}
 		free(ClipboardText);
-		free(pEffect->UTF8_Text);
+		//free(pEffect->UTF8_Text);
 		UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
 		Object_Ref_ReCreate_Element(CurClickedElement, 0);
 		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
@@ -328,6 +372,12 @@ TEXRESULT Character_Callback()
 	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_X == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Character_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -364,7 +414,7 @@ TEXRESULT Character_Callback()
 				selecting = false;
 			}
 		}
-		free(pEffect->UTF8_Text);
+		//free(pEffect->UTF8_Text);
 		UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
 		Object_Ref_ReCreate_Element(CurClickedElement, 0);
 		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
@@ -375,6 +425,12 @@ TEXRESULT Character_Callback()
 	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_C == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Character_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -398,7 +454,7 @@ TEXRESULT Character_Callback()
 				free(utf8newtext);
 			}
 		}
-		free(pEffect->UTF8_Text);
+		//free(pEffect->UTF8_Text);
 		UTF32_To_UTF8(UTF32_Text, &pEffect->UTF8_Text);
 		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
@@ -407,6 +463,12 @@ TEXRESULT Character_Callback()
 	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_Z == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Character_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 		if (PreviousTextsIndex == 0)
@@ -421,7 +483,7 @@ TEXRESULT Character_Callback()
 		if (PreviousTextsIndex < PreviousTextsSize)
 		{
 			PreviousTextsIndex++;
-			free(pEffect->UTF8_Text);
+			//free(pEffect->UTF8_Text);
 			pEffect->UTF8_Text = CopyData(PreviousTexts[PreviousTextsSize - PreviousTextsIndex].Text);
 			CurClickedElementTextIterator = PreviousTexts[PreviousTextsSize - PreviousTextsIndex].CursorIndex;
 		}
@@ -434,6 +496,12 @@ TEXRESULT Character_Callback()
 	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_Y == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Character_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 		if (PreviousTextsIndex == 0)
@@ -447,7 +515,7 @@ TEXRESULT Character_Callback()
 		if (PreviousTextsIndex > 1)
 		{
 			PreviousTextsIndex--;
-			free(pEffect->UTF8_Text);
+			//free(pEffect->UTF8_Text);
 			pEffect->UTF8_Text = CopyData(PreviousTexts[PreviousTextsSize - PreviousTextsIndex].Text);
 			CurClickedElementTextIterator = PreviousTexts[PreviousTextsSize - PreviousTextsIndex].CursorIndex;
 		}
@@ -462,6 +530,7 @@ TEXRESULT Character_Callback()
 	{
 		InsertCodepoint(pGraphicsWindow, 0x0D);
 		InsertCodepoint(pGraphicsWindow, 0x0A);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
 	if (pGraphicsWindow->pWindow->STATE_KEY_TAB == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
@@ -471,16 +540,19 @@ TEXRESULT Character_Callback()
 		//InsertCodepoint(pGraphicsWindow, 0x20);
 		//InsertCodepoint(pGraphicsWindow, 0x20);
 		//InsertCodepoint(pGraphicsWindow, 0x20);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
 	if (EngineRes.pUtils->Character_Callback_state.CodePoint == 0x08 && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		RemoveCodepoint(pGraphicsWindow);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
 	if (EngineRes.pUtils->Character_Callback_state.CodePoint >= 32 && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		InsertCodepoint(pGraphicsWindow, EngineRes.pUtils->Character_Callback_state.CodePoint);
+		Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 		return (Success);
 	}
 	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
@@ -490,10 +562,22 @@ TEXRESULT Character_Callback()
 TEXRESULT Click_Callback()
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Click_Callback()", "pGraphicsWindow", pGraphicsWindow, "iGraphicsWindow Invalid.");
+		return (Failure);
+	}
+#endif
 
 	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_SHIFT == KeyPress) && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the cursor
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Click_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -539,6 +623,12 @@ TEXRESULT Click_Callback()
 	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the cursor
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Click_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -580,10 +670,22 @@ TEXRESULT Click_Callback()
 TEXRESULT Key_Callback()
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Key_Callback()", "pGraphicsWindow", pGraphicsWindow, "iGraphicsWindow Invalid.");
+		return (Failure);
+	}
+#endif
 	//navigation keys
 	if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the right
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Key_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -616,6 +718,12 @@ TEXRESULT Key_Callback()
 	if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the left
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Key_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -648,6 +756,12 @@ TEXRESULT Key_Callback()
 	if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the top
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Key_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -675,6 +789,12 @@ TEXRESULT Key_Callback()
 	if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL) //get next closet character to the bototm
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Key_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -706,9 +826,21 @@ TEXRESULT Key_Callback()
 TEXRESULT Scroll_Callback()
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Scroll_Callback()", "pGraphicsWindow", pGraphicsWindow, "iGraphicsWindow Invalid.");
+		return (Failure);
+	}
+#endif
 	if (Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Scroll_Callback()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 		pEffect->Position[1] += (EngineRes.pUtils->Scroll_Callback_state.Delta / (float)pGraphicsWindow->CurrentExtentHeight) * ScrollSpeed;
@@ -731,11 +863,16 @@ TEXRESULT Scroll_Callback()
 
 TEXRESULT Update_Chat()
 {		
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
 	
 	uint32_t ThreadIndex = 0;
-	//RHeaderCamera* pCameraHeader = ((RHeaderCamera*)&camerasignature->Buffer->Buffer[0]);
-	/*
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Scroll_Callback()", "pGraphicsWindow", pGraphicsWindow, "iGraphicsWindow Invalid.");
+		return (Failure);
+	}
+#endif
+
 	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyRelease)
 	{
 		selecting = false;
@@ -743,6 +880,12 @@ TEXRESULT Update_Chat()
 	if (selecting == true && Object_Ref_Get_ElementAllocationData(CurClickedElement) != NULL)
 	{
 		ElementGraphics* pElementGraphics = Object_Ref_Get_ElementPointer(CurClickedElement, true, false, 0);
+#ifndef NDEBUG
+		if (pElementGraphics == NULL) {
+			Engine_Ref_ObjectError("Update_Chat()", "pElementGraphics", pElementGraphics, "CurClickedElement Invalid.");
+			return (Failure);
+		}
+#endif
 		GraphicsEffectText* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElementGraphics, GUIEffect_Text, &pEffect);
 
@@ -793,11 +936,11 @@ TEXRESULT Update_Chat()
 		Object_Ref_End_ElementPointer(CurClickedElement, true, false, 0);
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
-	*/
 	
-	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0) {	
-		double FPS = ((double)pGraphicsWindow->FramesDone);
-		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
+	
+	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 0.05) {	
+		double FPS = ((double)pGraphicsWindow->FramesDone) * 20;
+		double MSPF = 100.0f / ((double)pGraphicsWindow->FramesDone);
 		pGraphicsWindow->FramesDone = 0;
 		
 		lasttime = ((double)clock() / (double)CLOCKS_PER_SEC);
@@ -808,7 +951,6 @@ TEXRESULT Update_Chat()
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
 
 		//free(pEffect->UTF8_Text);
-
 		char buffer[128 + 19];
 		snprintf(&buffer, 128 + 19, "FPS: %f | MSPF: %f", ((float)FPS), ((float)MSPF));
 
@@ -860,9 +1002,25 @@ TEXRESULT Update_Chat()
 		reactorpercentage -= 0.01f;
 	}
 	*/
-	//RHeaderPosition* pPositionHeader = (RHeaderPosition*)Object_Ref_Scan_ObjectHeadersSingle(pCameraHeader->Header.iParents[0], (uint32_t)GraphicsHeader_Position);	
+
+	//autistic but it will do
+	RHeaderCamera* pCameraHeader = NULL;
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
+		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
+		if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Camera) {
+			RHeaderCamera* pResourceHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+			if (pResourceHeader != NULL) {
+				pCameraHeader = pResourceHeader;			
+			}
+		}
+	}
+
+	ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pCameraHeader->Header.iObjects[0], GraphicsHeader_Position, ThreadIndex);	
+	RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
 	float framehorizontalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentWidth / 2.0f - EngineRes.pUtils->MousePos_Callback_state.X_Position);
 	float frameverticalAngle = mouseSpeed * ((float)pGraphicsWindow->CurrentExtentHeight / 2.0f - EngineRes.pUtils->MousePos_Callback_state.Y_Position);
+
+
 
 	//framehorizontalAngle = 0;
 	//frameverticalAngle = 0;
@@ -874,7 +1032,7 @@ TEXRESULT Update_Chat()
 	vec3 Scale;
 	glm_vec3_one(Scale);
 
-	//glm_decompose(pPositionHeader->Matrix, Translation, Rotation, Scale);
+	glm_decompose(pPositionHeader->Matrix, Translation, Rotation, Scale);
 
 	vec3 right;
 	glm_vec3_zero(right);
@@ -972,13 +1130,19 @@ TEXRESULT Update_Chat()
 	glm_scale(scalem, Scale);
 
 
-	//glm_mul_sse2(translationm, rotationm, pPositionHeader->Matrix);
-	//glm_mul_sse2(pPositionHeader->Matrix, scalem, pPositionHeader->Matrix);
-	//glm_mul_sse2(pPositionHeader->Matrix, identitym, pPositionHeader->Matrix);
+	glm_mul_sse2(translationm, rotationm, pPositionHeader->Matrix);
+	glm_mul_sse2(pPositionHeader->Matrix, scalem, pPositionHeader->Matrix);
+	glm_mul_sse2(pPositionHeader->Matrix, identitym, pPositionHeader->Matrix);
 
-	//glm_rotate(pPositionHeader->Matrix, frameverticalAngle, horiz);
-	//glm_rotate(pPositionHeader->Matrix, framehorizontalAngle, vertic);
-	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, 0);
+//	glm_rotate(pPositionHeader->Matrix, frameverticalAngle, horiz);
+	glm_rotate(pPositionHeader->Matrix, framehorizontalAngle, vertic);
+
+
+	Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+
+	Object_Ref_End_ResourceHeaderPointer(pCameraHeader->Header.Allocation, false, false, ThreadIndex);
+
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex); 
 	return (Success);
 }
 
@@ -1021,9 +1185,11 @@ TEXRESULT Initialise_Chat() {
 
 		Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json", iGraphicsWindow, iScene, 0);
 
-		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\nuclear_power_plant_game_asset\\scene.gltf", iGraphicsWindow, iScene, 0);
+		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\simplesparse\\scene.gltf", iGraphicsWindow, iScene, 0);
 
+		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\f6f\\scene.gltf", iGraphicsWindow, iScene, 0);
 
+		
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -1193,6 +1359,7 @@ TEXRESULT Initialise_Chat() {
 				free(InfoText.iFonts);
 			}
 		}
+		
 	}	
 	/*
 	for (size_t i = 0; i < 1; i++)
@@ -1399,9 +1566,9 @@ TEXRESULT Initialise_Chat() {
 		Audio_Ref_Start_OutputStream(pAudioElement);
 		*/
 	//Object_Ref_Write_TEIF((const UTF8*)"BIN.teif", 0);	
-		//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
+	//Object_Ref_Read_TEIF((const UTF8*)"BIN.teif", 0);	
 
-return (Success);
+	return (Success);
 }
 /*
 void bro()
@@ -1796,8 +1963,7 @@ TEXRESULT Destroy_Chat()
 	return (Success);
 }
 
-struct ChatResStruct
-{
+struct ChatResStruct {
 	void* pInitialise_Chat;
 	void* pDestroy_Chat;
 	void* pUpdate_Chat;
@@ -1807,7 +1973,6 @@ struct ChatResStruct
 	void* pClick_Callback;
 	void* pScroll_Callback;
 	void* pClose_Callback;
-
 }ChatRes;
 
 //entry point to the extension

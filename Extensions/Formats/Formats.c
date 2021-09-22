@@ -387,6 +387,8 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 	memset(&CreateInfo, 0, sizeof(CreateInfo));
 	CreateInfo.iGraphicsWindow = iGraphicsWindow;
 
+	CreateInfo.BaseColourMode = MaterialMode_Solid;
+
 	if (ObjGet(value, "emissiveFactor") != NULL)
 		for (size_t i1 = 0; i1 < 3; i1++)
 			CreateInfo.EmissiveFactor[i1] = *GetNum(ArrayGet(ObjGet(value, "emissiveFactor"), i1));
@@ -443,6 +445,7 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 				CreateInfo.BaseColourTexture.UVIndex = *GetLongLong(ObjGet(baseColorTextureV, "texCoord"));
 			if (ObjGet(baseColorTextureV, "index") != NULL)
 				CreateInfo.BaseColourTexture.iTexture = TexturesArray[*GetLongLong(ObjGet(baseColorTextureV, "index"))];
+			CreateInfo.BaseColourMode = MaterialMode_Colour;
 		}
 
 		if (ObjGet(pbrMetallicRoughnessV, "metallicRoughnessTexture") != NULL)
@@ -452,6 +455,7 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 				CreateInfo.MetallicRoughnessTexture.UVIndex = *GetLongLong(ObjGet(metallicRoughnessTextureV, "texCoord"));
 			if (ObjGet(metallicRoughnessTextureV, "index") != NULL)
 				CreateInfo.MetallicRoughnessTexture.iTexture = TexturesArray[*GetLongLong(ObjGet(metallicRoughnessTextureV, "index"))];
+			CreateInfo.BaseColourMode = MaterialMode_Colour;
 		}
 	}
 
@@ -464,6 +468,7 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 			CreateInfo.NormalTexture.iTexture = TexturesArray[*GetLongLong(ObjGet(normalTextureV, "index"))];
 		if (ObjGet(normalTextureV, "scale") != NULL)
 			CreateInfo.NormalScale = *GetNum(ObjGet(normalTextureV, "scale"));
+		CreateInfo.BaseColourMode = MaterialMode_Colour;
 	}
 	if (ObjGet(value, "occlusionTexture") != NULL)
 	{
@@ -474,6 +479,7 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 			CreateInfo.OcclusionTexture.iTexture = TexturesArray[*GetLongLong(ObjGet(occlusionTextureV, "index"))];
 		if (ObjGet(occlusionTextureV, "strength") != NULL)
 			CreateInfo.OcclusionStrength = *GetNum(ObjGet(occlusionTextureV, "strength"));
+		CreateInfo.BaseColourMode = MaterialMode_Colour;
 	}
 	if (ObjGet(value, "emissiveTexture") != NULL)
 	{
@@ -482,6 +488,7 @@ TEXRESULT Parse_Material(Value* value, ResourceHeaderAllocation* pAllocation, co
 			CreateInfo.EmissiveTexture.UVIndex = *GetLongLong(ObjGet(emissiveTextureV, "texCoord"));
 		if (ObjGet(emissiveTextureV, "index") != NULL)
 			CreateInfo.EmissiveTexture.iTexture = TexturesArray[*GetLongLong(ObjGet(emissiveTextureV, "index"))];
+		CreateInfo.BaseColourMode = MaterialMode_Colour;
 	}
 
 	ResourceHeaderCreateInfo MainCreateInfo;
@@ -565,8 +572,7 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 	pResult->Inputrate = AttributeInputRate_Vertex;
 
 	//convert sparse to normal
-	if (ObjGet(value, "sparse") != NULL) 
-	{		
+	if (ObjGet(value, "sparse") != NULL)  {		
 		Value* sparseV = ObjGet(value, "sparse");
 		struct Sparse
 		{
@@ -653,6 +659,32 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 		RHeaderBufferSource* pIndicesBufferSource = Object_Ref_Get_ResourceHeaderPointer(pIndicesBuffer->iBufferSource, false, false, ThreadIndex);
 		RHeaderBufferSource* pValuesBufferSource = Object_Ref_Get_ResourceHeaderPointer(pValuesBuffer->iBufferSource, false, false, ThreadIndex);
 
+		if (pOldBuffer == NULL)
+		{
+			Engine_Ref_FunctionError("Parse_Accessor", "pOldBuffer Invalid.", 0);
+		}
+		if (pOldBufferSource == NULL)
+		{
+			Engine_Ref_FunctionError("Parse_Accessor", "pOldBufferSource Invalid.", 0);
+		}
+		if (pIndicesBuffer == NULL)
+		{
+			Engine_Ref_FunctionError("Parse_Accessor", "pIndicesBuffer Invalid.", 0);
+		}
+		if (pValuesBuffer == NULL)
+		{
+			Engine_Ref_FunctionError("Parse_Accessor", "pValuesBuffer Invalid.", 0);
+		}
+		if (pIndicesBufferSource == NULL)
+		{
+			Engine_Ref_FunctionError("Parse_Accessor", "pIndicesBufferSource Invalid.", 0);
+		}
+		if (pValuesBufferSource == NULL)
+		{
+			Engine_Ref_FunctionError("Parse_Accessor", "pValuesBufferSource Invalid.", 0);
+		}
+
+
 		uint8_t* indicesdata = (uint8_t*)((uint64_t)pIndicesBufferSource->Data.pData + (uint64_t)*GetLongLong(ObjGet(sparseindicesbufferView, "byteOffset")) + (uint64_t)sparse.Indices.ByteOffset);
 		uint8_t* valuesdata = (uint8_t*)((uint64_t)pValuesBufferSource->Data.pData + (uint64_t)*GetLongLong(ObjGet(sparsevaluesbufferView, "byteOffset")) + (uint64_t)sparse.Values.ByteOffset);
 
@@ -687,6 +719,17 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 			break;
 		}
 
+
+
+		Object_Ref_End_ResourceHeaderPointer(pOldBuffer->Header.Allocation, false, false, ThreadIndex);
+		Object_Ref_End_ResourceHeaderPointer(pOldBufferSource->Header.Allocation, false, false, ThreadIndex);
+
+		Object_Ref_End_ResourceHeaderPointer(pIndicesBuffer->Header.Allocation, false, false, ThreadIndex);
+		Object_Ref_End_ResourceHeaderPointer(pValuesBuffer->Header.Allocation, false, false, ThreadIndex);
+
+		Object_Ref_End_ResourceHeaderPointer(pIndicesBufferSource->Header.Allocation, false, false, ThreadIndex);
+		Object_Ref_End_ResourceHeaderPointer(pValuesBufferSource->Header.Allocation, false, false, ThreadIndex);
+
 		ResourceHeaderAllocation iBufferSource;
 		{
 			RHeaderBufferSourceCreateInfo BufferSourceCreateInfo;
@@ -716,19 +759,14 @@ TEXRESULT Parse_Accessor(Value* value, Accessor* pResult, Value* Basevalue, cons
 			if ((res = Object_Ref_Create_ResourceHeader(&iBuffer, MainCreateInfo, &BufferCreateInfo, ThreadIndex)) != (Success))
 				return res;
 		}
+
 		//pResult->ByteLength = NewSource.LinearSize;
+
 		pResult->ByteStride = stride;
 		pResult->ByteOffset = 0;
 		pResult->iBuffer = iBuffer;
-
-		Object_Ref_End_ResourceHeaderPointer(pResult->iBuffer, false, false, ThreadIndex);
-		Object_Ref_End_ResourceHeaderPointer(pOldBuffer->iBufferSource, false, false, ThreadIndex);
-
-		Object_Ref_End_ResourceHeaderPointer(BufferArray[*GetLongLong(ObjGet(sparseindicesbufferView, "buffer"))], false, false, ThreadIndex);
-		Object_Ref_End_ResourceHeaderPointer(BufferArray[*GetLongLong(ObjGet(sparsevaluesbufferView, "buffer"))], false, false, ThreadIndex);
-		Object_Ref_End_ResourceHeaderPointer(pIndicesBuffer->iBufferSource, false, false, ThreadIndex);
-		Object_Ref_End_ResourceHeaderPointer(pValuesBuffer->iBufferSource, false, false, ThreadIndex);
 	}
+	
 	return (Success);
 }
 
@@ -904,6 +942,7 @@ TEXRESULT Parse_Primitive(Value* value, ElementAllocation* pAllocation, Value* B
 		RHeaderMaterialCreateInfo CreateInfoDefaultMaterial;
 		memset(&CreateInfoDefaultMaterial, 0, sizeof(CreateInfoDefaultMaterial));
 		CreateInfoDefaultMaterial.DoubleSided = true;
+		CreateInfoDefaultMaterial.BaseColourMode = MaterialMode_Solid;
 		CreateInfoDefaultMaterial.iGraphicsWindow = iGraphicsWindow;
 		ResourceHeaderCreateInfo MainCreateInfo;
 		memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
@@ -1462,7 +1501,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 		Value* nodesNextV = Begin(nodesV);
 		for (size_t i = 0; i < SizeOf(nodesV); i++)
 		{
-			Object* pObject = Object_Ref_Get_ObjectPointer(nodes[i], true, false, ThreadIndex);
+			ObjectAllocation iObject = nodes[i];
 
 			if (ObjGet(nodesNextV, "children") != NULL)
 			{
@@ -1523,7 +1562,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 				Value* nodesNextcameraV = ObjGet(nodesNextV, "camera");
 				Value* camerasV = ObjGet(src_v, "cameras");
 				ResourceHeaderAllocation iCamera;
-				if ((tres = Parse_Camera(ArrayGet(camerasV, *GetLongLong(nodesNextcameraV)), &iCamera, pObject->Header.Allocation, ThreadIndex)) != (Success))
+				if ((tres = Parse_Camera(ArrayGet(camerasV, *GetLongLong(nodesNextcameraV)), &iCamera, iObject, ThreadIndex)) != (Success))
 					return tres;
 			}
 
@@ -1532,7 +1571,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 				Value* nodesNextskinV = ObjGet(nodesNextV, "skin");
 				Value* skinsV = ObjGet(src_v, "skins");
 				ResourceHeaderAllocation iSkin;
-				if ((tres = Parse_Skin(ArrayGet(skinsV, *GetLongLong(nodesNextskinV)), &iSkin, src_v, nodes, pObject->Header.Allocation, Buffers, iGraphicsWindow, ThreadIndex)) != (Success))
+				if ((tres = Parse_Skin(ArrayGet(skinsV, *GetLongLong(nodesNextskinV)), &iSkin, src_v, nodes, iObject, Buffers, iGraphicsWindow, ThreadIndex)) != (Success))
 					return tres;
 			}
 			if (ObjGet(nodesNextV, "mesh") != NULL)
@@ -1540,7 +1579,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 				Value* nodesNextmeshV = ObjGet(nodesNextV, "mesh");
 				Value* meshesV = ObjGet(src_v, "meshes");
 				ResourceHeaderAllocation iMesh;
-				if ((tres = Parse_Mesh(ArrayGet(meshesV, *GetLongLong(nodesNextmeshV)), &iMesh, src_v, nodesNextV, Materials, pObject->Header.Allocation, Buffers, iGraphicsWindow, ThreadIndex)) != (Success))
+				if ((tres = Parse_Mesh(ArrayGet(meshesV, *GetLongLong(nodesNextmeshV)), &iMesh, src_v, nodesNextV, Materials, iObject, Buffers, iGraphicsWindow, ThreadIndex)) != (Success))
 					return tres;
 			}
 			if (ObjGet(nodesNextV, "extensions") != NULL)
@@ -1556,7 +1595,7 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 					Value* lightsV = ObjGet(extensionsKHR_lights_punctualV, "lights");
 
 					ResourceHeaderAllocation iLight;
-					if ((tres = Parse_Light(ArrayGet(lightsV, *GetLongLong(nodesNextlightV)), &iLight, pObject->Header.Allocation, ThreadIndex)) != (Success))
+					if ((tres = Parse_Light(ArrayGet(lightsV, *GetLongLong(nodesNextlightV)), &iLight, iObject, ThreadIndex)) != (Success))
 						return tres;
 				}
 			}
@@ -1574,9 +1613,8 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 				if ((tres = Object_Ref_Create_ResourceHeader(&iPositionHeader, MainCreateInfo, &PositionCreateInfo, ThreadIndex)) != (Success))
 					return tres;
 			}
-			Object_Ref_Add_Object_ResourceHeaderChild(iPositionHeader, pObject->Header.Allocation, ThreadIndex);
+			Object_Ref_Add_Object_ResourceHeaderChild(iPositionHeader, iObject, ThreadIndex);
 			nodesNextV = Next(nodesNextV);
-			Object_Ref_End_ObjectPointer(nodes[i], true, false, ThreadIndex);
 		}
 	}
 	if (nodes != NULL)
@@ -1623,8 +1661,7 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 				if (Object_Ref_Get_ObjectAllocationData(iParent) != NULL)
 					Object_Ref_Add_ObjectChild(iObject, iParent, ThreadIndex);
 			}
-			Object* pObject = Object_Ref_Get_ObjectPointer(iObject, true, false, ThreadIndex);
-			Object_Ref_Add_Object_ResourceHeaderChild(iScene, pObject->Header.Allocation, ThreadIndex);
+			Object_Ref_Add_Object_ResourceHeaderChild(iScene, iObject, ThreadIndex);
 
 			RHeaderMaterialCreateInfo CreateInfoMaterial;
 			memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
@@ -2318,7 +2355,6 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 				}
 				Object_Ref_End_ResourceHeaderPointer(RHeadermtl, true, false, ThreadIndex);
 			}
-			Object_Ref_End_ObjectPointer(iObject, true, false, ThreadIndex);
 			parse_g2d(elementV, iObject, fileloc, iGraphicsWindow, iScene, ThreadIndex);
 		}
 	}

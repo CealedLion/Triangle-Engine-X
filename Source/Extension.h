@@ -595,12 +595,18 @@ TEXRESULT Save_data(FileData* pFileData, const UTF8* Path) {
 */
 void Resize_Array(void** pBuffer, uint64_t OldSize, uint64_t NewSize, uint64_t MemberSize) {
 	void* oldarray = *pBuffer;
-	void* TempArray = calloc(NewSize, MemberSize);
-	if (oldarray != NULL)
-	{	
-		memcpy(TempArray, oldarray, MemberSize * min(NewSize, OldSize)); //only copy amount of smaller to keep from overflows
-		free(oldarray);
+	void* TempArray = NULL;
+	if (NewSize != 0) {
+		TempArray = calloc(NewSize, MemberSize);
+		if (min(NewSize, OldSize) != 0 && oldarray != NULL) {
+			memcpy(TempArray, oldarray, MemberSize * min(NewSize, OldSize)); //only copy amount of smaller to keep from overflows
+		}
 	}
+	else {
+		TempArray = NULL;
+	}	
+	if (oldarray != NULL)
+		free(oldarray);
 	//assign new array to old array
 	*pBuffer = TempArray;
 }
@@ -617,17 +623,21 @@ void Resize_Array(void** pBuffer, uint64_t OldSize, uint64_t NewSize, uint64_t M
 void RemoveMember_Array(void** pBuffer, uint64_t OldSize, uint64_t MemberIndex, uint64_t MemberSize, uint64_t MemberCount) {
 	void* oldarray = *pBuffer;
 	uint64_t newsize = OldSize - MemberCount;
+	void* TempArray = NULL;
 	if (newsize != 0) {
-		void* TempArray = calloc(newsize, MemberSize);
+		TempArray = calloc(newsize, MemberSize);
 		if (MemberIndex != NULL) //copy first part of array
 			memcpy(TempArray, oldarray, MemberSize * MemberIndex);
 		if (oldarray != NULL) //copy second part of array and offset it
 			memcpy((void*)((uint64_t)TempArray + (uint64_t)(MemberIndex * MemberSize)), (void*)((uint64_t)oldarray + (uint64_t)((MemberIndex + MemberCount) * MemberSize)), MemberSize * (newsize - MemberIndex));
-		//assign new array to old array
-		*pBuffer = TempArray;
+	}
+	else {
+		TempArray = NULL;
 	}
 	if (oldarray != NULL)
 		free(oldarray);
+	//assign new array to old array
+	*pBuffer = TempArray;
 }
 /*
 * Added in 1.0.0
@@ -643,10 +653,13 @@ void RemoveMember_Array(void** pBuffer, uint64_t OldSize, uint64_t MemberIndex, 
 void InsertMember_Array(void** pBuffer, uint64_t OldSize, uint64_t MemberIndex, uint64_t MemberSize, void* pMembers, uint64_t MemberCount) {
 	void* oldarray = *pBuffer;
 	void* TempArray = calloc(OldSize + MemberCount, MemberSize);
-	if (MemberIndex != NULL) //copy first part of array
-		memcpy(TempArray, oldarray, MemberSize * MemberIndex);
-	if (oldarray != NULL)  //copy second part of array and offset it
+
+	if (oldarray != NULL)  
 	{
+		if (MemberIndex != NULL) //copy first part of array
+			memcpy(TempArray, oldarray, MemberSize * MemberIndex);
+
+		//copy second part of array and offset it
 		memcpy((void*)((uint64_t)TempArray + (uint64_t)((MemberIndex + MemberCount) * MemberSize)), (void*)((uint64_t)oldarray + (uint64_t)(MemberIndex * MemberSize)), MemberSize * (OldSize - MemberIndex));
 		free(oldarray);
 	}

@@ -1937,7 +1937,12 @@ unsigned char reverse(unsigned char n, size_t b) {
 
 TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeaderWaterRender* pResourceHeaderOverlay, bool Full, uint32_t ThreadIndex) {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
-
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Destroy_WaterRenderHeader()", "pResourceHeader", pResourceHeader, "RHeaderGraphicsWindow.iGraphicsWindow Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	//if they are different its safe to destruct.	
 	if (((pResourceHeaderOverlay != NULL) ? (memcmp(&pResourceHeader->AllocationBitReversedIndices, &pResourceHeaderOverlay->AllocationBitReversedIndices, sizeof(pResourceHeader->AllocationBitReversedIndices)) != 0) : true) && TestNULL(&pResourceHeader->AllocationBitReversedIndices, sizeof(pResourceHeader->AllocationBitReversedIndices)) != Success) {
 		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pResourceHeader->AllocationBitReversedIndices);
@@ -2083,47 +2088,43 @@ TEXRESULT Destroy_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, RHeader
 //ReCreate
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t ThreadIndex)
-{
-#ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iGraphicsWindow) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iGraphicsWindow Invalid");
-		return (Invalid_Parameter | Failure);
-	}
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iTextureTarget) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iTextureTarget Invalid");
-		return (Invalid_Parameter | Failure);
-	}
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pResourceHeader->iNoise) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pResourceHeader->iNoise Invalid");
-		return (Invalid_Parameter | Failure);
-	}
-#endif
+TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32_t ThreadIndex) {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("ReCreate_WaterRenderHeader()", "pResourceHeader", pResourceHeader, "RHeaderWaterRender.iGraphicsWindow Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif	
 	RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
 	RHeaderTexture* pNoise = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iNoise, false, false, ThreadIndex);
+#ifndef NDEBUG
+	if (pTexture == NULL) {
+		Engine_Ref_ObjectError("ReCreate_WaterRenderHeader()", "pResourceHeader", pResourceHeader, "RHeaderWaterRender.iTextureTarget Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pNoise == NULL) {
+		Engine_Ref_ObjectError("ReCreate_WaterRenderHeader()", "pResourceHeader", pResourceHeader, "RHeaderWaterRender.iNoise Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif	
 	RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture->iImageSource) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pTexture->iImageSource Invalid");
+	if (pImageSource == NULL) {
+		Engine_Ref_ObjectError("ReCreate_WaterRenderHeader()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	if (pImageSource->ImageData == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_WaterRenderHeader()", "pImageSource->ImageData == NULLPTR");
+	if (pImageSource->ImageData == NULL) {
+		Engine_Ref_ObjectError("ReCreate_WaterRenderHeader()", "pImageSource", pImageSource, "RHeaderImageSource.ImageData Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-#endif
+#endif	
 	pImageSource->ImageData->Width = pResourceHeader->WaterResolution;
 	pImageSource->ImageData->Height = pResourceHeader->WaterResolution;
 	pImageSource->ImageData->Depth = 1;
 	pImageSource->ImageData->Format = GraphicsFormat_R32G32B32A32_SFLOAT;
 	pImageSource->ImageData->MipmapCount = 1;
-	Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, NULL, ThreadIndex);
+	Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, ThreadIndex);
 
 	TEXRESULT tres = Success;
 	VkResult res = VK_SUCCESS;
@@ -2140,7 +2141,6 @@ TEXRESULT ReCreate_WaterRenderHeader(RHeaderWaterRender* pResourceHeader, uint32
 	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pResourceHeader->VkShaderButterfly, ShaderButterfly, ComputeShaderButterflySize, "ReCreate_WaterRenderHeader()");
 	const SPIRV ShaderInversion[] = ComputeShaderInversion();
 	CompileVkShaderModule(pGraphicsWindow->pLogicalDevice, pResourceHeader->VkShaderInversion, ShaderInversion, ComputeShaderInversionSize, "ReCreate_WaterRenderHeader()");
-
 
 	uint64_t log_2_N = (int)(log(pResourceHeader->WaterResolution) / log(2));
 
@@ -3088,16 +3088,26 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
 		if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsEffectsHeader_WaterRender) {
-			RHeaderWaterRender* pWaterRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
-			if (pWaterRenderHeader != NULL) {
-				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pWaterRenderHeader->iGraphicsWindow) == Success) {
-					RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pWaterRenderHeader->iTextureTarget, false, false, ThreadIndex);
+			RHeaderWaterRender* pResourceHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
+			if (pResourceHeader != NULL) {
+				if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pResourceHeader->iGraphicsWindow) == Success) {
+					RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pResourceHeader->iTextureTarget, false, false, ThreadIndex);
+#ifndef NDEBUG
+					if (pTexture == NULL) {
+						Engine_Ref_ObjectError("DrawSignature_Water()", "pResourceHeader", pResourceHeader, "RHeaderWaterRender.iTextureTarget Invalid.");
+						return (Invalid_Parameter | Failure);
+					}
+#endif	
 					RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, false, false, ThreadIndex);
-
+#ifndef NDEBUG
+					if (pTexture == NULL) {
+						Engine_Ref_ObjectError("DrawSignature_Water()", "pTexture", pTexture, "RHeaderImageSource.iImageSource Invalid.");
+						return (Invalid_Parameter | Failure);
+					}
+#endif	
 					uint32_t PingPongIndex = 0;
-
-					Engine_Ref_Lock_Mutex(&pWaterRenderHeader->mutex);
-					pWaterRenderHeader->Time = ((double)clock() / (double)CLOCKS_PER_SEC);	
+					Engine_Ref_Lock_Mutex(&pResourceHeader->mutex);
+					pResourceHeader->Time = ((double)clock() / (double)CLOCKS_PER_SEC);
 					{
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 						//Rendering
@@ -3110,7 +3120,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
+								Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3136,7 +3146,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->Texturehkt_dx.VkImage;
+								Barrier.image = pResourceHeader->Texturehkt_dx.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3162,7 +3172,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->Texturehkt_dz.VkImage;
+								Barrier.image = pResourceHeader->Texturehkt_dz.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3184,36 +3194,36 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								);
 							}
 
-							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pWaterRenderHeader->VkPipelinehkt);
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pResourceHeader->VkPipelinehkt);
 
 							uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
 							WaterPushConstants PushConstants;
 							memset(&PushConstants, 0, sizeof(PushConstants));
-							glm_vec2_copy(pWaterRenderHeader->FlowDirection, PushConstants.FlowDirection);
-							PushConstants.WaterResolution = pWaterRenderHeader->WaterResolution;
-							PushConstants.WaterL = pWaterRenderHeader->WaterL;
-							PushConstants.WaterAmplitude = pWaterRenderHeader->WaterAmplitude;
-							PushConstants.WaterIntensity = pWaterRenderHeader->WaterIntensity;
-							PushConstants.Waterl = pWaterRenderHeader->Waterl;
-							PushConstants.Time = pWaterRenderHeader->Time;
+							glm_vec2_copy(pResourceHeader->FlowDirection, PushConstants.FlowDirection);
+							PushConstants.WaterResolution = pResourceHeader->WaterResolution;
+							PushConstants.WaterL = pResourceHeader->WaterL;
+							PushConstants.WaterAmplitude = pResourceHeader->WaterAmplitude;
+							PushConstants.WaterIntensity = pResourceHeader->WaterIntensity;
+							PushConstants.Waterl = pResourceHeader->Waterl;
+							PushConstants.Time = pResourceHeader->Time;
 							PushConstants.ButterflyStage = 0;
 							PushConstants.ButterflyDirection = 0;
 							PushConstants.PingPongIndex = 0;
 
 							memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
-							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
 								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
 
 							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-								pWaterRenderHeader->VkPipelineLayouthkt, 0, 1, &pWaterRenderHeader->VkDescriptorSethkt, 0, NULL);
-							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->WaterResolution / 16, pWaterRenderHeader->WaterResolution / 16, 1);
+								pResourceHeader->VkPipelineLayouthkt, 0, 1, &pResourceHeader->VkDescriptorSethkt, 0, NULL);
+							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->WaterResolution / 16, pResourceHeader->WaterResolution / 16, 1);
 
 							{
 								VkImageMemoryBarrier Barrier;
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
+								Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3239,7 +3249,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->Texturehkt_dx.VkImage;
+								Barrier.image = pResourceHeader->Texturehkt_dx.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3265,7 +3275,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->Texturehkt_dz.VkImage;
+								Barrier.image = pResourceHeader->Texturehkt_dz.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3287,13 +3297,13 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								);
 							}
 						}
-						{//butterfly		
+						{	
 							{
 								VkImageMemoryBarrier Barrier;
 								Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 								Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 								Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-								Barrier.image = pWaterRenderHeader->TexturePingPong.VkImage;
+								Barrier.image = pResourceHeader->TexturePingPong.VkImage;
 								Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 								Barrier.subresourceRange.baseMipLevel = 0;
 								Barrier.subresourceRange.levelCount = 1;
@@ -3315,11 +3325,11 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								);
 							}
 
-							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pWaterRenderHeader->VkPipelineButterfly);
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pResourceHeader->VkPipelineButterfly);
 							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-								pWaterRenderHeader->VkPipelineLayoutButterfly, 0, 1, &pWaterRenderHeader->VkDescriptorSetButterfly, 0, NULL);
+								pResourceHeader->VkPipelineLayoutButterfly, 0, 1, &pResourceHeader->VkDescriptorSetButterfly, 0, NULL);
 
-							uint64_t log_2_N = (int)(log(pWaterRenderHeader->WaterResolution) / log(2));
+							uint64_t log_2_N = (int)(log(pResourceHeader->WaterResolution) / log(2));
 							for (size_t i = 0; i < log_2_N; i++)
 							{
 								for (size_t i1 = 0; i1 < 2; i1++)
@@ -3329,7 +3339,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-										Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
+										Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
 										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 										Barrier.subresourceRange.baseMipLevel = 0;
 										Barrier.subresourceRange.levelCount = 1;
@@ -3365,7 +3375,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-										Barrier.image = pWaterRenderHeader->TexturePingPong.VkImage;
+										Barrier.image = pResourceHeader->TexturePingPong.VkImage;
 										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 										Barrier.subresourceRange.baseMipLevel = 0;
 										Barrier.subresourceRange.levelCount = 1;
@@ -3402,22 +3412,22 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 									uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
 									WaterPushConstants PushConstants;
 									memset(&PushConstants, 0, sizeof(PushConstants));
-									glm_vec2_copy(pWaterRenderHeader->FlowDirection, PushConstants.FlowDirection);
-									PushConstants.WaterResolution = pWaterRenderHeader->WaterResolution;
-									PushConstants.WaterL = pWaterRenderHeader->WaterL;
-									PushConstants.WaterAmplitude = pWaterRenderHeader->WaterAmplitude;
-									PushConstants.WaterIntensity = pWaterRenderHeader->WaterIntensity;
-									PushConstants.Waterl = pWaterRenderHeader->Waterl;
-									PushConstants.Time = pWaterRenderHeader->Time;
+									glm_vec2_copy(pResourceHeader->FlowDirection, PushConstants.FlowDirection);
+									PushConstants.WaterResolution = pResourceHeader->WaterResolution;
+									PushConstants.WaterL = pResourceHeader->WaterL;
+									PushConstants.WaterAmplitude = pResourceHeader->WaterAmplitude;
+									PushConstants.WaterIntensity = pResourceHeader->WaterIntensity;
+									PushConstants.Waterl = pResourceHeader->Waterl;
+									PushConstants.Time = pResourceHeader->Time;
 									PushConstants.ButterflyStage = i;
 									PushConstants.ButterflyDirection = i1;
 									PushConstants.PingPongIndex = PingPongIndex;
 
 									memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
-									vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+									vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->VkPipelineLayouthkt, VK_SHADER_STAGE_COMPUTE_BIT, 0,
 										pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
 
-									vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->WaterResolution / 16, pWaterRenderHeader->WaterResolution / 16, 1);
+									vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->WaterResolution / 16, pResourceHeader->WaterResolution / 16, 1);
 
 									PingPongIndex++;
 									PingPongIndex %= 2;
@@ -3427,7 +3437,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-										Barrier.image = pWaterRenderHeader->Texturehkt_dy.VkImage;
+										Barrier.image = pResourceHeader->Texturehkt_dy.VkImage;
 										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 										Barrier.subresourceRange.baseMipLevel = 0;
 										Barrier.subresourceRange.levelCount = 1;
@@ -3463,7 +3473,7 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 										Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 										Barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 										Barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-										Barrier.image = pWaterRenderHeader->TexturePingPong.VkImage;
+										Barrier.image = pResourceHeader->TexturePingPong.VkImage;
 										Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 										Barrier.subresourceRange.baseMipLevel = 0;
 										Barrier.subresourceRange.levelCount = 1;
@@ -3524,29 +3534,29 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 								);
 							}
 
-							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pWaterRenderHeader->VkPipelineInversion);
+							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pResourceHeader->VkPipelineInversion);
 
 							uint8_t pushconstantbuffer[sizeof(WaterPushConstants)];
 							WaterPushConstants PushConstants;
 							memset(&PushConstants, 0, sizeof(PushConstants));
-							glm_vec2_copy(pWaterRenderHeader->FlowDirection, PushConstants.FlowDirection);
-							PushConstants.WaterResolution = pWaterRenderHeader->WaterResolution;
-							PushConstants.WaterL = pWaterRenderHeader->WaterL;
-							PushConstants.WaterAmplitude = pWaterRenderHeader->WaterAmplitude;
-							PushConstants.WaterIntensity = pWaterRenderHeader->WaterIntensity;
-							PushConstants.Waterl = pWaterRenderHeader->Waterl;
-							PushConstants.Time = pWaterRenderHeader->Time;
+							glm_vec2_copy(pResourceHeader->FlowDirection, PushConstants.FlowDirection);
+							PushConstants.WaterResolution = pResourceHeader->WaterResolution;
+							PushConstants.WaterL = pResourceHeader->WaterL;
+							PushConstants.WaterAmplitude = pResourceHeader->WaterAmplitude;
+							PushConstants.WaterIntensity = pResourceHeader->WaterIntensity;
+							PushConstants.Waterl = pResourceHeader->Waterl;
+							PushConstants.Time = pResourceHeader->Time;
 							PushConstants.ButterflyStage = 0;
 							PushConstants.ButterflyDirection = 0;
 							PushConstants.PingPongIndex = PingPongIndex;
 
 							memcpy(pushconstantbuffer, &PushConstants, sizeof(PushConstants));
-							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->VkPipelineLayouth0k, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+							vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->VkPipelineLayouth0k, VK_SHADER_STAGE_COMPUTE_BIT, 0,
 								pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &pushconstantbuffer);
 
 							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-								pWaterRenderHeader->VkPipelineLayoutInversion, 0, 1, &pWaterRenderHeader->VkDescriptorSetInversion, 0, NULL);
-							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pWaterRenderHeader->WaterResolution / 16, pWaterRenderHeader->WaterResolution / 16, 1);
+								pResourceHeader->VkPipelineLayoutInversion, 0, 1, &pResourceHeader->VkDescriptorSetInversion, 0, NULL);
+							vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pResourceHeader->WaterResolution / 16, pResourceHeader->WaterResolution / 16, 1);
 
 							{
 								VkImageMemoryBarrier Barrier;
@@ -3578,9 +3588,9 @@ void DrawSignature_Water(GraphicsEffectSignature* pSignature, RHeaderGraphicsWin
 
 						}
 					}
-					Engine_Ref_Unlock_Mutex(&pWaterRenderHeader->mutex);
+					Engine_Ref_Unlock_Mutex(&pResourceHeader->mutex);
 
-					Object_Ref_End_ResourceHeaderPointer(pWaterRenderHeader->iTextureTarget, false, false, ThreadIndex);
+					Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iTextureTarget, false, false, ThreadIndex);
 					Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, false, false, ThreadIndex);
 				}
 				Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
@@ -3599,7 +3609,7 @@ TEXRESULT Update_GraphicsEffects() {
 
 TEXRESULT Initialise_GraphicsEffects() {
 	memset(&Utils, 0, sizeof(Utils));
-
+	uint32_t ThreadIndex = 0;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
@@ -3612,7 +3622,7 @@ TEXRESULT Initialise_GraphicsEffects() {
 	Utils.RHeaderWaterRenderSig.ReConstructor = (ReCreate_ResourceHeaderTemplate*)&ReCreate_WaterRenderHeader;
 	Utils.RHeaderWaterRenderSig.Packer = (Pack_ResourceHeaderTemplate*)&Pack_WaterRenderHeader;
 	Utils.RHeaderWaterRenderSig.UnPacker = (UnPack_ResourceHeaderTemplate*)&UnPack_WaterRenderHeader;
-	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
+	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig, ThreadIndex);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Effects
@@ -3639,23 +3649,19 @@ TEXRESULT Initialise_GraphicsEffects() {
 }
 
 TEXRESULT Destroy_GraphicsEffects() {
-	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "START DESTROYING", 0);
-
+	uint32_t ThreadIndex = 0;
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig);
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//other
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderWaterRenderSig, ThreadIndex);
 	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.WaterSig);
 
-	//memset(&Utils, 0, sizeof(Utils));
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Other
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	//Engine_Ref_FunctionError("GRAPHICSEFFECTS", "DESTROYED", 0);
+	//memset(&Utils, 0, sizeof(Utils));
 	return Success;
 }
 

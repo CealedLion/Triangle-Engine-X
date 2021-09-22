@@ -303,34 +303,35 @@ FormatDetails Get_FormatDetails(AudioFormat format) {
 
 void Draw_ElementAudio(ElementAudio* pElement, uint32_t FrameCountMin, uint32_t FrameCountMax, AudioElementUsageFlags Usage) {
 	uint32_t ThreadIndex = 0;
-	for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++)
-	{
+	for (size_t i0 = 0; i0 < pElement->Header.iResourceHeadersSize; i0++) {
 		ResourceHeader* pParentHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
-		for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++)
-		{
-			Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
-			ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
-			RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
-			if (pSceneHeader->Active == true)
-			{
-				uint64_t pointer = 0;
-				for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
-				{
-					AudioEffect* pEffect = (AudioEffect*)((void*)((uint64_t)pElement->Effects + pointer));
-					AudioEffectSignature* pSignature = NULL;
-					AudioEffectBufferIndex BufferIndex = NULL;
-					Find_AudioEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
-					if (pSignature->Draw != NULL)
-					{
-						pSignature->Draw(pElement, pParentHeader, pObject, pEffect, FrameCountMin, FrameCountMax, Usage, ThreadIndex);
+		if (pParentHeader != NULL) {
+			for (size_t i1 = 0; i1 < pParentHeader->Header.iObjectsSize; i1++) {
+				Object* pObject = Object_Ref_Get_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+				if (pObject != NULL) {
+					ResourceHeaderAllocation iScene = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, ResourceHeader_Scene, ThreadIndex);
+					RHeaderScene* pSceneHeader = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
+					if (pSceneHeader != NULL) {
+						if (pSceneHeader->Active == true) {
+							uint64_t pointer = 0;
+							for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++) {
+								AudioEffect* pEffect = (AudioEffect*)((void*)((uint64_t)pElement->Effects + pointer));
+								AudioEffectSignature* pSignature = NULL;
+								AudioEffectBufferIndex BufferIndex = NULL;
+								Find_AudioEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
+								if (pSignature->Draw != NULL) {
+									pSignature->Draw(pElement, pParentHeader, pObject, pEffect, FrameCountMin, FrameCountMax, Usage, ThreadIndex);
+								}
+								pointer += pEffect->Header.AllocationSize;
+							}
+						}
+						Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 					}
-					pointer += pEffect->Header.AllocationSize;
+					Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
 				}
 			}
-			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
-			Object_Ref_End_ObjectPointer(pParentHeader->Header.iObjects[i1], false, false, ThreadIndex);
+			Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 		}
-		Object_Ref_End_ResourceHeaderPointer(pElement->Header.iResourceHeaders[i0], false, false, ThreadIndex);
 	}
 }
 
@@ -446,7 +447,7 @@ void Pause_OutputStream(ElementAudio* pElement, bool pause) {
 //Convert
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) {
+TEXRESULT Convert_AudioData(TEXA_HEADER* src, TEXA_HEADER** dst, AudioFormat dstformat) {
 #ifndef NDEBUG
 	if ((uint32_t)dstformat == NULL)
 	{
@@ -459,21 +460,19 @@ TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) {
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	TEXA_HEADER* psrc = *src;
 
-	FormatDetails srcdetails = Get_FormatDetails(psrc->Format);
+	FormatDetails srcdetails = Get_FormatDetails(src->Format);
 	FormatDetails dstdetails = Get_FormatDetails(dstformat);
 
 	FileData filedata = {NULL, 0};
-	filedata.pData = (unsigned char*)malloc(psrc->LinearSize);
-	memcpy(filedata.pData, psrc->Data, psrc->LinearSize);
-	filedata.LinearSize = psrc->LinearSize;
+	filedata.pData = (unsigned char*)malloc(src->LinearSize);
+	memcpy(filedata.pData, src->Data, src->LinearSize);
+	filedata.LinearSize = src->LinearSize;
 
 	Convert_Data(&filedata, &srcdetails, &dstdetails);
 
 	TEXA_HEADER* tempdstheader = (TEXA_HEADER*)malloc(sizeof(TEXA_HEADER) + filedata.LinearSize);
-	memcpy(tempdstheader, *src, sizeof(TEXA_HEADER)); //copy header
-	free(psrc);
+	memcpy(tempdstheader, src, sizeof(TEXA_HEADER)); //copy header
 	memcpy(tempdstheader->Data, filedata.pData, filedata.LinearSize);
 	free(filedata.pData);
 
@@ -482,7 +481,7 @@ TEXRESULT Convert_AudioData(TEXA_HEADER** src, AudioFormat dstformat) {
 	tempdstheader->LinearSize = filedata.LinearSize;
 	tempdstheader->ByteRate = tempdstheader->SampleRate * tempdstheader->ChannelCount * (dstdetails.BitsPerChannel[0] / 8);
 	tempdstheader->BlockAlign = tempdstheader->ChannelCount * (dstdetails.BitsPerChannel[0] / 8);
-	*src = tempdstheader;
+	*dst = tempdstheader;
 	return (Success);
 }
 
@@ -619,7 +618,7 @@ TEXRESULT Destroy_ElementAudio(ElementAudio* pElement, ElementAudio* pElementOve
 	for (size_t i = 0; i < pElement->EffectsSize; i++)
 	{
 		AudioEffect* pEffect = (AudioEffect*)((void*)((uint64_t)pElement->Effects + pointer));
-		AudioEffect* pEffectOverlay = (AudioEffect*)((void*)((uint64_t)pElementOverlay->Effects + pointer));
+		AudioEffect* pEffectOverlay = (pElementOverlay != NULL) ? (AudioEffect*)((void*)((uint64_t)pElementOverlay->Effects + pointer)) : NULL;
 		AudioEffectSignature* pSignature = NULL;
 		AudioEffectBufferIndex BufferIndex = NULL;
 		Find_AudioEffectSignature(pEffect->Header.Identifier, &pSignature, &BufferIndex);
@@ -680,14 +679,14 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 		int default_out_device_index = soundio_default_output_device_index(Utils.AudioHandle);
 		if (default_out_device_index < 0)
 		{
-			Engine_Ref_FunctionError("Create_ElementAudio()", "No output device found and AudioElementUsage_Playback set to true.", default_out_device_index);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "No output device found and AudioElementUsage_Playback set to true.", default_out_device_index);
 			return (Failure);
 		}
 
 		pElement->OutDevice = soundio_get_output_device(Utils.AudioHandle, default_out_device_index);
 		if (!pElement->OutDevice)
 		{
-			Engine_Ref_FunctionError("Create_ElementAudio()", "Failure Creating Output Device.", pElement->OutDevice);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "Failure Creating Output Device.", pElement->OutDevice);
 			return (Failure);
 		}
 
@@ -703,8 +702,17 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 			}
 			if (foundf == false)
 			{
-				Engine_Ref_ArgsError("Create_ElementAudio()", "Format Not Supported, Converting To Backup Format.");
-				Convert_AudioData(&pAudioHeader->AudioData, AudioFormat_int16LE);
+				Engine_Ref_ArgsError("ReCreate_ElementAudio()", "Format Not Supported, Converting To Backup Format.");
+
+				Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
+				pAudioHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, true, false, ThreadIndex);
+			
+				if ((tres = Convert_AudioData(pAudioHeader->AudioData, &pAudioHeader->AudioData, AudioFormat_int16LE)) != Success)
+					return tres;
+				pAudioHeader->AudioData->Format = AudioFormat_int16LE;
+
+				Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, true, false, ThreadIndex);
+				pAudioHeader = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
 			}
 		}
 
@@ -721,18 +729,18 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 			}
 			if (founds == false)
 			{
-				Engine_Ref_ArgsError("Create_ElementAudio()", "Samplerate Not Supported, Critical Error");
+				Engine_Ref_ArgsError("ReCreate_ElementAudio()", "Samplerate Not Supported, Critical Error");
 				return (Failure);
 			}
 		}
 
 		pElement->OutStream = soundio_outstream_create(pElement->OutDevice);
 		if (!pElement->OutStream) {
-			Engine_Ref_FunctionError("Create_ElementAudio()", "Failure Creating Output Stream.", pElement->OutDevice);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "Failure Creating Output Stream.", pElement->OutDevice);
 			return (Failure);
 		}
 		if (pElement->OutStream->layout_error)
-			Engine_Ref_FunctionError("Create_ElementAudio()", "Unable To Set Channel Layout", pElement->OutStream->layout_error);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "Unable To Set Channel Layout", pElement->OutStream->layout_error);
 
 		pElement->OutStream->format = pAudioHeader->AudioData->Format;
 		pElement->OutStream->write_callback = write_callback;
@@ -741,7 +749,7 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 		pElement->OutStream->userdata = &pElement->Header.Allocation;
 		if ((SoundIoError = soundio_outstream_open(pElement->OutStream)) != SoundIoErrorNone)
 		{
-			Engine_Ref_FunctionError("Create_ElementAudio()", "soundio_outstream_open Failed, SoundIoError == ", SoundIoError);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "soundio_outstream_open Failed, SoundIoError == ", SoundIoError);
 			return (Failure);
 		}
 	}
@@ -750,14 +758,14 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 		int default_in_device_index = soundio_default_input_device_index(Utils.AudioHandle);
 		if (default_in_device_index < 0)
 		{
-			Engine_Ref_FunctionError("Create_ElementAudio()", "No input device found and AudioElementUsage_Recording set to true.", default_in_device_index);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "No input device found and AudioElementUsage_Recording set to true.", default_in_device_index);
 			return (Failure);
 		}
 
 		pElement->InDevice = soundio_get_input_device(Utils.AudioHandle, default_in_device_index);
 		if (!pElement->InDevice)
 		{
-			Engine_Ref_FunctionError("Create_ElementAudio()", "Failure Creating Input Device.", pElement->InDevice);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "Failure Creating Input Device.", pElement->InDevice);
 			return (Failure);
 		}
 
@@ -773,7 +781,7 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 			}
 			if (foundf == false)
 			{
-				Engine_Ref_ArgsError("Create_ElementAudio()", "Format Not Supported, Converting To Backup Format.");
+				Engine_Ref_ArgsError("ReCreate_ElementAudio()", "Format Not Supported, Converting To Backup Format.");
 				pAudioHeader->AudioData->Format = AudioFormat_int16LE;
 			}
 		}
@@ -791,20 +799,17 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 			}
 			if (founds == false)
 			{
-				Engine_Ref_ArgsError("Create_ElementAudio()", "Samplerate Not Supported, Critical Error");
+				Engine_Ref_ArgsError("ReCreate_ElementAudio()", "Samplerate Not Supported, Critical Error");
 				return (Failure);
 			}
 		}
-
-
-
 		pElement->InStream = soundio_instream_create(pElement->InDevice);
 		if (!pElement->InStream) {
-			Engine_Ref_FunctionError("Create_ElementAudio()", "Failure Creating Input Stream.", pElement->InDevice);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "Failure Creating Input Stream.", pElement->InDevice);
 			return (Failure);
 		}
 		if (pElement->InStream->layout_error)
-			Engine_Ref_FunctionError("Create_ElementAudio()", "Unable To Set Channel Layout", ((void*)pElement->InStream->layout_error));
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "Unable To Set Channel Layout", ((void*)pElement->InStream->layout_error));
 
 		FormatDetails formatDetails = Get_FormatDetails(pAudioHeader->AudioData->Format);
 		pElement->InStream->format = pAudioHeader->AudioData->Format;
@@ -817,7 +822,7 @@ TEXRESULT ReCreate_ElementAudio(ElementAudio* pElement, uint32_t ThreadIndex) {
 			(pElement->RingBufferSize_Seconds * pAudioHeader->AudioData->SampleRate) * ((formatDetails.Stride / 8) * pAudioHeader->AudioData->ChannelCount));
 		if ((SoundIoError = soundio_instream_open(pElement->InStream)) != SoundIoErrorNone)
 		{
-			Engine_Ref_FunctionError("Create_ElementAudio()", "soundio_instream_open Failed, SoundIoError == ", SoundIoError);
+			Engine_Ref_FunctionError("ReCreate_ElementAudio()", "soundio_instream_open Failed, SoundIoError == ", SoundIoError);
 			return (Failure);
 		}
 	}
@@ -1379,24 +1384,18 @@ void Update_Audio3D(ElementAudio* pElement, ResourceHeader* pHeader, Object* pOb
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void UpdateSignature_Volume(AudioEffectSignature* pSignature, uint32_t ThreadIndex) {
-	for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++)
-	{
+	for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
 		AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.Buffer[i];
-		if (pAllocationData->Allocation.Element.Identifier == AudioElement_ElementAudio)
-		{
+		if (pAllocationData->Allocation.Element.Identifier == AudioElement_ElementAudio) {
 			ElementAudio* pElement = Object_Ref_Get_ElementPointer(pAllocationData->Allocation.Element, false, false, ThreadIndex);
-			if (pElement != NULL)
-			{
-				if (pElement->UsageFlags & AudioElementUsage_Recording)
-				{
-					if ((((double)clock() / (double)CLOCKS_PER_SEC) - pElement->LastTime) >= ((double)pElement->RingBufferSize_Seconds / (double)4))
-					{
+			if (pElement != NULL) {
+				if (pElement->UsageFlags & AudioElementUsage_Recording) {
+					if ((((double)clock() / (double)CLOCKS_PER_SEC) - pElement->LastTime) >= ((double)pElement->RingBufferSize_Seconds / (double)4)) {
 						uint32_t ReadBufferSize = soundio_ring_buffer_fill_count(pElement->RingBuffer);
 						const char* ReadBuffer = soundio_ring_buffer_read_ptr(pElement->RingBuffer);
 						soundio_ring_buffer_advance_read_ptr(pElement->RingBuffer, ReadBufferSize);
-						if (ReadBufferSize != (uint32_t)NULL)
-						{
-							RHeaderAudioSource* pAudioProduct = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
+						if (ReadBufferSize != (uint32_t)NULL) {
+							RHeaderAudioSource* pAudioProduct = Object_Ref_Get_ResourceHeaderPointer(pElement->iAudioSource, true, false, ThreadIndex);
 
 							FormatDetails formatDetails = Get_FormatDetails(pAudioProduct->AudioData->Format);
 
@@ -1417,7 +1416,7 @@ void UpdateSignature_Volume(AudioEffectSignature* pSignature, uint32_t ThreadInd
 							pAudioProduct->AudioData->BlockAlign = pAudioProduct->AudioData->ChannelCount * (formatDetails.BitsPerChannel[0] / 8);
 							pAudioProduct->AudioData->ByteRate = pAudioProduct->AudioData->SampleRate * pAudioProduct->AudioData->ChannelCount * (formatDetails.BitsPerChannel[0] / 8);
 							pAudioProduct->AudioData->FrameCount = pAudioProduct->AudioData->LinearSize / (((uint64_t)formatDetails.BitsPerChannel[0] / (uint64_t)8) * (uint64_t)pAudioProduct->AudioData->ChannelCount);
-							Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, false, false, ThreadIndex);
+							Object_Ref_End_ResourceHeaderPointer(pElement->iAudioSource, true, false, ThreadIndex);
 						}
 						pElement->LastTime += (double)pElement->RingBufferSize_Seconds / (double)4;
 					}
@@ -1582,6 +1581,8 @@ TEXRESULT Update_Audio() {
 
 TEXRESULT Initialise_Audio() {
 	memset(&Utils, 0, sizeof(Utils));
+	uint32_t ThreadIndex = 0;
+
 
 	Engine_Ref_Create_Mutex(&Utils.ConvertersToTEXAMutex, MutexType_Plain);
 	Engine_Ref_Create_Mutex(&Utils.ConvertersFromTEXAMutex, MutexType_Plain);
@@ -1640,9 +1641,9 @@ TEXRESULT Initialise_Audio() {
 	//registration
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderAudioSourceSig);
+	Object_Ref_Register_ResourceHeaderSignature(&Utils.RHeaderAudioSourceSig, ThreadIndex);
 
-	Object_Ref_Register_ElementSignature(&Utils.ElementAudioSig);
+	Object_Ref_Register_ElementSignature(&Utils.ElementAudioSig, ThreadIndex);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//effects
@@ -1735,11 +1736,21 @@ TEXRESULT Initialise_Audio() {
 }
 
 TEXRESULT Destroy_Audio() {
-	Object_Ref_DeRegister_ElementSignature(&Utils.ElementAudioSig);
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderAudioSourceSig);
+	uint32_t ThreadIndex = 0;
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Signatures
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	Object_Ref_DeRegister_ElementSignature(&Utils.ElementAudioSig, ThreadIndex);
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderAudioSourceSig, ThreadIndex);
 
 	DeRegister_AudioEffectSignature(&Utils.VolumeSig);
 	DeRegister_AudioEffectSignature(&Utils.Audio3DSig);
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Other
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	if (Utils.AudioEffectSignatures != NULL && Utils.AudioEffectSignaturesSize != NULL)
 		free(Utils.AudioEffectSignatures);

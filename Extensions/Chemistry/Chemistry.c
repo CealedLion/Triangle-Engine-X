@@ -1544,8 +1544,24 @@ void Update_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 	else
 	{
 		RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+#ifndef NDEBUG
+		if (pMaterial == NULL) {
+			Engine_Ref_ObjectError("Update_FullModel()", "pElement", pElement, "ElementGraphics.iMaterial Invalid.");
+			return (Invalid_Parameter | Failure);
+		}
+#endif
 		RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
 		RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
+#ifndef NDEBUG
+		if (pTexture0 == NULL) {
+			Engine_Ref_ObjectError("Update_FullModel()", "pMaterial", pMaterial, "ElementGraphics.BaseColourTexture.iTexture Invalid.");
+			return (Invalid_Parameter | Failure);
+		}
+		if (pTexture1 == NULL) {
+			Engine_Ref_ObjectError("Update_FullModel()", "pMaterial", pMaterial, "ElementGraphics.EmissiveTexture.iTexture Invalid.");
+			return (Invalid_Parameter | Failure);
+		}
+#endif
 
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//Updating Descriptor Sets
@@ -1630,8 +1646,24 @@ void DrawSignature_FullModel(GraphicsEffectSignature* pSignature, RHeaderGraphic
 					if (pEffect->Header.Identifier == ChemistryEffects_FullModel)
 					{
 						RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+#ifndef NDEBUG
+						if (pMaterial == NULL) {
+							Engine_Ref_ObjectError("DrawSignature_FullModel()", "pElement", pElement, "ElementGraphics.iMaterial Invalid.");
+							return (Invalid_Parameter | Failure);
+						}
+#endif
 						RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
 						RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
+#ifndef NDEBUG
+						if (pTexture0 == NULL) {
+							Engine_Ref_ObjectError("DrawSignature_FullModel()", "pMaterial", pMaterial, "ElementGraphics.BaseColourTexture.iTexture Invalid.");
+							return (Invalid_Parameter | Failure);
+						}
+						if (pTexture1 == NULL) {
+							Engine_Ref_ObjectError("DrawSignature_FullModel()", "pMaterial", pMaterial, "ElementGraphics.EmissiveTexture.iTexture Invalid.");
+							return (Invalid_Parameter | Failure);
+						}
+#endif
 
 						VkResult res = VK_SUCCESS;
 						//atomically increment pingpong so u can get away with no writes; aaaaaaaaaaaaaaaaaaaa;
@@ -1939,7 +1971,12 @@ TEXRESULT Destroy_SimpleModel(ElementGraphics* pElement, ElementGraphics* pEleme
 
 TEXRESULT Destroy_FullModel(ElementGraphics* pElement, ElementGraphics* pElementOverlay, ChemistryEffectFullModel* pEffect, ChemistryEffectFullModel* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Destroy_FullModel()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	//if they are different its safe to destruct.
 	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineComputeSource != pEffectOverlay->VkPipelineComputeSource) : true) && pEffect->VkPipelineComputeSource != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineComputeSource, NULL);
@@ -2010,8 +2047,12 @@ TEXRESULT Destroy_FullModel(ElementGraphics* pElement, ElementGraphics* pElement
 
 TEXRESULT Destroy_Fundamental(ElementGraphics* pElement, ElementGraphics* pElementOverlay, ChemistryEffectFundamental* pEffect, ChemistryEffectFundamental* pEffectOverlay, bool Full, uint32_t ThreadIndex) {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-
-
+#ifndef NDEBUG
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("Destroy_Fundamental()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	if (((pEffectOverlay != NULL) ? (pEffect->VkPipelineCompute != pEffectOverlay->VkPipelineCompute) : true) && pEffect->VkPipelineCompute != NULL) {
 		vkDestroyPipeline(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pEffect->VkPipelineCompute, NULL);
 		pEffect->VkPipelineCompute = NULL;
@@ -2275,73 +2316,68 @@ TEXRESULT ReCreate_SimpleModel(ElementGraphics* pElement, ChemistryEffectSimpleM
 	return (Success);
 }
 
-TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEffect, uint32_t ThreadIndex)
-{
-#ifndef NDEBUG
-	if (pElement == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pElement == NULLPTR");
-		return (Invalid_Parameter | Failure);
-	}
-	if (pEffect == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pEffect == NULLPTR");
-		return (Invalid_Parameter | Failure);
-	}
-#endif
-	VkResult res = VK_SUCCESS;
-	TEXRESULT tres = Success;
+TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel* pEffect, uint32_t ThreadIndex) {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pMaterial->BaseColourTexture.iTexture) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->BaseColourTexture.iTexture Invalid");
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pMaterial == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pElement", pElement, "ElementGraphics.iMaterial Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-
 	RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
-	RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
-
 	RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
-	RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
-
 #ifndef NDEBUG
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture0->iImageSource) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->BaseColourTexture.iTexture->iImageSource Invalid");
+	if (pTexture0 == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pMaterial", pMaterial, "RHeaderMaterial.BaseColourTexture.iTexture Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	if (pImageSource0->ImageData == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->BaseColourTexture.iTexture->iImageSource->ImageData == NULLPTR");
-		return (Invalid_Parameter | Failure);
-	}
-	if (Object_Ref_Get_ResourceHeaderAllocationData(pTexture1->iImageSource) == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->EmissiveTexture.iTexture->iImageSource Invalid");
-		return (Invalid_Parameter | Failure);
-	}
-	if (pImageSource1->ImageData == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_FullModel()", "pMaterial->EmissiveTexture.iTexture->iImageSource->ImageData == NULLPTR");
+	if (pTexture1 == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pMaterial", pMaterial, "RHeaderMaterial.EmissiveTexture.iTexture Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
+	RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
+	RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
+#ifndef NDEBUG
+	if (pImageSource0 == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pTexture0", pTexture0, "RHeaderTexture.iImageSource Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pImageSource1 == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pTexture1", pTexture1, "RHeaderTexture.iImageSource Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pImageSource0->ImageData == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pImageSource0", pImageSource0, "RHeaderImageSource.ImageData Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+	if (pImageSource1->ImageData == NULL) {
+		Engine_Ref_ObjectError("ReCreate_FullModel()", "pImageSource1", pImageSource1, "RHeaderImageSource.ImageData Invalid.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
+
+	VkResult res = VK_SUCCESS;
+	TEXRESULT tres = Success;
+
 	pImageSource0->ImageData->Width = pEffect->SimulationResolution;
 	pImageSource0->ImageData->Height = pEffect->SimulationResolution;
 	pImageSource0->ImageData->Depth = pEffect->SimulationResolution;
 	pImageSource0->ImageData->Format = GraphicsFormat_R32G32B32A32_SFLOAT;
 	pImageSource0->ImageData->MipmapCount = 1;
-	Object_Ref_ReCreate_ResourceHeader(pTexture0->Header.Allocation, NULL, ThreadIndex);
+	Object_Ref_ReCreate_ResourceHeader(pTexture0->Header.Allocation, ThreadIndex);
 
 	pImageSource1->ImageData->Width = pEffect->SimulationResolution;
 	pImageSource1->ImageData->Height = pEffect->SimulationResolution;
 	pImageSource1->ImageData->Depth = pEffect->SimulationResolution;
 	pImageSource1->ImageData->Format = GraphicsFormat_R32G32B32A32_SFLOAT;
 	pImageSource1->ImageData->MipmapCount = 1;
-	Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, NULL, ThreadIndex);
+	Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, ThreadIndex);
 
 	Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
 
@@ -2695,30 +2731,24 @@ TEXRESULT ReCreate_FullModel(ElementGraphics* pElement, ChemistryEffectFullModel
 	Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 
 	Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
-	Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
-
 	Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+
+	Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);	
 	Object_Ref_End_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
 	return (Success);
 }
 
-TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundamental* pEffect, uint32_t ThreadIndex)
-{
+TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundamental* pEffect, uint32_t ThreadIndex) {
+	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 #ifndef NDEBUG
-	if (pElement == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_Fundamental()", "pElement == NULLPTR");
-		return (Invalid_Parameter | Failure);
-	}
-	if (pEffect == NULL)
-	{
-		Engine_Ref_ArgsError("ReCreate_Fundamental()", "pEffect == NULLPTR");
+	if (pGraphicsWindow == NULL) {
+		Engine_Ref_ObjectError("ReCreate_Fundamental()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
+
 	VkResult res = VK_SUCCESS;
 	TEXRESULT tres = Success;
-	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 
 	Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
 
@@ -3610,6 +3640,7 @@ TEXRESULT Create_Fundamental(ElementGraphics* pElement, ChemistryEffectFundament
 
 TEXRESULT Initialise_Chemistry() {
 	memset(&Utils, 0, sizeof(Utils));
+	uint32_t ThreadIndex = 0;
 
 	Utils.SimpleModelSignature.Identifier = (uint32_t)ChemistryEffects_SimpleModel;
 	Utils.SimpleModelSignature.Constructor = (Create_GraphicsEffectTemplate*)&Create_SimpleModel;
@@ -3654,13 +3685,20 @@ TEXRESULT Initialise_Chemistry() {
 }
 
 TEXRESULT Destroy_Chemistry() {
-	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.SimplifiedMolecularSignature);
+	uint32_t ThreadIndex = 0;
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Signatures
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	//Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.QuantumAtomicSignature);
+	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.SimpleModelSignature);
+	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.FullModelSignature);
+	//Graphics_Effects_Ref_DeRegister_GraphicsEffectSignature(&Utils.FundamentalSignature);
 
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Other
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	memset(&Utils, 0, sizeof(Utils));
-
+	//memset(&Utils, 0, sizeof(Utils));
 	return Success;
 }
 

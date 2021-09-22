@@ -1,6 +1,10 @@
 /*//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Standard Triangle Engine X Objects.
 
+TERMINOLOGOY:
+
+* Item means one of the three items in the API, object, resourceheader, elements.
+
 SPECIFICATION:
 
 * Each API can make it's own version of the 3 basic objects, Objects, ResourceHeaders, Elements.
@@ -40,6 +44,54 @@ THEORY:
 * ResourceHeaders and Elements can be free floating (no parent) but they often wont do anything..
 
 * Utils can be imported. Object::Utils
+
+
+General Notes about multithreading:
+
+* The multithreading system allows for concurrent reads and writes all while you can create or destroy or do anything
+  with objects as long as you follow the rules of how it works, which is quite different from conventional C programming.
+
+* OverlayPointer in a item's header is a pointer to the previous item instance, if it is invalid then you have full ownership over the contents of a item.
+
+Modifying a item's data:
+
+* All values in a item are READ ONLY when you call get item pointer, you must not modify them,
+  to write to a object, get item pointer must be called with write == true AND you must overwrite the data
+  in the item, to modify data you simply need to copy it and modify it any way you want.
+  example for modify:
+
+  pItem->Header.Name = CopyData(pItem->Header.Name);
+
+  example for write:
+
+  pItem->Header.Name = CopyData("Object Renamed.");
+
+Destructing data in a item:
+
+* You cannot simply destruct any data in a item as it is always read only, therefore to 
+  force a value in a item to destruct you simply modify the value because,
+  If a value in a item is modified, the destructor will be called on that value automatically (internally during or after end item pointer),
+  so to destroy a value simply do:
+
+  pItem->Header.Name = NULL;
+
+* However this is not the case all the time, as if you modify a value during active pointer write phase (between get and end item pointer)
+  more then once, you run into the issue of the mulltithreading system not destructing because obviously it is overwriting the data, 
+  to prevent this, you should keep track of if a item has the same value modified multiple times during a active pointer write phase,
+  if you cant, you can call Get_ItemPointerFromPointer(pItem->Header.OverlayPointer) to get the item to compare agaisnt, then you can do something like this
+
+  Check if value has been already modified, otherwise copy to get the data, and if overlay pointer is invalid entirely, then you have full ownership and need to take care of all destructs and such.
+
+	if (((pItemOverlay != NULL) ? (pItem->Header.Name == pItemOverlay->Header.Name) : false)) {
+		//copy new
+		pItem->Header.Name = CopyData(pItem->Header.Name);
+	}
+
+* Side note, functions like Destroy_Item with non-full will destroy all values that it owns, 
+  full destruct will obvioulsly destroy everything including the item.
+
+* And those are the rules of the multithreading API, in simplified form it is essentialy broken down to, 
+  "Dont modify without ownership (you have copied over data) of a value in a item."
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 #pragma once
@@ -130,7 +182,7 @@ typedef struct ObjectTEMPLATE {
 	ObjectAllocation Allocation;
 	uint32_t AllocationSize;
 
-	c89atomic_uint8 UseCount; //amount of uses by threads.
+	c89atomic_uint32 UseCount; //amount of uses by threads.
 	c89atomic_uint32 OverlayPointer; //pointer to item to overlay with when destructing.
 
 	ObjectAllocation iParent;
@@ -164,7 +216,7 @@ typedef struct ResourceHeaderTEMPLATE {
 	ResourceHeaderAllocation Allocation;
 	uint32_t AllocationSize;
 
-	c89atomic_uint8 UseCount; //amount of uses by threads.
+	c89atomic_uint32 UseCount; //amount of uses by threads.
 	c89atomic_uint32 OverlayPointer; //pointer to item to overlay with when destructing.
 
 	uint32_t iObjectsSize;
@@ -194,7 +246,7 @@ typedef struct ElementTEMPLATE {
 	ElementAllocation Allocation;
 	uint32_t AllocationSize;
 
-	c89atomic_uint8 UseCount; //amount of uses by threads.
+	c89atomic_uint32 UseCount; //amount of uses by threads.
 	c89atomic_uint32 OverlayPointer; //pointer to item to overlay with when destructing.
 
 	uint32_t iResourceHeadersSize;
@@ -299,7 +351,6 @@ typedef struct TEIF_HEADER {
 	uint64_t DataBufferSize;
 }TEIF_HEADER;
 
-
 /*
 * create is for initializing permenant objects, recreate is for initialize per run objects,
 
@@ -329,7 +380,7 @@ typedef struct TEIF_HEADER {
 */
 
 /*
-* ReCreate will automatically destroy the previous object. So dont call it in the function!
+* ReCreate just fills item with fresh data, literally RE-create.
 */
 
 /*
@@ -528,6 +579,10 @@ struct ObjectResStruct {
 	void* pGet_ResourceHeaderAllocationData;
 	void* pGet_ElementAllocationData;
 
+	void* pGet_ObjectPointerFromPointer;
+	void* pGet_ResourceHeaderPointerFromPointer;
+	void* pGet_ElementPointerFromPointer;
+
 	void* pGet_ObjectPointer;
 	void* pGet_ResourceHeaderPointer;
 	void* pGet_ElementPointer;
@@ -607,6 +662,10 @@ void Object_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pEx
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ObjectAllocationData"), &ObjectsRes.pGet_ObjectAllocationData);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ResourceHeaderAllocationData"), &ObjectsRes.pGet_ResourceHeaderAllocationData);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ElementAllocationData"), &ObjectsRes.pGet_ElementAllocationData);
+
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ObjectPointerFromPointer"), &ObjectsRes.pGet_ObjectPointerFromPointer);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ResourceHeaderPointerFromPointer"), &ObjectsRes.pGet_ResourceHeaderPointerFromPointer);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ElementPointerFromPointer"), &ObjectsRes.pGet_ElementPointerFromPointer);
 
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ObjectPointer"), &ObjectsRes.pGet_ObjectPointer);
 	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Object::Get_ResourceHeaderPointer"), &ObjectsRes.pGet_ResourceHeaderPointer);
@@ -711,6 +770,25 @@ AllocationData* Object_Ref_Get_ElementAllocationData(ElementAllocation Allocatio
 		(AllocationData* (*)(ElementAllocation Allocation))ObjectsRes.pGet_ElementAllocationData;
 
 	return function(Allocation);
+}
+
+Object* Object_Ref_Get_ObjectPointerFromPointer(uint32_t Pointer)
+{
+	Object* (*function)(uint32_t Pointer) =
+		(Object * (*)(uint32_t Pointer))ObjectsRes.pGet_ObjectPointerFromPointer;
+	return function(Pointer);
+}
+ResourceHeader* Object_Ref_Get_ResourceHeaderPointerFromPointer(uint32_t Pointer)
+{
+	ResourceHeader* (*function)(uint32_t Pointer) =
+		(ResourceHeader * (*)(uint32_t Pointer))ObjectsRes.pGet_ResourceHeaderPointerFromPointer;
+	return function(Pointer);
+}
+Element* Object_Ref_Get_ElementPointerFromPointer(uint32_t Pointer)
+{
+	Element* (*function)(uint32_t Pointer) =
+		(Element * (*)(uint32_t Pointer))ObjectsRes.pGet_ElementPointerFromPointer;
+	return function(Pointer);
 }
 
 Object* Object_Ref_Get_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex)
@@ -997,48 +1075,48 @@ ElementAllocation Object_Ref_Scan_ResourceHeaderElementsSingle(ResourceHeaderAll
 }
 
 
-TEXRESULT Object_Ref_Register_ObjectSignature(ObjectSignature* pSignature)
+TEXRESULT Object_Ref_Register_ObjectSignature(ObjectSignature* pSignature, uint32_t ThreadIndex)
 {
-	TEXRESULT(*function)(ObjectSignature * pSignature) =
-		(TEXRESULT(*)(ObjectSignature * pSignature))ObjectsRes.pRegister_ObjectSignature;
+	TEXRESULT(*function)(ObjectSignature * pSignature, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ObjectSignature * pSignature, uint32_t ThreadIndex))ObjectsRes.pRegister_ObjectSignature;
 
-	return function(pSignature);
+	return function(pSignature, ThreadIndex);
 }
-TEXRESULT Object_Ref_Register_ResourceHeaderSignature(ResourceHeaderSignature* pSignature)
+TEXRESULT Object_Ref_Register_ResourceHeaderSignature(ResourceHeaderSignature* pSignature, uint32_t ThreadIndex)
 {
-	TEXRESULT(*function)(ResourceHeaderSignature * pSignature) =
-		(TEXRESULT(*)(ResourceHeaderSignature * pSignature))ObjectsRes.pRegister_ResourceHeaderSignature;
+	TEXRESULT(*function)(ResourceHeaderSignature * pSignature, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ResourceHeaderSignature * pSignature, uint32_t ThreadIndex))ObjectsRes.pRegister_ResourceHeaderSignature;
 
-	return function(pSignature);
+	return function(pSignature, ThreadIndex);
 }
-TEXRESULT Object_Ref_Register_ElementSignature(ElementSignature* pSignature)
+TEXRESULT Object_Ref_Register_ElementSignature(ElementSignature* pSignature, uint32_t ThreadIndex)
 {
-	TEXRESULT(*function)(ElementSignature * pSignature) =
-		(TEXRESULT(*)(ElementSignature * pSignature))ObjectsRes.pRegister_ElementSignature;
+	TEXRESULT(*function)(ElementSignature * pSignature, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ElementSignature * pSignature, uint32_t ThreadIndex))ObjectsRes.pRegister_ElementSignature;
 
-	return function(pSignature);
+	return function(pSignature, ThreadIndex);
 }
 
-TEXRESULT Object_Ref_DeRegister_ObjectSignature(ObjectSignature* pSignature)
+TEXRESULT Object_Ref_DeRegister_ObjectSignature(ObjectSignature* pSignature, uint32_t ThreadIndex)
 {
-	TEXRESULT(*function)(ObjectSignature * pSignature) =
-		(TEXRESULT(*)(ObjectSignature * pSignature))ObjectsRes.pDeRegister_ObjectSignature;
+	TEXRESULT(*function)(ObjectSignature * pSignature, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ObjectSignature * pSignature, uint32_t ThreadIndex))ObjectsRes.pDeRegister_ObjectSignature;
 
-	return function(pSignature);
+	return function(pSignature, ThreadIndex);
 }
-TEXRESULT Object_Ref_DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature)
+TEXRESULT Object_Ref_DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature, uint32_t ThreadIndex)
 {
-	TEXRESULT(*function)(ResourceHeaderSignature * pSignature) =
-		(TEXRESULT(*)(ResourceHeaderSignature * pSignature))ObjectsRes.pDeRegister_ResourceHeaderSignature;
+	TEXRESULT(*function)(ResourceHeaderSignature * pSignature, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ResourceHeaderSignature * pSignature, uint32_t ThreadIndex))ObjectsRes.pDeRegister_ResourceHeaderSignature;
 
-	return function(pSignature);
+	return function(pSignature, ThreadIndex);
 }
-TEXRESULT Object_Ref_DeRegister_ElementSignature(ElementSignature* pSignature)
+TEXRESULT Object_Ref_DeRegister_ElementSignature(ElementSignature* pSignature, uint32_t ThreadIndex)
 {
-	TEXRESULT(*function)(ElementSignature * pSignature) =
-		(TEXRESULT(*)(ElementSignature * pSignature))ObjectsRes.pDeRegister_ElementSignature;
+	TEXRESULT(*function)(ElementSignature * pSignature, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(ElementSignature * pSignature, uint32_t ThreadIndex))ObjectsRes.pDeRegister_ElementSignature;
 
-	return function(pSignature);
+	return function(pSignature, ThreadIndex);
 }
 
 TEXRESULT Object_Ref_Write_TEIF(const UTF8* Path, uint32_t ThreadIndex)

@@ -1918,9 +1918,8 @@ typedef struct GPU_Buffer {
 /*
 * Added in 1.0.0
 */
-struct RHeaderGraphicsWindow;
 typedef struct SwapChainFrameBuffer {
-	struct RHeaderGraphicsWindow* pGraphicsWindow;
+	ResourceHeaderAllocation iGraphicsWindow;
 	uint32_t FrameIndex;
 	uint32_t QueueIndex;
 	uint32_t ThreadIndex;
@@ -3071,12 +3070,12 @@ TEXRESULT Graphics_Ref_Create_ImageAtlas(TEXI_HEADER** pSrcImages, uint64_t pSrc
 	return function(pSrcImages, pSrcImagesSize, ppDstImage);
 }
 
-TEXRESULT Graphics_Ref_Convert_ImageData(TEXI_HEADER** src, GraphicsFormat dstformat)
+TEXRESULT Graphics_Ref_Convert_ImageData(TEXI_HEADER* src, TEXI_HEADER** dst, GraphicsFormat dstformat)
 {
-	TEXRESULT(*function)(TEXI_HEADER * *src, GraphicsFormat dstformat) =
-		(TEXRESULT(*)(TEXI_HEADER * *src, GraphicsFormat dstformat))GraphicsRes.pConvert_ImageData;
+	TEXRESULT(*function)(TEXI_HEADER * src, TEXI_HEADER * *dst, GraphicsFormat dstformat) =
+		(TEXRESULT(*)(TEXI_HEADER * src, TEXI_HEADER * *dst, GraphicsFormat dstformat))GraphicsRes.pConvert_ImageData;
 
-	return function(src, dstformat);
+	return function(src, dst, dstformat);
 }
 #ifdef TEX_EXPOSE_GRAPHICS
 TEXRESULT Graphics_Ref_Update_Descriptor(LogicalDevice* pLogicalDevice, VkDescriptorSet Set, uint64_t Binding, uint64_t DstArrayElement, VkDescriptorType Type, VkDescriptorBufferInfo* pBufferInfo, VkDescriptorImageInfo* pImageInfo)
