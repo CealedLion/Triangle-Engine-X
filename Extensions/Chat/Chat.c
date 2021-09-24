@@ -938,9 +938,9 @@ TEXRESULT Update_Chat()
 	}
 	
 	
-	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 0.05) {	
-		double FPS = ((double)pGraphicsWindow->FramesDone) * 20;
-		double MSPF = 100.0f / ((double)pGraphicsWindow->FramesDone);
+	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 0.06) {	
+		double FPS = ((double)pGraphicsWindow->FramesDone);
+		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
 		pGraphicsWindow->FramesDone = 0;
 		
 		lasttime = ((double)clock() / (double)CLOCKS_PER_SEC);
@@ -956,6 +956,12 @@ TEXRESULT Update_Chat()
 
 		pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
 		Object_Ref_ReCreate_Element(iFPS_DisplayText, 0);
+
+
+		struct timespec dur;
+		memset(&dur, 0, sizeof(dur));
+		dur.tv_sec = 1.0f;
+		Engine_Ref_Sleep_Thread(&dur, NULL);
 
 		Object_Ref_End_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
 	}

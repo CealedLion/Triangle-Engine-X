@@ -587,7 +587,7 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 #endif
 			RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 #ifndef NDEBUG
-			if (pMaterial == NULL) {
+			if (pImageSource == NULL) {
 				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
 				return (Invalid_Parameter | Failure);
 			}
@@ -615,7 +615,7 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 #endif
 			RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 #ifndef NDEBUG
-			if (pMaterial == NULL) {
+			if (pImageSource == NULL) {
 				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
 				return (Invalid_Parameter | Failure);
 			}
@@ -639,7 +639,7 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 #endif
 			RHeaderImageSource* pImageSource = Object_Ref_Get_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 #ifndef NDEBUG
-			if (pMaterial == NULL) {
+			if (pImageSource == NULL) {
 				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Invalid.");
 				return (Invalid_Parameter | Failure);
 			}
