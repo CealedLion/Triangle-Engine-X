@@ -4288,7 +4288,7 @@ TEXRESULT Initialise_Objects()
 	memset(&Utils, 0, sizeof(Utils));
 
 	//config 
-	Utils.Config.InitialItemsMax = 10024;
+	Utils.Config.InitialItemsMax = 1024;
 	Utils.Config.ActiveMemoryResizing = true;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

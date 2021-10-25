@@ -7696,8 +7696,8 @@ TEXRESULT Initialise_Graphics() {
 
 	Utils.Config.ValidationLayersEnabled[0] = (char*)"VK_LAYER_KHRONOS_validation";
 
-	Utils.Config.InitialStagingGPUBufferSize = MebiBytes(100);
-	Utils.Config.InitialNativeGPUBufferSize = MebiBytes(200);
+	Utils.Config.InitialStagingGPUBufferSize = MebiBytes(40);
+	Utils.Config.InitialNativeGPUBufferSize = MebiBytes(50);
 
 	Utils.Config.Samples = VK_SAMPLE_COUNT_1_BIT;
 	Utils.Config.MaxAnisotropy = 16;

@@ -24,7 +24,7 @@
 //}Config;
 
 const float speed = 0.001f;
-const float mouseSpeed = 0.00000005f;
+const float mouseSpeed = 0.00000001f;
 const float ScrollSpeed = 50.0f;
 
 ResourceHeaderAllocation iGraphicsWindow = {0, 0};
@@ -863,7 +863,6 @@ TEXRESULT Scroll_Callback()
 
 TEXRESULT Update_Chat()
 {		
-	
 	uint32_t ThreadIndex = 0;
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
 #ifndef NDEBUG
@@ -938,7 +937,7 @@ TEXRESULT Update_Chat()
 	}
 	
 	
-	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 0.06) {	
+	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1) {	
 		double FPS = ((double)pGraphicsWindow->FramesDone);
 		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
 		pGraphicsWindow->FramesDone = 0;
@@ -958,10 +957,10 @@ TEXRESULT Update_Chat()
 		Object_Ref_ReCreate_Element(iFPS_DisplayText, 0);
 
 
-		struct timespec dur;
-		memset(&dur, 0, sizeof(dur));
-		dur.tv_sec = 1.0f;
-		Engine_Ref_Sleep_Thread(&dur, NULL);
+		//struct timespec dur;
+		//memset(&dur, 0, sizeof(dur));
+		//dur.tv_sec = 1.0f;
+		//Engine_Ref_Sleep_Thread(&dur, NULL);
 
 		Object_Ref_End_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
 	}
@@ -1008,7 +1007,7 @@ TEXRESULT Update_Chat()
 		reactorpercentage -= 0.01f;
 	}
 	*/
-
+	
 	//autistic but it will do
 	RHeaderCamera* pCameraHeader = NULL;
 	for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
@@ -1140,9 +1139,9 @@ TEXRESULT Update_Chat()
 	glm_mul_sse2(pPositionHeader->Matrix, scalem, pPositionHeader->Matrix);
 	glm_mul_sse2(pPositionHeader->Matrix, identitym, pPositionHeader->Matrix);
 
+
 //	glm_rotate(pPositionHeader->Matrix, frameverticalAngle, horiz);
 	glm_rotate(pPositionHeader->Matrix, framehorizontalAngle, vertic);
-
 
 	Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
 
@@ -1168,7 +1167,7 @@ TEXRESULT Initialise_Chat() {
 			memset(&CreateInfo, 0, sizeof(CreateInfo));
 			CreateInfo.TargetExtentWidth = 1024;
 			CreateInfo.TargetExtentHeight = 1024;
-			CreateInfo.TargetFrameBuffersSize = 1;
+			CreateInfo.TargetFrameBuffersSize = 2;
 			ResourceHeaderCreateInfo MainCreateInfo;
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
@@ -1191,9 +1190,262 @@ TEXRESULT Initialise_Chat() {
 
 		Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json", iGraphicsWindow, iScene, 0);
 
-		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\simplesparse\\scene.gltf", iGraphicsWindow, iScene, 0);
+	//	Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\glTF-Sample-Models-master\\2.0\\Fox\\glTF\\Fox.gltf", iGraphicsWindow, iScene, 0);
 
-		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\f6f\\scene.gltf", iGraphicsWindow, iScene, 0);
+		Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\flag\\scene.gltf", iGraphicsWindow, iScene, 0);
+
+
+		
+		{
+			ResourceHeaderAllocation iResourceHeaderParent;
+			{
+				ResourceHeaderCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
+				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject, 0);
+			}
+			ResourceHeaderAllocation iMaterial;
+			{
+				RHeaderMaterialCreateInfo CreateInfoMaterial;
+				memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
+				CreateInfoMaterial.iGraphicsWindow = iGraphicsWindow;
+				CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
+				CreateInfoMaterial.BaseColourFactor[1] = 1.0f;
+				CreateInfoMaterial.BaseColourFactor[2] = 1.0f;
+				CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
+				CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
+				{
+					ResourceHeaderAllocation iImageSource;
+					{
+						RHeaderImageSourceCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+						free(Info.ImageData);
+					}
+					ResourceHeaderAllocation iTextureHeader;
+					{
+						RHeaderTextureCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Info.iGraphicsWindow = iGraphicsWindow;
+						Info.iImageSource = iImageSource;
+						Info.AllocationType = AllocationType_Discrite;
+						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+					}
+					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
+				}
+
+				{
+					ResourceHeaderAllocation iImageSource;
+					{
+						RHeaderImageSourceCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+						free(Info.ImageData);
+					}
+					ResourceHeaderAllocation iTextureHeader;
+					{
+						RHeaderTextureCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Info.iGraphicsWindow = iGraphicsWindow;
+						Info.iImageSource = iImageSource;
+						Info.AllocationType = AllocationType_Discrite;
+						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+					}
+					CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
+				}
+
+				ResourceHeaderCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
+				Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject, 0);
+			}
+
+			{
+				ElementGraphicsCreateInfo CreateInfo;
+				memset(&CreateInfo, 0, sizeof(CreateInfo));
+				CreateInfo.iMaterial = iMaterial;
+				CreateInfo.iGraphicsWindow = iGraphicsWindow;
+
+				CreateInfo.EffectCreateInfosSize = 1;
+				CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
+
+				ChemistryEffectCreateInfoFundamental Info;
+				memset(&Info, 0, sizeof(Info));
+
+				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
+				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
+
+				Info.ChunkSize = 1;
+				Info.Resolution = 5096;
+
+				Info.ParticlesSize = (3000);
+				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
+
+				uint64_t it = 0;
+				
+				
+				for (size_t i1 = 0; i1 < 32; i1++)
+				{
+					for (size_t i = 0; i < 32; i++)
+					{
+						Info.Particles[it].Position[0] = -(-0.0f + (-1.8 * i1)) + (i * 0.1);
+						Info.Particles[it].Position[1] = -(-5.0f + (1.8 * i1)) + (i * 0.1);
+						Info.Particles[it].Position[2] = 0;
+						Info.Particles[it].Position[3] = i1 % 2 ? -1 : 1;
+						Info.Particles[it].PositionVelocity[0] = -1.0f;
+						Info.Particles[it].PositionVelocity[1] = 1.0f;
+						Info.Particles[it].PositionVelocity[2] = 0;
+
+						it++;
+					}
+				}
+				
+				
+				uint64_t val = 0;
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 1; i < 2; i++)
+					{
+						float height = i * 2;
+
+						val = (M_PI * 2 * height) * 2;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[2] = 0.0f;
+							Info.Particles[it].Position[3] = 1.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+						/*
+				uint64_t ringc = 6;
+
+				for (size_t i0 = 0; i0 < ringc; i0++)
+				{
+					for (size_t i = 1; i < 2; i++)
+					{
+						float height = i * 0.5;
+						val = (M_PI * 2 * height) * 2;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
+							Info.Particles[it].Position[1] = 0.0f;
+							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[3] = 1.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = 0.0f;
+							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
+
+							Info.Particles[it].Position[0] += height;
+
+							vec3 axis = {0.0f, 0.0f, 1.0f};
+
+
+							glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
+							glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+				*/
+				/*
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						val = 500;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] += 40;
+
+							it++;
+						}
+					}
+				}
+
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						val = 500;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] -= 40;
+
+							it++;
+						}
+					}
+				}
+				*/
+
+				ElementCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_Element(&iMolecularSimulation, MainCreateInfo, &CreateInfo, 0);
+				Object_Ref_Add_ResourceHeader_ElementChild(iMolecularSimulation, iResourceHeaderParent, 0);
+				free(CreateInfo.EffectCreateInfos);
+				free(Info.Particles);
+			}
+		}
+		
 
 		
 		{
@@ -1576,393 +1828,7 @@ TEXRESULT Initialise_Chat() {
 
 	return (Success);
 }
-/*
-void bro()
-{
-	{
-		ResourceHeaderAllocation iResourceHeaderParent;
-		{
-			ResourceHeaderCreateInfo MainCreateInfo;
-			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-			MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
-			MainCreateInfo.Name = NULL;
-			Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
-			Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject, 0);
-		}
-		ResourceHeaderAllocation iMaterial;
-		{
-			RHeaderMaterialCreateInfo CreateInfoMaterial;
-			memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
-			CreateInfoMaterial.iGraphicsWindow = iGraphicsWindow;
-			CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
-			CreateInfoMaterial.BaseColourFactor[1] = 1.0f;
-			CreateInfoMaterial.BaseColourFactor[2] = 1.0f;
-			CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
-			CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
-			{
-				ResourceHeaderAllocation iImageSource;
-				{
-					RHeaderImageSourceCreateInfo Info;
-					memset(&Info, 0, sizeof(Info));
-					Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
-					ResourceHeaderCreateInfo MainCreateInfo;
-					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
-					MainCreateInfo.Name = NULL;
-					Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
-					free(Info.ImageData);
-				}
-				ResourceHeaderAllocation iTextureHeader;
-				{
-					RHeaderTextureCreateInfo Info;
-					memset(&Info, 0, sizeof(Info));
-					Info.iGraphicsWindow = iGraphicsWindow;
-					Info.iImageSource = iImageSource;
-					Info.AllocationType = AllocationType_Discrite;
-					Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
-					ResourceHeaderCreateInfo MainCreateInfo;
-					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
-					MainCreateInfo.Name = NULL;
-					Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
-				}
-				CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
-			}
 
-			{
-				ResourceHeaderAllocation iImageSource;
-				{
-					RHeaderImageSourceCreateInfo Info;
-					memset(&Info, 0, sizeof(Info));
-					Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
-					ResourceHeaderCreateInfo MainCreateInfo;
-					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
-					MainCreateInfo.Name = NULL;
-					Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
-					free(Info.ImageData);
-				}
-				ResourceHeaderAllocation iTextureHeader;
-				{
-					RHeaderTextureCreateInfo Info;
-					memset(&Info, 0, sizeof(Info));
-					Info.iGraphicsWindow = iGraphicsWindow;
-					Info.iImageSource = iImageSource;
-					Info.AllocationType = AllocationType_Discrite;
-					Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
-					ResourceHeaderCreateInfo MainCreateInfo;
-					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
-					MainCreateInfo.Name = NULL;
-					Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
-					Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
-				}
-				CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
-			}
-
-			ResourceHeaderCreateInfo MainCreateInfo;
-			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
-			MainCreateInfo.Name = NULL;
-			Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
-			Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject, 0);
-		}
-
-		{
-			ElementGraphicsCreateInfo CreateInfo;
-			memset(&CreateInfo, 0, sizeof(CreateInfo));
-			CreateInfo.iMaterial = iMaterial;
-			CreateInfo.iGraphicsWindow = iGraphicsWindow;
-
-			CreateInfo.EffectCreateInfosSize = 1;
-			CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
-
-			ChemistryEffectCreateInfoFundamental Info;
-			memset(&Info, 0, sizeof(Info));
-
-			CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
-			CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
-
-			Info.ChunkSize = 1;
-			Info.Resolution = 5096;
-
-			Info.ParticlesSize = (5000);
-			Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
-
-			uint64_t it = 0;
-
-			/*
-				for (size_t i1 = 0; i1 < 1; i1++)
-				{
-					for (size_t i = 0; i < 32; i++)
-					{
-						Info.Particles[it].Position[0] = -(-0.0f + (-1.8 * i1)) + (i * 0.1);
-						Info.Particles[it].Position[1] = -(-5.0f + (1.8 * i1)) + (i * 0.1);
-						Info.Particles[it].Position[2] = 0;
-						Info.Particles[it].Position[3] = i1 % 2 ? -1 : 1;
-						Info.Particles[it].PositionVelocity[0] = -1.0f;
-						Info.Particles[it].PositionVelocity[1] = 1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0;
-
-						it++;
-					}
-				}
-				*/
-				/*
-				for (size_t ix = 0; ix < 16; ix++)
-				{
-					for (size_t iy = 0; iy < 16; iy++)
-					{
-						for (size_t iz = 0; iz < 16; iz++)
-						{
-							Info.Particles[it].Position[0] = ix;
-							Info.Particles[it].Position[1] = iy;
-							Info.Particles[it].Position[2] = iz;
-							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = 1.0f;
-							Info.Particles[it].PositionVelocity[1] = 0.0f;
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-							it++;
-						}
-					}
-				}
-
-
-				for (size_t i0 = 0; i0 < 2; i0++)
-				{
-					for (size_t i = 0; i < 40; i++)
-					{
-						Info.Particles[it].Position[0] = 0.0f;
-						Info.Particles[it].Position[1] = 0.0f + (i0 * 0.9);
-						Info.Particles[it].Position[2] = (0.0f + i);
-						Info.Particles[it].Position[3] = (((i % 40) < 20) ? ((i0 % 2 ? -1 : 1)) : (-(i0 % 2 ? -1 : 1)));
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
-						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = -1;
-
-						Info.Particles[it].Position[1] += 20.0f;
-						it++;
-					}
-				}
-
-				for (size_t i0 = 0; i0 < 30; i0++)
-				{
-					for (size_t i = 0; i < 50; i++)
-					{
-						Info.Particles[it].Position[0] = 0.0f;
-						Info.Particles[it].Position[1] = (0.0f + (i * 1.0));
-						Info.Particles[it].Position[2] = -0.0001f + (i0 * 1.0);
-						Info.Particles[it].Position[3] = 1;
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
-						Info.Particles[it].PositionVelocity[1] = -1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-						Info.Particles[it].Position[1] += 40.0f;
-						Info.Particles[it].Position[2] -= 20.0f;
-						it++;
-
-						Info.Particles[it].Position[0] = 0.0f;
-						Info.Particles[it].Position[1] = (0.0f + (i * 1.0));
-						Info.Particles[it].Position[2] = 0.0001f + (i0 * 1.0);
-						Info.Particles[it].Position[3] = -1;
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
-						Info.Particles[it].PositionVelocity[1] = -1.0f;
-						Info.Particles[it].PositionVelocity[2] = -0.0f;
-
-						Info.Particles[it].Position[1] += 40.0f;
-						Info.Particles[it].Position[2] -= 20.0f;
-						it++;
-					}
-				}
-
-				Info.Particles[it].Position[0] = 0.0f;
-				Info.Particles[it].Position[1] = -2.0f;
-				Info.Particles[it].Position[2] = -10.0f;
-				Info.Particles[it].Position[3] = 1;
-				Info.Particles[it].PositionVelocity[0] = 0.0f;
-				Info.Particles[it].PositionVelocity[1] = -0.5f;
-				Info.Particles[it].PositionVelocity[2] = 0.5f;
-
-				Info.Particles[it].Position[1] += 40.0f;
-				Info.Particles[it].Position[2] -= 20.0f;
-				it++;
-				
-
-			Info.Particles[it].Position[0] = -1.0f;
-			Info.Particles[it].Position[1] = 0.0f;
-			Info.Particles[it].Position[2] = 0.0f;
-			Info.Particles[it].Position[3] = 1;
-			Info.Particles[it].PositionVelocity[0] = 1.0f;
-			Info.Particles[it].PositionVelocity[1] = 0.1f;
-			Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-			Info.Particles[it].Position[1] += 40.0f;
-			Info.Particles[it].Position[2] -= 20.0f;
-			it++;
-
-			Info.Particles[it].Position[0] = 0.0f;
-			Info.Particles[it].Position[1] = 0.9f;
-			Info.Particles[it].Position[2] = 0.0f;
-			Info.Particles[it].Position[3] = 1;
-			Info.Particles[it].PositionVelocity[0] = -1.0f;
-			Info.Particles[it].PositionVelocity[1] = 0.0f;
-			Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-			Info.Particles[it].Position[1] += 40.0f;
-			Info.Particles[it].Position[2] -= 20.0f;
-			it++;
-
-
-
-
-			Info.Particles[it].Position[0] = -5.0f;
-			Info.Particles[it].Position[1] = 0.0f;
-			Info.Particles[it].Position[2] = 0.0f;
-			Info.Particles[it].Position[3] = 1;
-			Info.Particles[it].PositionVelocity[0] = 1.0f;
-			Info.Particles[it].PositionVelocity[1] = 0.1f;
-			Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-			Info.Particles[it].Position[1] += 40.0f;
-			Info.Particles[it].Position[2] -= 20.0f;
-			it++;
-
-			Info.Particles[it].Position[0] = -5.0f;
-			Info.Particles[it].Position[1] = 0.9f;
-			Info.Particles[it].Position[2] = 0.0f;
-			Info.Particles[it].Position[3] = 1;
-			Info.Particles[it].PositionVelocity[0] = 1.0f;
-			Info.Particles[it].PositionVelocity[1] = 0.0f;
-			Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-			Info.Particles[it].Position[1] += 40.0f;
-			Info.Particles[it].Position[2] -= 20.0f;
-			it++;
-
-
-			/*
-
-			uint64_t val = 0;
-			for (int i0 = 0; i0 < 1; i0++)
-			{
-				for (size_t i = 1; i < 2; i++)
-				{
-					float height = i * 2;
-
-					val = (M_PI * 2 * height) * 2;
-					for (size_t i1 = 0; i1 < val; i1++)
-					{
-						Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / val)) * height;
-						Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / val)) * height;
-						Info.Particles[it].Position[2] = 0.0f;
-						Info.Particles[it].Position[3] = 1.0f;
-						Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[0]);
-						Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * (height * 1.0)) - Info.Particles[it].Position[1]);
-						Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-						Info.Particles[it].Position[1] += 20.0f;
-
-						it++;
-					}
-				}
-			}
-				*/	/*
-			uint64_t ringc = 6;
-
-			for (size_t i0 = 0; i0 < ringc; i0++)
-			{
-				for (size_t i = 1; i < 2; i++)
-				{
-					float height = i * 0.5;
-					val = (M_PI * 2 * height) * 2;
-					for (size_t i1 = 0; i1 < val; i1++)
-					{
-						Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
-						Info.Particles[it].Position[1] = 0.0f;
-						Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
-						Info.Particles[it].Position[3] = 1.0f;
-						Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
-
-						Info.Particles[it].Position[0] += height;
-
-						vec3 axis = {0.0f, 0.0f, 1.0f};
-
-
-						glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
-						glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
-
-						Info.Particles[it].Position[1] += 20.0f;
-
-						it++;
-					}
-				}
-			}
-			*/
-			/*
-for (int i0 = 0; i0 < 1; i0++)
-{
-	for (size_t i = 0; i < 20; i++)
-	{
-		val = (M_PI * 2 * (i));
-		val = 500;
-		for (size_t i1 = 0; i1 < val; i1++)
-		{
-			Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
-			Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
-			Info.Particles[it].Position[2] = i0;
-			Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
-			Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
-			Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
-			Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-			Info.Particles[it].Position[0] += 40;
-
-			it++;
-		}
-	}
-}
-
-for (int i0 = 0; i0 < 1; i0++)
-{
-	for (size_t i = 0; i < 20; i++)
-	{
-		val = (M_PI * 2 * (i));
-		val = 500;
-		for (size_t i1 = 0; i1 < val; i1++)
-		{
-			Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
-			Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
-			Info.Particles[it].Position[2] = i0;
-			Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
-			Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
-			Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
-			Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-			Info.Particles[it].Position[0] -= 40;
-
-			it++;
-		}
-	}
-}
-
-
-			ElementCreateInfo MainCreateInfo;
-			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-			MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
-			MainCreateInfo.Name = NULL;
-			Object_Ref_Create_Element(&iMolecularSimulation, MainCreateInfo, &CreateInfo, 0);
-			Object_Ref_Add_ResourceHeader_ElementChild(iMolecularSimulation, iResourceHeaderParent, 0);
-			free(CreateInfo.EffectCreateInfos);
-			free(Info.Particles);
-		}
-	}
-}
-*/
 TEXRESULT Destroy_Chat()
 {
 
