@@ -59,6 +59,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simplified", "Simplified", "{F3D484F8-E4D5-41B1-9EF0-A5A05A365647}"
 	ProjectSection(SolutionItems) = preProject
 		Builds\data\Shaders\ChemistryComputeSimplified.comp = Builds\data\Shaders\ChemistryComputeSimplified.comp
+		Builds\data\Shaders\ChemistryComputeSimplified.frag = Builds\data\Shaders\ChemistryComputeSimplified.frag
+		Builds\data\Shaders\ChemistryComputeSimplified.vert = Builds\data\Shaders\ChemistryComputeSimplified.vert
 	EndProjectSection
 EndProject
 Global
@@ -241,7 +243,7 @@ Global
 		{DAEC510D-1AC9-48FA-8540-26C7B3A9553B} = {88FDCDE0-E4D7-4C4B-B3DB-E237AC87F4D8}
 		{58950D2D-3E61-4EBD-AF57-5E5C5B983644} = {A97CCDCD-A84D-429C-9630-28E66FF2176B}
 		{E9C75819-08C5-4B85-ACCF-46050354C1BD} = {58950D2D-3E61-4EBD-AF57-5E5C5B983644}
-		{ACC86F2E-A093-4F6C-BDD7-F87DDA3E83CC} = {E9C75819-08C5-4B85-ACCF-46050354C1BD}
+		{ACC86F2E-A093-4F6C-BDD7-F87DDA3E83CC} = {58950D2D-3E61-4EBD-AF57-5E5C5B983644}
 		{F3D484F8-E4D5-41B1-9EF0-A5A05A365647} = {58950D2D-3E61-4EBD-AF57-5E5C5B983644}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution

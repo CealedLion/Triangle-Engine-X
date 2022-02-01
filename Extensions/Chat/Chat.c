@@ -1503,143 +1503,64 @@ TEXRESULT Initialise_Chat() {
 				Info.ChunkSize = 1;
 				Info.Resolution = 5096;
 
-				Info.ParticlesSize = (3000);
+				Info.ParticlesSize = (5000);
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
 				uint64_t it = 0;
 
 				/*
-				for (size_t i1 = 0; i1 < 32; i1++)
+				for (size_t i1 = 0; i1 < 10; i1++)
 				{
-					for (int i = -3; i < 4; i++)
+					for (int i = 0; i < 3; i++)
 					{
-						Info.Particles[it].Position[0] = -(-0.0f) + (i * 0.8);
-						Info.Particles[it].Position[1] = -(-14.0f) + (i1 * -3.1);
-						Info.Particles[it].Position[2] = 0;
+						Info.Particles[it].Position[0] = -(-0.0f) + (i * 1.0);
+						Info.Particles[it].Position[1] = -(5.0f) + (i1 * -1.0);
+						Info.Particles[it].Position[2] = 0.0f;
 						Info.Particles[it].PositionVelocity[0] = 0.0f;
 						Info.Particles[it].PositionVelocity[1] = 1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
 
-						//Info.Particles[it].Position[0] -= 2.5f;
-
-						//Info.Particles[it].Magnitude[0] = 1.0f;
+						Info.Particles[it].Magnitude[0] = 0.0f;
 						Info.Particles[it].Magnitude[1] = 1.0f;
+						Info.Particles[it].Magnitude[2] = 0.0f;
 
 						it++;
 					}
 				}
 
-				
-				for (size_t i1 = 0; i1 < 32; i1++)
+				for (size_t i1 = 0; i1 < 10; i1++)
 				{
-					for (int i = 3; i < 5; i++)
+					for (int i = 0; i < 3; i++)
 					{
-						Info.Particles[it].Position[0] = -(-0.0f) + (i * 0.9);
-						Info.Particles[it].Position[1] = -(-18.0f) + (i1 * -1.1);
-						Info.Particles[it].Position[2] = 0;
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
-						Info.Particles[it].PositionVelocity[1] = 1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0;
-
-						//Info.Particles[it].Position[0] -= 2.5f;
-
-						//Info.Particles[it].Magnitude[0] = 1.0f;
-						Info.Particles[it].Magnitude[1] = 1.0f;
-
-						it++;
-					}
-				}
-				
-				for (size_t i1 = 0; i1 < 32; i1++)
-				{
-					for (int i = 5; i < 6; i++)
-					{
-						Info.Particles[it].Position[0] = -(-0.0f) + (i * 0.9);
-						Info.Particles[it].Position[1] = 0;
-						Info.Particles[it].Position[2] = -(-18.0f) + (i1 * -1.1);
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].Position[0] = -(-5.0f) + (i1 * 1.0);
+						Info.Particles[it].Position[1] = -(-0.0f) + (i * -1.0);
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[0] = -1.0f;
 						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = -1.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
 
-						//Info.Particles[it].Position[0] -= 2.5f;
-
-						Info.Particles[it].Magnitude[0] = 1.0f;
-						//Info.Particles[it].Magnitude[1] = 1.0f;
+						Info.Particles[it].Magnitude[0] = -1.0f;
+						Info.Particles[it].Magnitude[1] = 0.0f;
+						Info.Particles[it].Magnitude[2] = 0.0f;
 
 						it++;
 					}
 				}
+				
 				*/
 				
-				
-				for (size_t i1 = 0; i1 < 20; i1++)
-				{
-					for (size_t i = 0; i < 1; i++)
-					{
-						Info.Particles[it].Position[0] = (-0.0f + (-1.50 * i1)) + (i * 2.1) + 6;
-						Info.Particles[it].Position[1] = 0;
-						Info.Particles[it].Position[2] = 0.3;
-						Info.Particles[it].PositionVelocity[0] = 1.0f;
-						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = 0;
-
-						Info.Particles[it].Magnitude[0] = 1.0f;
-						//Info.Particles[it].Magnitude[1] = 1.0f;
-						//Info.Particles[it].Magnitude[2] = 1.0f;
-
-						it++;
-					}
-				}
-				
-				for (size_t i1 = 0; i1 < 20; i1++)
-				{
-					for (size_t i = 0; i < 1; i++)
-					{
-						Info.Particles[it].Position[0] = 0;
-						Info.Particles[it].Position[1] = (-0.0f + (-1.50 * i1)) + (i * 2.1) + 6;
-						Info.Particles[it].Position[2] = 0;
-						//Info.Particles[it].PositionVelocity[0] = -1.01f;
-						Info.Particles[it].PositionVelocity[1] = 1.0f;
-						Info.Particles[it].PositionVelocity[2] = 0;
-
-						//Info.Particles[it].Magnitude[0] = 1.0f;
-						Info.Particles[it].Magnitude[1] = 1.0f;
-						//Info.Particles[it].Magnitude[2] = 1.0f;
-
-						it++;
-					}
-				}
-				
-
-				
-				/*
-				for (size_t i1 = 0; i1 < 32; i1++)
-				{
-					for (size_t i = 0; i < 32; i++)
-					{
-						Info.Particles[it].Position[0] = -(-0.0f + (-0.70 * i1)) + (i * 0.1);
-						Info.Particles[it].Position[1] = -(-5.0f + (0.70 * i1)) + (i * 0.1);
-						Info.Particles[it].Position[2] = 0;
-						Info.Particles[it].Position[3] = i % 2 ? -1 : 1;
-						Info.Particles[it].PositionVelocity[0] = -1.0f * (i % 2 ? -1 : 1);
-						Info.Particles[it].PositionVelocity[1] = 1.0f * (i % 2 ? -1 : 1);
-						Info.Particles[it].PositionVelocity[2] = 0;
-
-						it++;
-					}
-				}*/
-				
 				//RING XZ
-				/*
-				uint64_t val = 0;		
+					
+				uint64_t val = 0;	
+				
 				val = 0;
 				for (int i0 = 0; i0 < 1; i0++)
 				{
-					for (size_t i = 4; i < 16; i++)
+					for (size_t i = 10; i < 11; i++)
 					{
-						float height = i * 0.3;
+						float height = i * 1.0;
 
-						val = (M_PI * 2 * height);
+						val = (M_PI * 2 * height) / 2;
 						for (size_t i1 = 0; i1 < val; i1++)
 						{
 							Info.Particles[it].Position[0] = cos((i1) * (6.28318531f / val)) * height;
@@ -1650,21 +1571,47 @@ TEXRESULT Initialise_Chat() {
 							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
 
 
-							//Info.Particles[it].Magnitude[0] = 1.0f;
-							Info.Particles[it].Magnitude[1] = 1.0f;
-							//Info.Particles[it].Magnitude[2] = 1.0f;
-
-							//Info.Particles[it].Magnitude[2] = -0.1f;
-
+							Info.Particles[it].Magnitude[0] = Info.Particles[it].PositionVelocity[0];
+							Info.Particles[it].Magnitude[1] = Info.Particles[it].PositionVelocity[1];
+							Info.Particles[it].Magnitude[2] = Info.Particles[it].PositionVelocity[2];
 
 							it++;
 						}
 					}
 				}
+				
+				
 				val = 0;
 				for (int i0 = 0; i0 < 1; i0++)
 				{
-					for (size_t i = 4; i < 16; i++)
+					for (size_t i = 10; i < 11; i++)
+					{
+						float height = i * 1.0;
+
+						val = (M_PI * 2 * height) / 2;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = 0;
+							Info.Particles[it].Position[2] = sin((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = 0;
+							Info.Particles[it].PositionVelocity[2] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
+
+							Info.Particles[it].Magnitude[0] = -Info.Particles[it].PositionVelocity[0];
+							Info.Particles[it].Magnitude[1] = -Info.Particles[it].PositionVelocity[1];
+							Info.Particles[it].Magnitude[2] = -Info.Particles[it].PositionVelocity[2];
+
+							it++;
+						}
+					}
+				}
+				
+				/*
+				val = 0;
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 15; i < 16; i++)
 					{
 						float height = i * 0.3;
 
@@ -1678,6 +1625,7 @@ TEXRESULT Initialise_Chat() {
 							Info.Particles[it].PositionVelocity[1] = 0;
 							Info.Particles[it].PositionVelocity[2] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
 
+							//Info.Particles[it].Position[0] += 0.0001;
 
 							//Info.Particles[it].Magnitude[0] = -1.0f;
 							Info.Particles[it].Magnitude[1] = -1.0f;
@@ -1689,8 +1637,9 @@ TEXRESULT Initialise_Chat() {
 							it++;
 						}
 					}
-				}
-				*/
+				}*/
+				
+				Info.ParticlesSize = it;
 				/*
 				for (int i0 = 0; i0 < 1; i0++)
 				{
