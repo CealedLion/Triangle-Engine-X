@@ -1949,11 +1949,14 @@ void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool Full) {
 	if (pGraphicsWindow->SwapChain.FrameBuffers != NULL && pGraphicsWindow->CurrentFrameBuffersSize != NULL) {
 		//thhink about the implications bro;
 		/**/
-		for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
+		if (Full == false)
 		{
-			while (c89atomic_flag_test_and_set(&pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag) == 1)
+			for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
 			{
-
+				while (c89atomic_flag_test_and_set(&pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag) == 1)
+				{
+					//c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag);
+				}
 			}
 		}
 
@@ -1992,7 +1995,7 @@ void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool Full) {
 	pGraphicsWindow->CurrentFrameBuffersSize = NULL;
 
 	if (Full == true)
-	{				
+	{		
 		if (pGraphicsWindow->SwapChain.VkSwapChain != NULL)
 			vkDestroySwapchainKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain, NULL);
 		pGraphicsWindow->SwapChain.VkSwapChain = NULL;
@@ -3362,6 +3365,7 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 		ImageType = VK_IMAGE_TYPE_2D;
 	if (pImageSource->ImageData->Depth > 1)
 		ImageType = VK_IMAGE_TYPE_3D;
+
 
 	uint32_t MipLevels = pImageSource->ImageData->MipmapCount;
 	bool GenerateMipmaps = false;
@@ -7475,7 +7479,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 
 			if ((res = vkQueuePresentKHR(Queue, &PresentInfo)) != VK_SUCCESS) {
 				if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-					Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
+					//Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
 					c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				}
 				else {
@@ -7606,6 +7610,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		free(ppTotalAllocations);
 		free(ppPointers);
 
+		Object_Ref_End_ResourceHeaderPointer(pFrameBuffer->iGraphicsWindow, false, false, ThreadIndex);
 		if (pGraphicsWindow->RecreateFlag == false && pGraphicsWindow->CloseFlag == false)
 		{
 			//c89atomic_flag_test_and_set(&pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].RenderingFlag);
@@ -7615,7 +7620,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
 			break;
 		}
-		Object_Ref_End_ResourceHeaderPointer(pFrameBuffer->iGraphicsWindow, false, false, ThreadIndex);
+		
 	}
 	
 	Engine_Ref_Exit_Thread(0);
@@ -7638,7 +7643,7 @@ TEXRESULT Update_Graphics() {
 					if (Create_SwapChain(pGraphicsWindow, ThreadIndex) != Success) {
 						return (Success);
 					}
-					Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
+					//Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
 
 					for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 						AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
@@ -8275,23 +8280,18 @@ TEXRESULT Destroy_Graphics() {
 			if (pGraphicsWindow != NULL) {
 				//this freezes because it doesnt update close flags until end pointer...;
 
-				c89atomic_flag_test_and_set(&pGraphicsWindow->CloseFlag);
-
-
-
-				//Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
-				for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++) {
-					while (pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag == true) {
-						struct timespec dur;
-						memset(&dur, 0, sizeof(dur));
-						dur.tv_nsec = 1;
-						Engine_Ref_Sleep_Thread(&dur, NULL);
-					}
-				}
-
+				//c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
+				//pGraphicsWindow->RecreateFlag = true;
+				pGraphicsWindow->CloseFlag = true;
+				
+				//c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				//pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
-				c89atomic_flag_clear(&pGraphicsWindow->CloseFlag);
-				Destroy_SwapChain(pGraphicsWindow, true);
+
+				Destroy_SwapChain(pGraphicsWindow, false);
+
+				//c89atomic_flag_clear(&pGraphicsWindow->CloseFlag);
+				
+			
 				Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 			}
 		}
@@ -8365,6 +8365,8 @@ TEXRESULT Destroy_Graphics() {
 	}
 	if (Utils.Instance != NULL)
 		vkDestroyInstance(Utils.Instance, NULL);
+
+	Engine_Ref_ArgsError("GRAPHICS DONE ()", "DOEN GRAP");
 
 	memset(&Utils, 0, sizeof(Utils));
 	return (Success);

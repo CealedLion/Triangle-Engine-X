@@ -936,7 +936,7 @@ TEXRESULT Update_Chat()
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
 	
-	/**/
+	
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1) {	
 		double FPS = ((double)pGraphicsWindow->FramesDone);
 		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
@@ -1177,7 +1177,7 @@ TEXRESULT Initialise_Chat() {
 			memset(&CreateInfo, 0, sizeof(CreateInfo));
 			CreateInfo.TargetExtentWidth = 1024;
 			CreateInfo.TargetExtentHeight = 1024;
-			CreateInfo.TargetFrameBuffersSize = 2;
+			CreateInfo.TargetFrameBuffersSize = 1;
 			ResourceHeaderCreateInfo MainCreateInfo;
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
@@ -2064,7 +2064,7 @@ TEXRESULT Initialise_Chat() {
 			}
 		}
 		
-
+		
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -2234,6 +2234,7 @@ TEXRESULT Initialise_Chat() {
 				free(InfoText.iFonts);
 			}
 		}
+		
 		
 	}	
 	/*
