@@ -1947,8 +1947,16 @@ void Destroy_SwapChain(RHeaderGraphicsWindow* pGraphicsWindow, bool Full) {
 	}
 #endif
 	if (pGraphicsWindow->SwapChain.FrameBuffers != NULL && pGraphicsWindow->CurrentFrameBuffersSize != NULL) {
-
 		//thhink about the implications bro;
+		/**/
+		for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
+		{
+			while (c89atomic_flag_test_and_set(&pGraphicsWindow->SwapChain.FrameBuffers[i].RenderingFlag) == 1)
+			{
+
+			}
+		}
+
 		for (size_t i = 0; i < pGraphicsWindow->CurrentFrameBuffersSize; i++)
 		{
 			if (pGraphicsWindow->SwapChain.FrameBuffers[i].VkRenderFinishedSemaphore != NULL)
@@ -6917,7 +6925,7 @@ void Draw_ElementGraphics(ElementGraphics* pElement, RHeaderMaterial* pMaterialH
 
 void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 	uint32_t ThreadIndex = pFrameBuffer->ThreadIndex;
-	while (pFrameBuffer->RenderingFlag == true) {
+	while (true) { //c89atomic_flag_test_and_set(&pFrameBuffer->RenderingFlag) == 1
 		RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pFrameBuffer->iGraphicsWindow, false, false, ThreadIndex);
 		if (pGraphicsWindow == NULL)
 		{
@@ -7467,7 +7475,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 
 			if ((res = vkQueuePresentKHR(Queue, &PresentInfo)) != VK_SUCCESS) {
 				if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-					//Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
+					Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
 					c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				}
 				else {
@@ -7605,6 +7613,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		else
 		{
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
+			break;
 		}
 		Object_Ref_End_ResourceHeaderPointer(pFrameBuffer->iGraphicsWindow, false, false, ThreadIndex);
 	}
@@ -7624,10 +7633,12 @@ TEXRESULT Update_Graphics() {
 				VkResult res = VK_SUCCESS;
 				if (pGraphicsWindow->RecreateFlag == true) {
 					
+					//f
 					Destroy_SwapChain(pGraphicsWindow, false, ThreadIndex);
 					if (Create_SwapChain(pGraphicsWindow, ThreadIndex) != Success) {
 						return (Success);
 					}
+					Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
 
 					for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 						AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];

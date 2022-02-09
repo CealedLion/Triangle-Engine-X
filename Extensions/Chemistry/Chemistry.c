@@ -1397,7 +1397,7 @@ void Draw_Simplified(ElementGraphics* pElement, ResourceHeader* pHeader, Object*
 
 	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
-	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 6, pEffect->ParticlesSize, 0, 0);
+	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 8, pEffect->ParticlesSize, 0, 0);
 	Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 }
 
@@ -4492,8 +4492,6 @@ TEXRESULT Create_Fundamental(ElementGraphics* pElement, ChemistryEffectFundament
 			return (Invalid_Parameter | Failure);
 		}
 #endif
-		//pEffect->ChunkSize = pEffectCreateInfo->ChunkSize;
-		pEffect->Resolution = pEffectCreateInfo->Resolution;
 		if (pEffectCreateInfo->ParticlesSize != 0)
 		{
 			pEffect->ParticlesSize = pEffectCreateInfo->ParticlesSize;

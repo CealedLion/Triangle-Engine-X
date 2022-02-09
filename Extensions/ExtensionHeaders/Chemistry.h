@@ -274,6 +274,7 @@ typedef struct GPU_Particle {
 	vec4 Position;
 	vec4 PositionVelocity;
 	vec4 Magnitude;
+	vec4 Acceleration;
 	//int Info0[2][2][2];
 	//int level;
 }GPU_Particle;
@@ -345,8 +346,6 @@ typedef struct PushConstantsComputeFundamental {
 typedef struct ChemistryEffectCreateInfoSimplified {
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
-
-
 }ChemistryEffectCreateInfoSimplified;
 typedef struct ChemistryEffectSimplified {
 	GraphicsEffectTemplate Header;
@@ -447,9 +446,6 @@ typedef struct ChemistryEffectFullModel {
 typedef struct ChemistryEffectCreateInfoFundamental {
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
-
-	float ChunkSize;
-	uint64_t Resolution;
 }ChemistryEffectCreateInfoFundamental;
 typedef struct ChemistryEffectFundamental {
 	GraphicsEffectTemplate Header;

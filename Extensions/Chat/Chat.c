@@ -936,7 +936,7 @@ TEXRESULT Update_Chat()
 		Update_Cursor(pGraphicsWindow, pEffect, pGPU_EffectClosest);
 	}
 	
-	
+	/**/
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1) {	
 		double FPS = ((double)pGraphicsWindow->FramesDone);
 		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
@@ -1200,7 +1200,7 @@ TEXRESULT Initialise_Chat() {
 
 		Formats_Ref_Load_2Dscene((const UTF8*)"data\\GUI\\2Dscene.json", iGraphicsWindow, iScene, 0);
 
-	//	Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\glTF-Sample-Models-master\\2.0\\Fox\\glTF\\Fox.gltf", iGraphicsWindow, iScene, 0);
+		//Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\glTF-Sample-Models-master\\2.0\\Fox\\glTF\\Fox.gltf", iGraphicsWindow, iScene, 0);
 
 		//Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\flag\\scene.gltf", iGraphicsWindow, iScene, 0);
 
@@ -1391,8 +1391,253 @@ TEXRESULT Initialise_Chat() {
 			}
 		}
 		*/
-
 		
+		/*
+				/*
+				val = 0;
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 15; i < 16; i++)
+					{
+						float height = i * 0.3;
+
+						val = (M_PI * 2 * height);
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = 0;
+							Info.Particles[it].Position[2] = sin((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = 0;
+							Info.Particles[it].PositionVelocity[2] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
+
+							//Info.Particles[it].Position[0] += 0.0001;
+
+							//Info.Particles[it].Magnitude[0] = -1.0f;
+							Info.Particles[it].Magnitude[1] = -1.0f;
+							//Info.Particles[it].Magnitude[2] = -1.0f;
+
+							//Info.Particles[it].Magnitude[2] = -0.1f;
+
+
+							it++;
+						}
+					}
+				}
+				
+				Info.ParticlesSize = it;
+				
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 2; i < 3; i++)
+					{
+						float height = i * 1;
+
+						val = (M_PI * 2 * height);
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos((i1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = sin((i1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[2] = 0.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] += 3.3;
+
+							//Info.Particles[it].Magnitude[0] = 1.0f;
+							Info.Particles[it].Magnitude[1] = 1.0f;
+							//Info.Particles[it].Magnitude[2] = 1.0f;
+
+							//Info.Particles[it].Magnitude[2] = -0.1f;
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+				
+				val = 0;
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 2; i < 3; i++)
+					{
+						float height = i * 1;
+
+						val = (M_PI * 2 * height);
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = sin((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[2] = 0.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] += 3.3;
+
+							//Info.Particles[it].Magnitude[0] = -1.0f;
+							Info.Particles[it].Magnitude[1] = -1.0f;
+							//Info.Particles[it].Magnitude[2] = -1.0f;
+
+							//Info.Particles[it].Magnitude[2] = -0.1f;
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+				
+				
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 1; i < 2; i++)
+					{
+						float height = i * 1;
+
+						val = (M_PI * 2 * height);
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos((i1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = sin((i1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[2] = 0.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] -= 2;
+
+							//Info.Particles[it].Magnitude[0] = 1.0f;
+							Info.Particles[it].Magnitude[1] = 1.0f;
+							//Info.Particles[it].Magnitude[2] = 1.0f;
+
+							//Info.Particles[it].Magnitude[2] = -0.1f;
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+
+				val = 0;
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 1; i < 2; i++)
+					{
+						float height = i * 1;
+
+						val = (M_PI * 2 * height);
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[1] = sin((i1 + 1) * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[2] = 0.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] -= 2;
+
+							//Info.Particles[it].Magnitude[0] = -1.0f;
+							Info.Particles[it].Magnitude[1] = -1.0f;
+							//Info.Particles[it].Magnitude[2] = -1.0f;
+
+							//Info.Particles[it].Magnitude[2] = -0.1f;
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+				
+
+				
+				uint64_t ringc = 6;
+
+				for (size_t i0 = 0; i0 < ringc; i0++)
+				{
+					for (size_t i = 1; i < 2; i++)
+					{
+						float height = i * 0.5;
+						val = (M_PI * 2 * height) * 2;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
+							Info.Particles[it].Position[1] = 0.0f;
+							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[3] = 1.0f;
+							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
+							Info.Particles[it].PositionVelocity[1] = 0.0f;
+							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
+
+							Info.Particles[it].Position[0] += height;
+
+							vec3 axis = {0.0f, 0.0f, 1.0f};
+
+
+							glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
+							glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
+
+							Info.Particles[it].Position[1] += 20.0f;
+
+							it++;
+						}
+					}
+				}
+				
+				
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						val = 500;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] += 40;
+
+							it++;
+						}
+					}
+				}
+
+				for (int i0 = 0; i0 < 1; i0++)
+				{
+					for (size_t i = 0; i < 20; i++)
+					{
+						val = (M_PI * 2 * (i));
+						val = 500;
+						for (size_t i1 = 0; i1 < val; i1++)
+						{
+							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
+							Info.Particles[it].Position[2] = i0;
+							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
+							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+							Info.Particles[it].Position[0] -= 40;
+
+							it++;
+						}
+					}
+				}
+				*/
+
+		/*
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -1500,15 +1745,12 @@ TEXRESULT Initialise_Chat() {
 				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Fundamental;
 				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
 
-				Info.ChunkSize = 1;
-				Info.Resolution = 5096;
-
-				Info.ParticlesSize = (5000);
+				Info.ParticlesSize = (2000);
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
 				uint64_t it = 0;
 
-				/*
+				
 				for (size_t i1 = 0; i1 < 10; i1++)
 				{
 					for (int i = 0; i < 3; i++)
@@ -1527,28 +1769,47 @@ TEXRESULT Initialise_Chat() {
 						it++;
 					}
 				}
-
-				for (size_t i1 = 0; i1 < 10; i1++)
+				
+				for (size_t i1 = 0; i1 < 1; i1++)
 				{
-					for (int i = 0; i < 3; i++)
+					for (int i = 0; i < 10; i++)
 					{
-						Info.Particles[it].Position[0] = -(-5.0f) + (i1 * 1.0);
+						Info.Particles[it].Position[0] = -(-0.0f) + (i1 * 1.0) + (i * -1.0);
+						Info.Particles[it].Position[1] = -(-0.0f) + (i * -1.0);
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[0] = 1.0f;
+						Info.Particles[it].PositionVelocity[1] = 1.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+
+						Info.Particles[it].Magnitude[0] = 1.0f;
+						Info.Particles[it].Magnitude[1] = 0.0f;
+						Info.Particles[it].Magnitude[2] = 0.0f;
+
+						it++;
+					}
+				}		
+				
+
+
+				for (size_t i1 = 0; i1 < 1; i1++)
+				{
+					for (int i = 0; i < 1; i++)
+					{
+						Info.Particles[it].Position[0] = -(-7.0f) + (i1 * 1.0) + (i * -1.0);
 						Info.Particles[it].Position[1] = -(-0.0f) + (i * -1.0);
 						Info.Particles[it].Position[2] = 0.0f;
 						Info.Particles[it].PositionVelocity[0] = -1.0f;
 						Info.Particles[it].PositionVelocity[1] = 0.0f;
 						Info.Particles[it].PositionVelocity[2] = 0.0f;
 
-						Info.Particles[it].Magnitude[0] = -1.0f;
-						Info.Particles[it].Magnitude[1] = 0.0f;
+						Info.Particles[it].Magnitude[0] = 0.0f;
+						Info.Particles[it].Magnitude[1] = 1.0f;
 						Info.Particles[it].Magnitude[2] = 0.0f;
 
 						it++;
 					}
 				}
-				
-				*/
-				
+
 				//RING XZ
 					
 				uint64_t val = 0;	
@@ -1556,11 +1817,11 @@ TEXRESULT Initialise_Chat() {
 				val = 0;
 				for (int i0 = 0; i0 < 1; i0++)
 				{
-					for (size_t i = 10; i < 11; i++)
+					for (size_t i = 4; i < 5; i++)
 					{
 						float height = i * 1.0;
 
-						val = (M_PI * 2 * height) / 2;
+						val = (M_PI * 2 * height);
 						for (size_t i1 = 0; i1 < val; i1++)
 						{
 							Info.Particles[it].Position[0] = cos((i1) * (6.28318531f / val)) * height;
@@ -1571,9 +1832,11 @@ TEXRESULT Initialise_Chat() {
 							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
 
 
-							Info.Particles[it].Magnitude[0] = Info.Particles[it].PositionVelocity[0];
-							Info.Particles[it].Magnitude[1] = Info.Particles[it].PositionVelocity[1];
-							Info.Particles[it].Magnitude[2] = Info.Particles[it].PositionVelocity[2];
+							//Info.Particles[it].Magnitude[0] = Info.Particles[it].PositionVelocity[0];
+							//Info.Particles[it].Magnitude[1] = Info.Particles[it].PositionVelocity[1];
+							//Info.Particles[it].Magnitude[2] = Info.Particles[it].PositionVelocity[2];
+
+							Info.Particles[it].Magnitude[1] = 1.0000f;
 
 							it++;
 						}
@@ -1584,37 +1847,10 @@ TEXRESULT Initialise_Chat() {
 				val = 0;
 				for (int i0 = 0; i0 < 1; i0++)
 				{
-					for (size_t i = 10; i < 11; i++)
+					for (size_t i = 4; i < 5; i++)
 					{
 						float height = i * 1.0;
 
-						val = (M_PI * 2 * height) / 2;
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[1] = 0;
-							Info.Particles[it].Position[2] = sin((i1 + 1) * (6.28318531f / val)) * height;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = 0;
-							Info.Particles[it].PositionVelocity[2] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
-
-							Info.Particles[it].Magnitude[0] = -Info.Particles[it].PositionVelocity[0];
-							Info.Particles[it].Magnitude[1] = -Info.Particles[it].PositionVelocity[1];
-							Info.Particles[it].Magnitude[2] = -Info.Particles[it].PositionVelocity[2];
-
-							it++;
-						}
-					}
-				}
-				
-				/*
-				val = 0;
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 15; i < 16; i++)
-					{
-						float height = i * 0.3;
-
 						val = (M_PI * 2 * height);
 						for (size_t i1 = 0; i1 < val; i1++)
 						{
@@ -1625,231 +1861,197 @@ TEXRESULT Initialise_Chat() {
 							Info.Particles[it].PositionVelocity[1] = 0;
 							Info.Particles[it].PositionVelocity[2] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
 
-							//Info.Particles[it].Position[0] += 0.0001;
+							//Info.Particles[it].Magnitude[0] = -Info.Particles[it].PositionVelocity[0];
+							//Info.Particles[it].Magnitude[1] = -Info.Particles[it].PositionVelocity[1];
+							//Info.Particles[it].Magnitude[2] = -Info.Particles[it].PositionVelocity[2];
 
-							//Info.Particles[it].Magnitude[0] = -1.0f;
-							Info.Particles[it].Magnitude[1] = -1.0f;
-							//Info.Particles[it].Magnitude[2] = -1.0f;
-
-							//Info.Particles[it].Magnitude[2] = -0.1f;
-
-
-							it++;
-						}
-					}
-				}*/
-				
-				Info.ParticlesSize = it;
-				/*
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 2; i < 3; i++)
-					{
-						float height = i * 1;
-
-						val = (M_PI * 2 * height);
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos((i1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[1] = sin((i1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[2] = 0.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] += 3.3;
-
-							//Info.Particles[it].Magnitude[0] = 1.0f;
-							Info.Particles[it].Magnitude[1] = 1.0f;
-							//Info.Particles[it].Magnitude[2] = 1.0f;
-
-							//Info.Particles[it].Magnitude[2] = -0.1f;
-
-							Info.Particles[it].Position[1] += 20.0f;
+							Info.Particles[it].Magnitude[1] = -1.0000f;
 
 							it++;
 						}
 					}
 				}
 				
-				val = 0;
-				for (int i0 = 0; i0 < 1; i0++)
+
+				ElementCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_Element(&iMolecularSimulation, MainCreateInfo, &CreateInfo, 0);
+				Object_Ref_Add_ResourceHeader_ElementChild(iMolecularSimulation, iResourceHeaderParent, 0);
+				free(CreateInfo.EffectCreateInfos);
+				free(Info.Particles);
+			}
+		}
+		*/
+		
+		
+		{
+			ResourceHeaderAllocation iResourceHeaderParent;
+			{
+				ResourceHeaderCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
+				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject, 0);
+			}
+			ResourceHeaderAllocation iMaterial;
+			{
+				RHeaderMaterialCreateInfo CreateInfoMaterial;
+				memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
+				CreateInfoMaterial.iGraphicsWindow = iGraphicsWindow;
+				CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
+				CreateInfoMaterial.BaseColourFactor[1] = 1.0f;
+				CreateInfoMaterial.BaseColourFactor[2] = 1.0f;
+				CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
+				CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
+
 				{
-					for (size_t i = 2; i < 3; i++)
+					ResourceHeaderAllocation iImageSource;
 					{
-						float height = i * 1;
-
-						val = (M_PI * 2 * height);
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[1] = sin((i1 + 1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[2] = 0.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] += 3.3;
-
-							//Info.Particles[it].Magnitude[0] = -1.0f;
-							Info.Particles[it].Magnitude[1] = -1.0f;
-							//Info.Particles[it].Magnitude[2] = -1.0f;
-
-							//Info.Particles[it].Magnitude[2] = -0.1f;
-
-							Info.Particles[it].Position[1] += 20.0f;
-
-							it++;
-						}
+						RHeaderImageSourceCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+						free(Info.ImageData);
 					}
-				}
-				*/
-				/*
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 1; i < 2; i++)
+					ResourceHeaderAllocation iTextureHeader;
 					{
-						float height = i * 1;
-
-						val = (M_PI * 2 * height);
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos((i1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[1] = sin((i1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[2] = 0.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] -= 2;
-
-							//Info.Particles[it].Magnitude[0] = 1.0f;
-							Info.Particles[it].Magnitude[1] = 1.0f;
-							//Info.Particles[it].Magnitude[2] = 1.0f;
-
-							//Info.Particles[it].Magnitude[2] = -0.1f;
-
-							Info.Particles[it].Position[1] += 20.0f;
-
-							it++;
-						}
+						RHeaderTextureCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Info.iGraphicsWindow = iGraphicsWindow;
+						Info.iImageSource = iImageSource;
+						Info.AllocationType = AllocationType_Discrite;
+						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
 					}
+					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
 				}
 
-				val = 0;
-				for (int i0 = 0; i0 < 1; i0++)
 				{
-					for (size_t i = 1; i < 2; i++)
+					ResourceHeaderAllocation iImageSource;
 					{
-						float height = i * 1;
-
-						val = (M_PI * 2 * height);
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos((i1 + 1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[1] = sin((i1 + 1) * (6.28318531f / val)) * height;
-							Info.Particles[it].Position[2] = 0.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = ((sin((i1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[1]);
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] -= 2;
-
-							//Info.Particles[it].Magnitude[0] = -1.0f;
-							Info.Particles[it].Magnitude[1] = -1.0f;
-							//Info.Particles[it].Magnitude[2] = -1.0f;
-
-							//Info.Particles[it].Magnitude[2] = -0.1f;
-
-							Info.Particles[it].Position[1] += 20.0f;
-
-							it++;
-						}
+						RHeaderImageSourceCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+						free(Info.ImageData);
 					}
-				}
-				*/
-
-				/*
-				uint64_t ringc = 6;
-
-				for (size_t i0 = 0; i0 < ringc; i0++)
-				{
-					for (size_t i = 1; i < 2; i++)
+					ResourceHeaderAllocation iTextureHeader;
 					{
-						float height = i * 0.5;
-						val = (M_PI * 2 * height) * 2;
-						for (size_t i1 = 0; i1 < val; i1++)
+						RHeaderTextureCreateInfo Info;
+						memset(&Info, 0, sizeof(Info));
+						Info.iGraphicsWindow = iGraphicsWindow;
+						Info.iImageSource = iImageSource;
+						Info.AllocationType = AllocationType_Discrite;
+						Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit | TextureUsage_StorageBit);
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+					}
+					CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
+				}
+
+
+				ResourceHeaderCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
+				Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject, 0);
+			}
+
+			{
+				ElementGraphicsCreateInfo CreateInfo;
+				memset(&CreateInfo, 0, sizeof(CreateInfo));
+				CreateInfo.iMaterial = iMaterial;
+				CreateInfo.iGraphicsWindow = iGraphicsWindow;
+
+				CreateInfo.EffectCreateInfosSize = 1;
+				CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
+
+				ChemistryEffectCreateInfoSimplified Info;
+				memset(&Info, 0, sizeof(Info));
+
+				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Simplified;
+				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
+
+				Info.ParticlesSize = (5000);
+				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
+
+				uint64_t it = 0;
+
+				
+				for (size_t i1 = 0; i1 < 1; i1++)
+				{
+					for (int i = 0; i < 2; i++)
+					{
+						float x = 15;
+						float y = 15;
+						float z = 0;
+
+						Info.Particles[it].Position[0] = (i * x);
+						Info.Particles[it].Position[1] = (i1 * y);
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].Position[3] = 10.0f;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[3] = 10.0f;
+
+						Info.Particles[it].Magnitude[0] = 0.0f;
+						Info.Particles[it].Magnitude[1] = 0.0f;
+						Info.Particles[it].Magnitude[2] = 1.0f;
+						Info.Particles[it].Magnitude[3] = 1.0f;
+
+
+						it++;
+
+						//val = (M_PI * 2 * (i));
+						uint32_t val = 4;
+						for (size_t i2 = 0; i2 < val; i2++)
 						{
-							Info.Particles[it].Position[0] = (cos(i1 * (6.28318531f / val)) * height);
-							Info.Particles[it].Position[1] = 0.0f;
-							Info.Particles[it].Position[2] = sin(i1 * (6.28318531f / val)) * height;
+							Info.Particles[it].Position[0] = (cos(i2 * (6.28318531f / (val))) * 2) + ((i * x));
+							Info.Particles[it].Position[1] = (sin(i2 * (6.28318531f / (val))) * 2) + ((i1 * y));
+							Info.Particles[it].Position[2] = 0.0f;
 							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = ((cos((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[0]);
-							Info.Particles[it].PositionVelocity[1] = 0.0f;
-							Info.Particles[it].PositionVelocity[2] = ((sin((i1 + 1) * (6.28318531f / val)) * height) - Info.Particles[it].Position[2]);
-
-							Info.Particles[it].Position[0] += height;
-
-							vec3 axis = {0.0f, 0.0f, 1.0f};
-
-
-							glm_vec3_rotate(Info.Particles[it].Position, (i0 * (6.28318531f / ringc)), axis);
-							glm_vec3_rotate(Info.Particles[it].PositionVelocity, (i0 * (6.28318531f / ringc)), axis);
-
-							Info.Particles[it].Position[1] += 20.0f;
-
-							it++;
-						}
-					}
-				}
-				*/
-				/*
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 0; i < 20; i++)
-					{
-						val = (M_PI * 2 * (i));
-						val = 500;
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[2] = i0;
-							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
-							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
+							Info.Particles[it].PositionVelocity[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0.44;
+							Info.Particles[it].PositionVelocity[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0.44;
 							Info.Particles[it].PositionVelocity[2] = 0.0f;
+							Info.Particles[it].PositionVelocity[3] = -1.0f;
 
-							Info.Particles[it].Position[0] += 40;
-
-							it++;
-						}
-					}
-				}
-
-				for (int i0 = 0; i0 < 1; i0++)
-				{
-					for (size_t i = 0; i < 20; i++)
-					{
-						val = (M_PI * 2 * (i));
-						val = 500;
-						for (size_t i1 = 0; i1 < val; i1++)
-						{
-							Info.Particles[it].Position[0] = cos(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[1] = sin(i1 * (6.28318531f / (val))) * (i);
-							Info.Particles[it].Position[2] = i0;
-							Info.Particles[it].Position[3] = (i / 4) % 2 ? -1 : 1;
-							Info.Particles[it].PositionVelocity[0] = cos(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[1] = sin(i1 * (6.28318531f / (val)));
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-
-							Info.Particles[it].Position[0] -= 40;
+							Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0.44;
+							Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0.44;
+							Info.Particles[it].Magnitude[2] = 1.0f;
+							Info.Particles[it].Magnitude[3] = 1.0f;
 
 							it++;
 						}
 					}
-				}
-				*/
+				}			
+
+
+
+				Info.ParticlesSize = it;
 
 				ElementCreateInfo MainCreateInfo;
 				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
@@ -1863,9 +2065,6 @@ TEXRESULT Initialise_Chat() {
 		}
 		
 
-
-
-		
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
