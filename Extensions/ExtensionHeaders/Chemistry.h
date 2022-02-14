@@ -303,7 +303,7 @@ typedef struct PushConstantsSimplified {
 typedef struct PushConstantsComputeSimplified {
 	int Part;
 	int Particles;
-	float ChunkSize;
+	float Multiplier;
 	int Resolution;
 }PushConstantsComputeSimplified;
 /*
@@ -346,12 +346,15 @@ typedef struct PushConstantsComputeFundamental {
 typedef struct ChemistryEffectCreateInfoSimplified {
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
+	float Multiplier;
 }ChemistryEffectCreateInfoSimplified;
 typedef struct ChemistryEffectSimplified {
 	GraphicsEffectTemplate Header;
 
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
+
+	float Multiplier;
 
 	//every reinit
 	Mutex mutex;

@@ -3366,6 +3366,15 @@ TEXRESULT ReCreate_TextureHeader(RHeaderTexture* pResourceHeader, uint32_t Threa
 	if (pImageSource->ImageData->Depth > 1)
 		ImageType = VK_IMAGE_TYPE_3D;
 
+	/*
+	>screen was being resized to 0
+	>text resizes to 0 too
+	text gets rounded to 1
+	in my game engine
+	textures with height of 1 are 1D textures automatically
+	-_-
+	wrong type of texture
+	*/
 
 	uint32_t MipLevels = pImageSource->ImageData->MipmapCount;
 	bool GenerateMipmaps = false;

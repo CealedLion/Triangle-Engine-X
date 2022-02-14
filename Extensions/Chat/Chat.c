@@ -89,6 +89,8 @@ ElementAllocation iTextCursor;
 
 ElementAllocation iFPS_DisplayText;
 
+ElementAllocation iMultiplierText;
+
 ElementAllocation iMolecularSimulation;
 
 typedef struct PreviousTextInstance{
@@ -964,6 +966,54 @@ TEXRESULT Update_Chat()
 
 		Object_Ref_End_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
 	}
+
+	if (pGraphicsWindow->pWindow->STATE_KEY_R == KeyPress)
+	{
+		float Multiplier = 0.0f;
+		{
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+			ChemistryEffectSimplified* pEffect = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
+			pEffect->Multiplier += 0.05f;
+			Multiplier = pEffect->Multiplier;
+			Object_Ref_End_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+		}
+		{
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+			GraphicsEffectText* pEffect = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
+			//free(pEffect->UTF8_Text);
+			char buffer[128 + 19];
+			snprintf(&buffer, 128 + 19, "Multiplier: %f", Multiplier);
+			pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
+			Object_Ref_ReCreate_Element(iMultiplierText, 0);
+			Object_Ref_End_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+		}
+	}
+	if (pGraphicsWindow->pWindow->STATE_KEY_F == KeyPress)
+	{
+		float Multiplier = 0.0f;
+		{
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+			ChemistryEffectSimplified* pEffect = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
+			pEffect->Multiplier -= 0.05f;
+			Multiplier = pEffect->Multiplier;
+			Object_Ref_End_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+		}
+		{
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+			GraphicsEffectText* pEffect = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
+			//free(pEffect->UTF8_Text);
+			char buffer[128 + 19];
+			snprintf(&buffer, 128 + 19, "Multiplier: %f", Multiplier);
+			pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
+			Object_Ref_ReCreate_Element(iMultiplierText, 0);
+			Object_Ref_End_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+		}
+	}
+
 	/*
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0)//fps counter shit
 	{
@@ -1177,7 +1227,7 @@ TEXRESULT Initialise_Chat() {
 			memset(&CreateInfo, 0, sizeof(CreateInfo));
 			CreateInfo.TargetExtentWidth = 1024;
 			CreateInfo.TargetExtentHeight = 1024;
-			CreateInfo.TargetFrameBuffersSize = 1;
+			CreateInfo.TargetFrameBuffersSize = 10;
 			ResourceHeaderCreateInfo MainCreateInfo;
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
@@ -1203,7 +1253,6 @@ TEXRESULT Initialise_Chat() {
 		//Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\glTF-Sample-Models-master\\2.0\\Fox\\glTF\\Fox.gltf", iGraphicsWindow, iScene, 0);
 
 		//Formats_Ref_Load_3Dscene((const UTF8*)"data\\Models\\flag\\scene.gltf", iGraphicsWindow, iScene, 0);
-
 
 		/*
 		{
@@ -1390,8 +1439,7 @@ TEXRESULT Initialise_Chat() {
 				free(Info.Particles);
 			}
 		}
-		*/
-		
+		*/		
 		/*
 				/*
 				val = 0;
@@ -1636,7 +1684,6 @@ TEXRESULT Initialise_Chat() {
 					}
 				}
 				*/
-
 		/*
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
@@ -1884,8 +1931,7 @@ TEXRESULT Initialise_Chat() {
 			}
 		}
 		*/
-		
-		
+				
 		{
 			ResourceHeaderAllocation iResourceHeaderParent;
 			{
@@ -1938,7 +1984,6 @@ TEXRESULT Initialise_Chat() {
 					}
 					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
 				}
-
 				{
 					ResourceHeaderAllocation iImageSource;
 					{
@@ -1998,25 +2043,27 @@ TEXRESULT Initialise_Chat() {
 				Info.ParticlesSize = (5000);
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
-				uint64_t it = 0;
+				Info.Multiplier = 0.0f;
 
-				
-				for (size_t i1 = 0; i1 < 1; i1++)
+				uint64_t it = 0;
+				/*
+			
+				for (size_t i1 = 0; i1 < 5; i1++)
 				{
-					for (int i = 0; i < 2; i++)
+					for (int i = 0; i < 5; i++)
 					{
-						float x = 15;
-						float y = 15;
+						float x = 20;
+						float y = 20;
 						float z = 0;
 
 						Info.Particles[it].Position[0] = (i * x);
 						Info.Particles[it].Position[1] = (i1 * y);
 						Info.Particles[it].Position[2] = 0.0f;
-						Info.Particles[it].Position[3] = 10.0f;
+						Info.Particles[it].Position[3] = 100.0f;
 						Info.Particles[it].PositionVelocity[0] = 0.0f;
 						Info.Particles[it].PositionVelocity[1] = 0.0f;
 						Info.Particles[it].PositionVelocity[2] = 0.0f;
-						Info.Particles[it].PositionVelocity[3] = 10.0f;
+						Info.Particles[it].PositionVelocity[3] = 8.0f;
 
 						Info.Particles[it].Magnitude[0] = 0.0f;
 						Info.Particles[it].Magnitude[1] = 0.0f;
@@ -2027,30 +2074,156 @@ TEXRESULT Initialise_Chat() {
 						it++;
 
 						//val = (M_PI * 2 * (i));
-						uint32_t val = 4;
-						for (size_t i2 = 0; i2 < val; i2++)
+						uint32_t val = 8;
+						for (size_t shell = 1; shell < 2; shell++)
 						{
-							Info.Particles[it].Position[0] = (cos(i2 * (6.28318531f / (val))) * 2) + ((i * x));
-							Info.Particles[it].Position[1] = (sin(i2 * (6.28318531f / (val))) * 2) + ((i1 * y));
-							Info.Particles[it].Position[2] = 0.0f;
-							Info.Particles[it].Position[3] = 1.0f;
-							Info.Particles[it].PositionVelocity[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0.44;
-							Info.Particles[it].PositionVelocity[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0.44;
-							Info.Particles[it].PositionVelocity[2] = 0.0f;
-							Info.Particles[it].PositionVelocity[3] = -1.0f;
+							for (size_t i2 = 0; i2 < val; i2++)
+							{
+								Info.Particles[it].Position[0] = (cos(i2 * (6.28318531f / (val))) * shell) + ((i * x));
+								Info.Particles[it].Position[1] = (sin(i2 * (6.28318531f / (val))) * shell) + ((i1 * y));
+								Info.Particles[it].Position[2] = 0.0f;
+								Info.Particles[it].Position[3] = 1.0f;
+								Info.Particles[it].PositionVelocity[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0;
+								Info.Particles[it].PositionVelocity[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0;
+								Info.Particles[it].PositionVelocity[2] = 0.0f;
+								Info.Particles[it].PositionVelocity[3] = -1.0f;
 
-							Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0.44;
-							Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0.44;
-							Info.Particles[it].Magnitude[2] = 1.0f;
-							Info.Particles[it].Magnitude[3] = 1.0f;
+								Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / (val))) * 1;
+								Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / (val))) * 1;
+								Info.Particles[it].Magnitude[2] = 1.0f;
+								Info.Particles[it].Magnitude[3] = 1.0f;
 
-							it++;
+								it++;
+							}
 						}
 					}
-				}			
+				}	
+
+				for (size_t i1 = 0; i1 < 10; i1++)
+				{
+					for (int i = 0; i < 10; i++)
+					{
+						float x = 20;
+						float y = 20;
+						float z = 0;
+
+						Info.Particles[it].Position[0] = (i * x) + -70;
+						Info.Particles[it].Position[1] = (i1 * y) + -70;
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].Position[3] = 100.0f;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[3] = 1.0f;
+
+						Info.Particles[it].Magnitude[0] = 0.0f;
+						Info.Particles[it].Magnitude[1] = 1.0f;
+						Info.Particles[it].Magnitude[2] = 0.0f;
+						Info.Particles[it].Magnitude[3] = 1.0f;
 
 
+						it++;
 
+						//val = (M_PI * 2 * (i));
+						uint32_t val = 1;
+						for (size_t shell = 1; shell < 2; shell++)
+						{
+							for (size_t i2 = 0; i2 < val; i2++)
+							{
+								Info.Particles[it].Position[0] = (cos(i2 * (6.28318531f / (val))) * shell) + ((i * x)) + -70;
+								Info.Particles[it].Position[1] = (sin(i2 * (6.28318531f / (val))) * shell) + ((i1 * y)) + -70;
+								Info.Particles[it].Position[2] = 0.0f;
+								Info.Particles[it].Position[3] = 1.0f;
+								Info.Particles[it].PositionVelocity[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0;
+								Info.Particles[it].PositionVelocity[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0;
+								Info.Particles[it].PositionVelocity[2] = 0.0f;
+								Info.Particles[it].PositionVelocity[3] = -1.0f;
+
+								Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / (val))) * 1;
+								Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / (val))) * 1;
+								Info.Particles[it].Magnitude[2] = 1.0f;
+								Info.Particles[it].Magnitude[3] = 1.0f;
+
+								it++;
+							}
+						}
+					}
+				}*/
+
+				
+				for (size_t i1 = 0; i1 < 1; i1++)
+				{
+					for (int i = 0; i < 2; i++)
+					{
+						float x = 4;
+						float y = 0.001;
+						float z = 0;
+
+						Info.Particles[it].Position[0] = (i * x);
+						Info.Particles[it].Position[1] = (i * y);
+						Info.Particles[it].Position[2] = 0.0f;
+						Info.Particles[it].Position[3] = 1836.0f;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[3] = 1.0f;
+
+						Info.Particles[it].Magnitude[0] = 0.0f;
+						Info.Particles[it].Magnitude[1] = 1.0f;
+						Info.Particles[it].Magnitude[2] = 0.0f;
+						Info.Particles[it].Magnitude[3] = 0.0f;
+
+
+						it++;
+						/*
+						uint32_t val = 1;
+						for (size_t shell = 1; shell < 2; shell++)
+						{
+							for (size_t i2 = 0; i2 < val; i2++)
+							{
+								Info.Particles[it].Position[0] = (cos(i2 * (6.28318531f / (val))) * shell) + ((i * x)) + -0.1 * i;
+								Info.Particles[it].Position[1] = (sin(i2 * (6.28318531f / (val))) * shell) + ((i1 * y)) + -4.1 * i;
+								Info.Particles[it].Position[2] = 0.0f;
+								Info.Particles[it].Position[3] = 1.0f;
+								Info.Particles[it].PositionVelocity[0] = cos((i2 + 1) * (6.28318531f / (val))) * 0.0;
+								Info.Particles[it].PositionVelocity[1] = sin((i2 + 1) * (6.28318531f / (val))) * 0.0;
+								Info.Particles[it].PositionVelocity[2] = 0.0f;
+								Info.Particles[it].PositionVelocity[3] = -1.0f;
+
+								Info.Particles[it].Magnitude[0] = -0.2 * i;
+								Info.Particles[it].Magnitude[1] = -1 + (i * 2);
+								Info.Particles[it].Magnitude[2] = 0;
+								Info.Particles[it].Magnitude[3] = 1.0f;
+
+								it++;
+							}
+						}*/
+					}
+				}
+				
+				uint32_t val = 2;
+				for (size_t shell = 1; shell < 2; shell++)
+				{
+					for (size_t i2 = 0; i2 < val; i2++)
+					{
+						Info.Particles[it].Position[0] = 2.0f;
+						Info.Particles[it].Position[1] = (sin(i2 * (6.28318531f / (val))) * 2) + ((0)) + 1;
+						Info.Particles[it].Position[2] = (cos(i2 * (6.28318531f / (val))) * 2) + ((0));
+						Info.Particles[it].Position[3] = 1.0f;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
+						Info.Particles[it].PositionVelocity[1] = 0.0f;
+						Info.Particles[it].PositionVelocity[2] = 0.0f;
+						Info.Particles[it].PositionVelocity[3] = -1.0f;
+
+						Info.Particles[it].Magnitude[0] = 0.0f;
+						Info.Particles[it].Magnitude[1] = 1.0f;
+						Info.Particles[it].Magnitude[2] = 0.0f;
+						Info.Particles[it].Magnitude[3] = -1.0f;
+
+						it++;
+					}
+				}
+				
 				Info.ParticlesSize = it;
 
 				ElementCreateInfo MainCreateInfo;
@@ -2233,6 +2406,177 @@ TEXRESULT Initialise_Chat() {
 				free(CreateInfo.EffectCreateInfos);
 				free(InfoText.iFonts);
 			}
+		}
+
+
+			{
+				ResourceHeaderAllocation iResourceHeaderParent;
+				{
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iResourceHeaderParent, MainCreateInfo, NULL, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeaderParent, iObject, 0);
+
+				}
+				ResourceHeaderAllocation iMaterial;
+				{
+					RHeaderMaterialCreateInfo CreateInfoMaterial;
+					memset(&CreateInfoMaterial, 0, sizeof(CreateInfoMaterial));
+					CreateInfoMaterial.iGraphicsWindow = iGraphicsWindow;
+					CreateInfoMaterial.BaseColourFactor[0] = 1.0f;
+					CreateInfoMaterial.BaseColourFactor[1] = 0.0f;
+					CreateInfoMaterial.BaseColourFactor[2] = 0.0f;
+					CreateInfoMaterial.BaseColourFactor[3] = 1.0f;
+					CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
+					{
+						ResourceHeaderAllocation iImageSource;
+						{
+							RHeaderImageSourceCreateInfo Info;
+							memset(&Info, 0, sizeof(Info));
+							Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+							ResourceHeaderCreateInfo MainCreateInfo;
+							memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+							MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+							MainCreateInfo.Name = NULL;
+							Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+							Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+							free(Info.ImageData);
+						}
+						ResourceHeaderAllocation iTextureHeader;
+						{
+							RHeaderTextureCreateInfo Info;
+							memset(&Info, 0, sizeof(Info));
+							Info.iGraphicsWindow = iGraphicsWindow;
+							Info.iImageSource = iImageSource;
+							Info.AllocationType = AllocationType_Linear;
+							Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
+							ResourceHeaderCreateInfo MainCreateInfo;
+							memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+							MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+							MainCreateInfo.Name = NULL;
+							Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+							Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+						}
+						CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
+					}
+
+					{
+						ResourceHeaderAllocation iImageSource;
+						{
+							RHeaderImageSourceCreateInfo Info;
+							memset(&Info, 0, sizeof(Info));
+							Graphics_Ref_Create_DummyTEXI(&Info.ImageData, GraphicsFormat_Undefined, 0, 0, 0, 1, 0, 0);
+							ResourceHeaderCreateInfo MainCreateInfo;
+							memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+							MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_ImageSource;
+							MainCreateInfo.Name = NULL;
+							Object_Ref_Create_ResourceHeader(&iImageSource, MainCreateInfo, &Info, 0);
+							Object_Ref_Add_Object_ResourceHeaderChild(iImageSource, iObject, 0);
+							free(Info.ImageData);
+						}
+						ResourceHeaderAllocation iTextureHeader;
+						{
+							RHeaderTextureCreateInfo Info;
+							memset(&Info, 0, sizeof(Info));
+							Info.iGraphicsWindow = iGraphicsWindow;
+							Info.iImageSource = iImageSource;
+							Info.AllocationType = AllocationType_Linear;
+							Info.TextureUsage = (TextureUsageFlags)(TextureUsage_SampledBit | TextureUsage_TransferDstBit);
+							ResourceHeaderCreateInfo MainCreateInfo;
+							memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+							MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Texture;
+							MainCreateInfo.Name = NULL;
+							Object_Ref_Create_ResourceHeader(&iTextureHeader, MainCreateInfo, &Info, 0);
+							Object_Ref_Add_Object_ResourceHeaderChild(iTextureHeader, iObject, 0);
+						}
+						CreateInfoMaterial.EmissiveTexture.iTexture = iTextureHeader;
+					}
+
+					ResourceHeaderCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_ResourceHeader(&iMaterial, MainCreateInfo, &CreateInfoMaterial, 0);
+					Object_Ref_Add_Object_ResourceHeaderChild(iMaterial, iObject, 0);
+				}
+
+				{
+					RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(iMaterial, true, false, 0);
+					pMaterial->BaseColourMode = MaterialMode_Alpha;
+					Object_Ref_End_ResourceHeaderPointer(iMaterial, true, false, 0);
+
+					ElementGraphicsCreateInfo CreateInfo;
+					memset(&CreateInfo, 0, sizeof(CreateInfo));
+					CreateInfo.iMaterial = iMaterial;
+					CreateInfo.iGraphicsWindow = iGraphicsWindow;
+
+					CreateInfo.EffectCreateInfosSize = 1;
+					CreateInfo.EffectCreateInfos = (ElementGraphicsCreateInfoEffect*)calloc(CreateInfo.EffectCreateInfosSize, sizeof(*CreateInfo.EffectCreateInfos));
+
+
+					GraphicsEffectCreateInfoText InfoText;
+					memset(&InfoText, 0, sizeof(InfoText));
+
+					CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)GUIEffect_Text;
+					CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &InfoText;
+
+					InfoText.Text = (UTF8*)"Multiplier:";
+					InfoText.FontSize = 100;
+
+					InfoText.iFontsSize = 2;
+					InfoText.iFonts = (RHeaderFont**)calloc(InfoText.iFontsSize, sizeof(*InfoText.iFonts));
+					{
+						ResourceHeaderAllocation iFont;
+						RHeaderFontCreateInfo CreateInfoFont;
+						memset(&CreateInfoFont, 0, sizeof(CreateInfoFont));
+						Open_Data(&CreateInfoFont.Data, (UTF8*)"data\\Fonts\\NotoSerif\\NotoSerif-Regular.ttf");
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject, 0);
+						InfoText.iFonts[0] = iFont;
+						free(CreateInfoFont.Data.pData);
+					}
+					{
+						ResourceHeaderAllocation iFont;
+						RHeaderFontCreateInfo CreateInfoFont;
+						memset(&CreateInfoFont, 0, sizeof(CreateInfoFont));
+						Open_Data(&CreateInfoFont.Data, (UTF8*)"data\\Fonts\\NotoColorEmoji\\NotoColorEmoji.ttf");
+						ResourceHeaderCreateInfo MainCreateInfo;
+						memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+						MainCreateInfo.Identifier = (uint32_t)GUIHeader_Font;
+						MainCreateInfo.Name = NULL;
+						Object_Ref_Create_ResourceHeader(&iFont, MainCreateInfo, &CreateInfoFont, 0);
+						Object_Ref_Add_Object_ResourceHeaderChild(iFont, iObject, 0);
+						InfoText.iFonts[1] = iFont;
+						free(CreateInfoFont.Data.pData);
+					}
+
+					InfoText.Size[0] = 0.4f;
+					InfoText.Size[1] = 0.10f;
+
+					InfoText.Position[0] = 0.4f;
+					InfoText.Position[1] = 0.95f;
+
+					for (size_t i1 = 0; i1 < 2; i1++)
+						InfoText.BoundingBoxSize[i1] = InfoText.Size[i1];
+
+					for (size_t i1 = 0; i1 < 2; i1++)
+						InfoText.BoundingBoxPosition[i1] = InfoText.Position[i1];
+
+					ElementCreateInfo MainCreateInfo;
+					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+					MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
+					MainCreateInfo.Name = NULL;
+					Object_Ref_Create_Element(&iMultiplierText, MainCreateInfo, &CreateInfo, 0);
+					Object_Ref_Add_ResourceHeader_ElementChild(iMultiplierText, iResourceHeaderParent, 0);
+					free(CreateInfo.EffectCreateInfos);
+					free(InfoText.iFonts);
+				}
 		}
 		
 		

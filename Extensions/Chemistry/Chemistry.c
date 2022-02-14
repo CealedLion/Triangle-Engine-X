@@ -1648,7 +1648,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								memset(&PushConstants, 0, sizeof(PushConstants));
 								PushConstants.Part = 0;
 								PushConstants.Particles = pEffect->ParticlesSize;
-								//PushConstants.ChunkSize = pEffect->ChunkSize;
+								PushConstants.Multiplier = pEffect->Multiplier;
 								//PushConstants.Resolution = pEffect->Resolution;
 								vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
 									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
@@ -1660,7 +1660,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								memset(&PushConstants, 0, sizeof(PushConstants));
 								PushConstants.Part = 1;
 								PushConstants.Particles = pEffect->ParticlesSize;
-								//PushConstants.ChunkSize = pEffect->ChunkSize;
+								PushConstants.Multiplier = pEffect->Multiplier;
 								//PushConstants.Resolution = pEffect->Resolution;
 								vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
 									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
@@ -2114,6 +2114,7 @@ TEXRESULT Destroy_Simplified(ElementGraphics* pElement, ElementGraphics* pElemen
 		free(pEffect->Particles);
 		pEffect->Particles = NULL;
 		pEffect->ParticlesSize = 0;
+		pEffect->Multiplier = 0.0f;
 	}
 
 	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
@@ -4436,6 +4437,7 @@ TEXRESULT Create_Simplified(ElementGraphics* pElement, ChemistryEffectSimplified
 			return (Invalid_Parameter | Failure);
 		}
 #endif
+		pEffect->Multiplier = pEffectCreateInfo->Multiplier;
 		if (pEffectCreateInfo->ParticlesSize != 0)
 		{
 			pEffect->ParticlesSize = pEffectCreateInfo->ParticlesSize;
