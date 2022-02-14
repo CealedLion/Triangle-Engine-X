@@ -1,0 +1,439 @@
+#version 450
+#extension GL_KHR_vulkan_glsl : enable
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle {	
+	vec4 Position;
+	vec4 PositionVelocity;
+	vec4 Magnitude;
+	vec4 Acceleration;
+	//int Info0[2][2][2];
+	//int level;
+};
+
+layout(std430, set = 0, binding = 0) buffer ParticlesBuffer0 {
+	Particle ParticlesS[];
+}Particles0;
+layout(std430, set = 0, binding = 1) buffer ParticlesBuffer1 {
+	Particle ParticlesS[];
+}Particles1;
+
+layout(push_constant) uniform PushConstantsComputeFundamental {
+	int Part;
+	int Particles;
+	float ChunkSize;
+	int Resolution;
+}PushConstants;
+
+vec3 rotate (vec3 v, vec3 n, float a) {
+	return v * cos(a) + cross(n, v) * sin(a) + n * dot(n, v) * (1. - cos(a));
+}
+
+void main(void)
+{
+	if (PushConstants.Part == 0)
+	{
+		Particles0.ParticlesS[gl_GlobalInvocationID.x] = Particles1.ParticlesS[gl_GlobalInvocationID.x];
+	}
+	else if (PushConstants.Part == 1)
+	{	
+	for (int i = 0; i < PushConstants.Particles; i++) 
+	{	
+		if (distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz,
+					 Particles0.ParticlesS[i].Position.xyz) < 1.1f &&
+					 gl_GlobalInvocationID.x != i)
+		{					
+			float factor = 0.001f;
+
+			vec3 rela = normalize(vec3(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.x, Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.y, -Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.z));
+			mat3 rot = mat3(
+			rela.y, -rela.x, 0,
+			rela.x, rela.y, rela.z,
+			0,		-rela.z, rela.y
+			);
+
+			vec3 relamagc = rot * Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz;
+			vec3 relamagi = rot * Particles0.ParticlesS[i].Magnitude.xyz;
+
+			//EQUATION OF TRUE NATURE OF ENERGY
+			vec3 xc = (cross((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz));
+			vec3 yc = (Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+			vec3 zc = (cross(cross((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz));
+
+			vec3 xi = (cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz));
+			vec3 yi = (Particles0.ParticlesS[i].PositionVelocity.xyz);
+			vec3 zi = (cross(cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz));
+
+			vec3 relativemagc = ((xc * relamagc.x) + (yc * relamagc.y) + (zc * relamagc.z));
+			vec3 relativemagi = ((xi * relamagi.x) + (yi * relamagi.y) + (zi * relamagi.z));
+			
+			vec3 modmag = (relativemagi - relativemagc);
+
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz + ((modmag) * factor));
+
+			/*
+			non relativized
+			vec3 magc = Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz;
+			vec3 magi = Particles0.ParticlesS[i].Magnitude.xyz;
+
+			vec3 velc = Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz;
+			vec3 veli = Particles0.ParticlesS[i].PositionVelocity.xyz;
+
+			//it needs some sortt of difference dependant transform, like bigger difference = more force. i mean we dont know exactly what it is.
+			//we either choose distance in vector space or angle space.
+
+			//seemingly contradiction, global magnitude does not work to explain magnetic fields, relativized magnitude has problems with light??
+			//but out of both relativized is more promising. the problem with relativized mag light is the emission mainly
+
+			//END
+
+			//MAGNITUDE TRANSFORMATION		
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz += (magi - magc) * factor;
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz);*/
+		}
+		//TEMPORARY GRAVITY (not right)
+		//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz);
+		//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+	}
+
+	/*
+	non relativized
+	if (normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz) != normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz))
+	{
+
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = rotate(
+		(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz), 
+		(cross(normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz), normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz))),
+		0.7855f);
+	
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+	}*/
+
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].Position.xyz += normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) * 0.0005f;
+	}
+}
+
+	/*
+	//iteratively parse all octants in the chunk using the position it came up from  
+	//to find the next octant to parse, once all octants are parsed, move up.
+	//fix these indexes
+	ivec3 next[2][2][2] ={	{{ivec3(1, 0, 0), ivec3(1, 0, 1)},	{ivec3(1, 1, 0),  ivec3(1, 1, 1)}},
+							{{ivec3(0, 1, 0),  ivec3(0, 1, 1)},	{ivec3(0, 0, 1),  ivec3(-1, -1, -1)}}};
+	
+	int CurrentIndex = 0;
+	ivec3 Coordinate = ivec3(0);
+	while (CurrentIndex != -1)
+	{	
+		if (distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz,
+					 Particles0.ParticlesS[CurrentIndex].Position.xyz) < 0.4 && CurrentIndex != gl_GlobalInvocationID.x)
+		{
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = 
+				((Particles0.ParticlesS[CurrentIndex].PositionVelocity.xyz * Particles0.ParticlesS[CurrentIndex].Position.w)
+				* (-clamp(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz,
+				Particles0.ParticlesS[CurrentIndex].Position.xyz) - 0.05f, 0.0f, 1.0f) + 1.0f)) 
+				+ ((Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz)
+				* clamp(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz,
+				Particles0.ParticlesS[CurrentIndex].Position.xyz), 0.0f, 1.0f));
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+		}
+			
+		if (distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz,
+					 Particles0.ParticlesS[CurrentIndex].Position.xyz + Particles0.ParticlesS[CurrentIndex].PositionVelocity.xyz) < 0.4 && CurrentIndex != gl_GlobalInvocationID.x)
+		{
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = 
+				((Particles0.ParticlesS[CurrentIndex].PositionVelocity.xyz * Particles0.ParticlesS[CurrentIndex].Position.w)
+				* (-clamp(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz,
+				Particles0.ParticlesS[CurrentIndex].Position.xyz) - 0.05f, 0.0f, 1.0f) + 1.0f)) 
+				+ ((Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz)
+				* clamp(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz,
+				Particles0.ParticlesS[CurrentIndex].Position.xyz), 0.0f, 1.0f));
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+		}
+		
+		//get octant index from...	
+		ivec3 NextChunk = next[Coordinate.x][Coordinate.y][Coordinate.z];
+		if (NextChunk == ivec3(-1, -1, -1)) //all octants in this node have been parsed, go up.
+		{
+			int indextemp = CurrentIndex;
+			CurrentIndex = int(Particles0.ParticlesS[CurrentIndex].PositionVelocity.w);
+
+			//get center of particle's chunk.
+			float LevelChunkSize0 = (float(PushConstants.Resolution) / pow(2.0f, float(Particles0.ParticlesS[CurrentIndex].level)));
+			float ChunkSizeOffset0 = ((LevelChunkSize0 / 2.0f));
+			vec3 CurrentChunkPosition = (round((Particles0.ParticlesS[CurrentIndex].Position.xyz) / ChunkSizeOffset0) * ChunkSizeOffset0);
+
+			Coordinate = ivec3(clamp(((((Particles0.ParticlesS[indextemp].Position.xyz) - (CurrentChunkPosition.xyz)) + 1.0f) / 2), 0.0, 1.0));
+			//if parent == -1 then its the root. and end the algorithm.
+		}
+		else //if not all octants are parsed...
+		{	
+			//go down if octant has valid data, otherwise stay at current index and increment overload.
+			//ignore if chunk doesnt intersect original particle interaction radius.
+
+			float LevelChunkSize0 = (float(PushConstants.Resolution) / pow(2.0f, float(Particles0.ParticlesS[Particles0.ParticlesS[CurrentIndex].Info0[NextChunk.x][NextChunk.y][NextChunk.z]].level)));
+			float ChunkSizeOffset0 = ((LevelChunkSize0 / 2.0f));
+			vec3 CurrentChunkPosition = (round((Particles0.ParticlesS[Particles0.ParticlesS[CurrentIndex].Info0[NextChunk.x][NextChunk.y][NextChunk.z]].Position.xyz) / ChunkSizeOffset0) * ChunkSizeOffset0);
+
+			if (Particles0.ParticlesS[CurrentIndex].Info0[NextChunk.x][NextChunk.y][NextChunk.z] != -1 &&
+			OverlapCube((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - vec3(0.41)), 
+						(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + vec3(0.41)),
+						CurrentChunkPosition.xyz - vec3(LevelChunkSize0 * 8),
+						CurrentChunkPosition.xyz + vec3(LevelChunkSize0 * 8)) == true)
+			{ 		
+				Coordinate = ivec3(0);
+				CurrentIndex = Particles0.ParticlesS[CurrentIndex].Info0[NextChunk.x][NextChunk.y][NextChunk.z];						
+			}
+			else 
+			{
+				Coordinate = ivec3(NextChunk);
+			}		
+		}
+
+	}*/
+
+				/*
+			aa rela is wrong
+			vec3 rela = normalize(vec3(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.x, Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.y, -Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.z));
+
+			mat3 rot = mat3(
+			rela.y, -rela.x, 0,
+			rela.x, rela.y, rela.z,
+			0,		-rela.z, rela.y
+			);
+
+			vec3 relamagA = rot * modmagA;
+			vec3 relamagS = rot * modmagS;
+			*/
+			//vec3 magc = rot * Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz;
+			//vec3 magi = rot * Particles0.ParticlesS[i].Magnitude.xyz;
+
+			//EQUATION OF TRUE NATURE OF ENERGY
+			//vec3 xc = (cross((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz));
+			//vec3 yc = (Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+			//vec3 zc = (cross(cross((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz));
+
+			//vec3 xi = (cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz));
+			//vec3 yi = (Particles0.ParticlesS[i].PositionVelocity.xyz);
+			//vec3 zi = (cross(cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz));
+
+			//vec3 relativemagc = ((xc * magc.x) + (yc * magc.y) + (zc * magc.z));
+			//vec3 relativemagi = ((xi * magi.x) + (yi * magi.y) + (zi * magi.z));
+			/*
+			velocity and magnitude should both be conserved and be related.
+
+			magnitude is when velocity is cancelled out?? like p - n  ? is that really what magnitude is?? the restoring force to energy cancellation? or the conservation?
+
+			what would magnitude have to be for gravity to work.
+
+			vec3 aaa = Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz - Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz;
+			//aaa = zc;
+
+			//the equation doesnt like if position is the same between i and c
+
+			mat3 inv = inverse(mat3(
+			xc.x, xc.y, xc.z,
+			yc.x, yc.y, yc.z,
+			zc.x, zc.y, zc.z));
+
+			aaa = (inv) * aaa;
+
+			vec3 modmagnitude = aaa;
+			*/
+			//SUBTRACTING THE ENERGY FROM THE MAGNITUDE TO SATISFY CONSERVATION OF ENERGY.
+			//Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz -= (modmagnitude) * 0.1;
+
+			//ADDING THE ENERGY TO THE MAGNITUDE ADJUSTED FOR VELOCITY AND DIRECTION.
+			//Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz += (modmagnitude) * 0.0000001;
+		//	Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz);
+
+		
+			/*
+			//reverse relative to velocity c pls .
+			vec3 magaddA = (magi + magc); 
+
+			in situations where magaddA is 0, it doesnt need to transform anyways so its fine;
+
+			vec3 relaA = vec3(-magaddA.x, magaddA.y, -magaddA.z);		
+			mat3 rotA = mat3(
+			relaA.y, -relaA.x, 0,
+			relaA.x, relaA.y, relaA.z,
+			0,		-relaA.z, relaA.y
+			);
+			vec3 rotmagi = rotA * magi;
+
+			vec3 relacA = vec3(-magc.x, magc.y, -magc.z);		
+			mat3 rotcA = mat3(
+			relacA.y, -relacA.x, 0,
+			relacA.x, relacA.y, relacA.z,
+			0,		-relacA.z, relacA.y
+			);
+			vec3 rotmagc = rotcA * magc;
+
+			velc will never be 0 so its fine.;
+
+			vec3 relvelcc = vec3(velc.x, velc.y, velc.z);		
+			mat3 rotrelvelcc = mat3(
+			relvelcc.y, -relvelcc.x, 0,
+			relvelcc.x, relvelcc.y, relvelcc.z,
+			0,		-relvelcc.z, relvelcc.y
+			);			
+
+			magc might be 0 so figure out what happens. if magc is 0 then transform is in line with velc
+
+			vec3 relmagcc = vec3(magc.x, magc.y, magc.z);	
+			mat3 rotrelmagcc = mat3(
+			relmagcc.y, -relmagcc.x, 0,
+			relmagcc.x, relmagcc.y, relmagcc.z,
+			0,		-relmagcc.z, relmagcc.y
+			);	
+
+			vec3 modmagA = (rotmagc - rotmagi);
+
+									//THIS IS THE TRANSFORM VECTOR TO SATISFY 3D ENERGY CONSERVATION.
+			//vector goes from interacting to current
+			//MAKE RELATIVE MAGNITUDEDIFFERENCE!!!! mayby subtract?? 
+
+			vec3 eq = vec3(0, 1, 0) - Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz; // 0 or 2
+			//THSI CAN EITHER BE 2 or -2 IN OPPOSITE MAGNITUDE INT ERACTIONS DEPENDING ON WHAT ONE IS CURREMT, NOT RIGHT. MUST BE RELATIVE!! IE OPPOSITE MUST ALWAYS BE -2
+			//1 + 0 when align, -1 + 2 when opposite.
+			vec3 addvec = (normalize(normalize(Particles0.ParticlesS[i].Magnitude.xyz) + (-eq)) - normalize(normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz) + (eq)));
+			//vec3 addvec = ((Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz) - (Particles0.ParticlesS[i].Magnitude.xyz)) * Particles0.ParticlesS[i].Magnitude.y;
+			//vec3 addvec = vec3(0, 1 * (Particles0.ParticlesS[i].Magnitude.y * Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.y), 0);
+
+			//this makes it -2 to 0 instead of -2 to 2 for example
+			//addvec +=  vec3(0, 1, 0) - Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz;
+			addvec += vec3(0, 1, 0);	
+
+
+			//ADD VECTOR NEEDS TO BE ROTATED IN LINE WITH THE VECTOR OF THE INTERACTING ENERGY;
+			//GETTING THE AXISES 
+			//if one of the are inverted just flip one of these axis;
+			vec3 x = cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz);
+			vec3 y = Particles0.ParticlesS[i].PositionVelocity.xyz;
+			vec3 z = (Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz); //z might be wrong
+
+			//ROTATING THE VECTOR
+			vec3 modmag = (x * addvec.x) + (y * addvec.y) + (z * addvec.z);
+
+
+			//does this need?, yes it does, but find out more about magnitude;
+			//removing velocity to other particles;
+			//mayby this should be before adding??;
+
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += modmag * 0.01; 
+			
+			//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz -= Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * 0.01;
+	
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+
+			//DO GRAVITY WHICH IS POSITIONAL NORMALIZATION AND MAGNITUDE CHANGE.
+
+			//			gravity needs to increase magnitude in z
+
+			//Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz += vec3(0, 0, 0.01);
+			/*
+			//MAGNITUDE
+			ADD MAGNITUDE UNTIL NORMALIZATION (normalization means no potential difference);
+			normalization of perpindicular;
+			turn magmod into magnitude relative to the current vector;
+			try to use an inverse of the axis redefine function;
+
+			vec3 addvec1 = ((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) -
+						   (Particles0.ParticlesS[i].Position.xyz + Particles0.ParticlesS[i].PositionVelocity.xyz));
+
+			vec3 x1 = cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].PositionVelocity.xyz);
+			vec3 y1 = Particles0.ParticlesS[i].PositionVelocity.xyz;
+			vec3 z1 = (Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz); //z might be wrong
+
+			//vec3 magmod = (x1 * addvec1) + (y1 * addvec1) + (z1 * addvec1);
+
+			JUST GET DISTANCE BETWEEN VECTOR AND AXIS BRO;
+
+			distance(x1, addvec1)
+
+			float x = (x1 * addvec1);
+			float y = (y1 * addvec1);
+			float z = (z1 * addvec1);
+
+
+			vec3 finalvec1 = magmod 
+			efse;
+
+
+
+			remove magnitude too;
+			mayby this should be before adding??;
+
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz -= Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz;
+
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz += magmod * 0.001; 
+			*/
+
+			/*
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (Particles0.ParticlesS[i].PositionVelocity.xyz * (Particles0.ParticlesS[i].Position.w * Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.w)) * 0.001;
+			//REMOVE ENERGY TOO!
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz -= (Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) * 0.001;
+
+			//ADD THE GRAVITY. l o l 
+
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) * 0.001;
+			//does it also need to subtract?
+			*/
+			/*
+			vec3 v0 = (Particles0.ParticlesS[i].PositionVelocity.xyz); // * (Particles0.ParticlesS[i].Position.w * Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.w)
+			vec3 v1 = (Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
+
+			vec3 DifferenceV = normalize((Particles0.ParticlesS[i].Position.xyz + v0) - (Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + v1));
+			vec3 midvector = normalize(cross(v1, v0));
+
+			
+			vec3 eee =  normalize(midvector) - normalize(cross(v1, DifferenceV));
+			if (length(eee) == 2.0f)
+			{
+				midvector *= -1.0f;
+			}
+			
+			//this kicks it off deadzones
+			//if (length(midvector) != 1.0f)
+			{
+				//midvector = -normalize(cross(DifferenceV, v1));
+			}
+			//midvector = -normalize(cross(DifferenceV, v1));
+			//vec3 midvector = normalize(cross(DifferenceV, Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz));
+			//vec3 midvector = normalize(cross(cross(cross(DifferenceV, Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz));
+			//vec3 midvector = normalize(cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.w, Particles0.ParticlesS[i].PositionVelocity.xyz * Particles0.ParticlesS[i].Position.w));
+			
+			//if (length(midvector) == 1.0f)
+			{
+
+
+			//float angle = -acos(dot(normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz	* Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.w	),
+			//						normalize(Particles0.ParticlesS[i].PositionVelocity.xyz							* Particles0.ParticlesS[i].Position.w						)
+			//					  )) * 0.00005;
+			float angle = 0.005f;
+			//float angle = distanceVP * 0.01;
+
+			// Right Hand, Rodrigues' rotation formula:
+			//	v = v*cos(t) + (kxv)sin(t) + k*(k.v)(1 - cos(t))
+			
+			vec3 v = Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz;
+			vec3 v1, v2;
+			float c = cos(angle);
+			float s = sin(angle);
+			vec3 k = normalize(midvector);			
+			v1 = v*c;
+			v2 = cross(k,v);
+			v2 = v2*s;
+			v1 = v1+v2;
+			v2 = k*(dot(k, v) * (1.0f - c));
+			v = v1+v2;
+			//applying the transform
+			//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = v;
+			}
+			
+			//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += normalize(differencep) * 0.01;
+			
+
+			*/
+

@@ -1,0 +1,89 @@
+#version 450
+#extension GL_KHR_vulkan_glsl : enable
+#define PI 3.141592653589793238462643
+
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+struct Particle {	
+	vec4 Position;
+	vec4 PositionVelocity;
+};
+
+layout(std430, set = 0, binding = 0) buffer ParticlesBuffer {
+	Particle ParticlesS[];
+}Particles;
+
+
+layout (set = 0, binding = 1, r32f) uniform image3D Result0;
+layout (set = 0, binding = 2, r32f) uniform image3D Result1;
+
+
+layout(push_constant) uniform PushConstantsButterfly {
+	int PingPongIndex;
+}PushConstants;
+
+void main(void)
+{
+	vec4 TotalData = vec4(0);
+	int size = 1;	
+	if (PushConstants.PingPongIndex == 0)
+	{
+		for (int ix = -size; ix <= size; ix++) {
+			for (int iy = -size; iy <= size; iy++) {
+				for (int iz = -size; iz <= size; iz++) {	
+					vec4 Data0 = imageLoad(Result0, ivec3(gl_GlobalInvocationID.xyz) + ivec3(ix, iy, iz));
+					vec4 Data1 = imageLoad(Result0, ivec3(gl_GlobalInvocationID.xyz));
+
+					vec3 Coord0 = ivec3(ix, iy, iz);
+					vec3 Coord1 = ivec3(0);
+					
+					float NormalizedFactor0 = 1.0f / clamp(max(max(abs(Data0.x), abs(Data0.y)), abs(Data0.z)), 0.000000000001, 100000000.0);
+					vec3 Normalized0 = Data0.xyz * NormalizedFactor0;
+
+					float Difference = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Coord0 + Normalized0, vec3(gl_GlobalInvocationID.xyz)), 0.0, 1.0) + 1.0);
+
+					TotalData.xyz += ((Data0.xyz + ((gl_GlobalInvocationID.xyz + Coord0 + Normalized0) - gl_GlobalInvocationID.xyz)) * Difference);
+					TotalData.w += Data0.w * Difference;
+
+					//remove energy but dont change direction smh?...
+				//	float Difference1 = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Data1.xyz, vec3(gl_GlobalInvocationID.xyz) + Coord0), 0.0, 0.99) + 0.99) / 0.99;
+					//TotalData.xyz -= Data1.xyz * Difference1;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int ix = -size; ix <= size; ix++) {
+			for (int iy = -size; iy <= size; iy++) {
+				for (int iz = -size; iz <= size; iz++) {		 
+					vec4 Data0 = imageLoad(Result1, ivec3(gl_GlobalInvocationID.xyz) + ivec3(ix, iy, iz));
+					vec4 Data1 = imageLoad(Result1, ivec3(gl_GlobalInvocationID.xyz));
+
+					vec3 Coord0 = ivec3(ix, iy, iz);
+					vec3 Coord1 = ivec3(0);
+
+					float NormalizedFactor0 = 1.0f / clamp(max(max(abs(Data0.x), abs(Data0.y)), abs(Data0.z)), 0.000000000001, 100000000.0);
+					vec3 Normalized0 = Data0.xyz * NormalizedFactor0;
+
+					float Difference = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Coord0 + Normalized0, vec3(gl_GlobalInvocationID.xyz)), 0.0, 1.0) + 1.0);
+					
+					TotalData.xyz += ((Data0.xyz + ((gl_GlobalInvocationID.xyz + Coord0 + Normalized0) - gl_GlobalInvocationID.xyz)) * Difference);
+					TotalData.w += Data0.w * Difference;
+
+					//float Difference1 = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Data1.xyz, vec3(gl_GlobalInvocationID.xyz) + Coord0), 0.0, 0.99) + 0.99) / 0.99;
+					//TotalData.xyz -= Data1.xyz * Difference1;
+				}
+			}
+		}
+	}
+
+	if (PushConstants.PingPongIndex == 0)
+	{
+		imageStore(Result1, ivec3(gl_GlobalInvocationID.xyz), TotalData);
+	}
+	else
+	{
+		imageStore(Result0, ivec3(gl_GlobalInvocationID.xyz), TotalData);
+	}
+}

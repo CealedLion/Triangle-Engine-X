@@ -11,7 +11,9 @@
 *.sln.docstates
 *.TEIF
 *.teif
-data/
+**/data/*
+!**/data/Shaders
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

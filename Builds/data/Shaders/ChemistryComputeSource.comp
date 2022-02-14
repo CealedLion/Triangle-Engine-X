@@ -1,0 +1,38 @@
+#version 450
+#extension GL_KHR_vulkan_glsl : enable
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle {	
+	vec4 Position;
+	vec4 PositionVelocity;
+};
+
+layout(std430, set = 0, binding = 0) buffer ParticlesBuffer {
+	Particle ParticlesS[];
+}Particles;
+
+
+layout (set = 0, binding = 1, r32f) uniform image3D Result0;
+layout (set = 0, binding = 2, r32f) uniform image3D Result1;
+
+layout(push_constant) uniform PushConstantsButterfly {
+	int PingPongIndex;
+	float Time;
+}PushConstants;
+
+void main(void)
+{
+	Particles.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.w = cos(PushConstants.Time);
+
+	if (PushConstants.PingPongIndex == 0)
+	{
+		imageStore(Result0, ivec3(Particles.ParticlesS[gl_GlobalInvocationID.x].Position),
+		vec4(vec3(Particles.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity), Particles.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.w));
+	}
+	else
+	{
+		imageStore(Result1, ivec3(Particles.ParticlesS[gl_GlobalInvocationID.x].Position),
+		vec4(vec3(Particles.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity), Particles.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.w));
+	}
+}
