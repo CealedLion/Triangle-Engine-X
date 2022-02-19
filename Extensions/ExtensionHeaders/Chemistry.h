@@ -25,7 +25,7 @@ typedef enum ChemistryElementType {
 	ChemistryElementType_Carbon,
 	ChemistryElementType_Nitrogen,
 	ChemistryElementType_Oxygen,
-	ChemistryElementType_Flouride,
+	ChemistryElementType_Flourine,
 	ChemistryElementType_Neon,
 	ChemistryElementType_Sodium,
 	ChemistryElementType_Magnesium,
@@ -150,7 +150,7 @@ const uint8_t ChemistryElementsElectrons[][8] = {
 	{2, 4, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Carbon
 	{2, 5, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Nitrogen
 	{2, 6, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Oxygen
-	{2, 7, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Flouride
+	{2, 7, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Flourine
 	{2, 8, 0, 0, 0, 0, 0, 0,}, //ChemistryElementType_Neon
 	{2, 8, 1, 0, 0, 0, 0, 0,}, //ChemistryElementType_Sodium
 	{2, 8, 2, 0, 0, 0, 0, 0,}, //ChemistryElementType_Magnesium

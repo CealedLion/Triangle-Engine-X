@@ -1397,7 +1397,7 @@ void Draw_Simplified(ElementGraphics* pElement, ResourceHeader* pHeader, Object*
 
 	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
-	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 8, pEffect->ParticlesSize, 0, 0);
+	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 4, pEffect->ParticlesSize, 0, 0);
 	Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 }
 
@@ -2789,7 +2789,7 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		RasterizationState.depthClampEnable = VK_FALSE;
 		RasterizationState.rasterizerDiscardEnable = VK_FALSE;
 		RasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-		RasterizationState.lineWidth = 1.0f;
+		RasterizationState.lineWidth = 6.0f;
 		RasterizationState.cullMode = VK_CULL_MODE_NONE; //CULL MODE
 		RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		RasterizationState.depthBiasEnable = VK_FALSE;
