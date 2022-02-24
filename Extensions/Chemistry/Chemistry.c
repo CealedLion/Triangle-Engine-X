@@ -382,7 +382,6 @@ FragmentSimpleModelVariable_PushConstantPointer_struct_PushConstants, FragmentSi
 (1<<SpvWordCountShift)|SpvOpFunctionEnd\
 }
 
-
 typedef enum VertexShaderCovalentBondVariables {
 	VertexCovalentBondExtension_GLSL450 = 1,
 	VertexCovalentBondFunction_Main,
@@ -1380,7 +1379,10 @@ SPIRV_Header(ButterflyVariables_MAX)\
 void Draw_Simplified(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectSimplified* pEffect,
 	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex)
 {
-	Engine_Ref_Lock_Mutex(&pEffect->mutex);
+	if (pEffect->ParticlesSize != 0)
+	{
+	
+	//Engine_Ref_Lock_Mutex(&pEffect->mutex);
 	VkBuffer vkBuffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
 	VkDeviceSize VkOffset = pEffect->AllocationParticles1.Pointer;
 
@@ -1398,7 +1400,8 @@ void Draw_Simplified(ElementGraphics* pElement, ResourceHeader* pHeader, Object*
 	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
 	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 4, pEffect->ParticlesSize, 0, 0);
-	Engine_Ref_Unlock_Mutex(&pEffect->mutex);
+	//Engine_Ref_Unlock_Mutex(&pEffect->mutex);
+	}
 }
 
 void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFullModel* pEffect,
@@ -1411,7 +1414,7 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 
 	mat4 CameraPositionMatrix;
 	glm_mat4_identity(CameraPositionMatrix);
-	Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCamera->Header.iObjects[0]);
+	Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCamera->Header.iObjects[0], ThreadIndex);
 	//this is retarded;
 	glm_mat4_inv_precise_sse2(CameraPositionMatrix, CameraPositionMatrix);
 
@@ -1444,7 +1447,10 @@ void Draw_FullModel(ElementGraphics* pElement, ResourceHeader* pHeader, Object* 
 void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pObject, ChemistryEffectFundamental* pEffect,
 	RHeaderGraphicsWindow* pGraphicsWindow, uint32_t FrameIndex, RHeaderMaterial* pMaterialHeader, GPU_Allocation* GPU_Buffers, uint64_t* GPU_BufferPointers, RHeaderCamera* pCamera, mat4 CameraVP, uint32_t ThreadIndex)
 {	
-	Engine_Ref_Lock_Mutex(&pEffect->mutex);
+	if (pEffect->ParticlesSize != 0)
+	{
+
+	//Engine_Ref_Lock_Mutex(&pEffect->mutex);
 	VkBuffer vkBuffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
 	VkDeviceSize VkOffset = pEffect->AllocationParticles1.Pointer;
 
@@ -1462,7 +1468,8 @@ void Draw_Fundamental(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 	vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
 	vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 8, pEffect->ParticlesSize, 0, 0);
-	Engine_Ref_Unlock_Mutex(&pEffect->mutex);
+	//Engine_Ref_Unlock_Mutex(&pEffect->mutex);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1588,14 +1595,14 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 				for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
 				{
 					ChemistryEffectSimplified* pEffect = (ChemistryEffectSimplified*)((void*)((uint64_t)pElement->Effects + pointer));
-					if (pEffect->Header.Identifier == ChemistryEffects_Simplified)
+					if (pEffect->Header.Identifier == ChemistryEffects_Simplified && pEffect->ParticlesSize != 0)
 					{
 						VkResult res = VK_SUCCESS;
 
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 						//Rendering
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-						Engine_Ref_Lock_Mutex(&pEffect->mutex);
+						//Engine_Ref_Lock_Mutex(&pEffect->mutex);
 						{
 							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
 							Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -1649,7 +1656,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								PushConstants.Part = 0;
 								PushConstants.Particles = pEffect->ParticlesSize;
 								PushConstants.Multiplier = pEffect->Multiplier;
-								//PushConstants.Resolution = pEffect->Resolution;
+								//glm_vec3_copy(pEffect->Offset, PushConstants.Offset);
 								vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
 									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
@@ -1661,7 +1668,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								PushConstants.Part = 1;
 								PushConstants.Particles = pEffect->ParticlesSize;
 								PushConstants.Multiplier = pEffect->Multiplier;
-								//PushConstants.Resolution = pEffect->Resolution;
+								//glm_vec3_copy(pEffect->Offset, PushConstants.Offset);
 								vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
 									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
@@ -1710,7 +1717,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								0, NULL
 							);
 						}
-						Engine_Ref_Unlock_Mutex(&pEffect->mutex);
+						//Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 					}
 					pointer += pEffect->Header.AllocationSize;
 				}
@@ -1916,14 +1923,14 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 				for (size_t i3 = 0; i3 < pElement->EffectsSize; i3++)
 				{
 					ChemistryEffectFundamental* pEffect = (ChemistryEffectFundamental*)((void*)((uint64_t)pElement->Effects + pointer));
-					if (pEffect->Header.Identifier == ChemistryEffects_Fundamental)
+					if (pEffect->Header.Identifier == ChemistryEffects_Fundamental && pEffect->ParticlesSize != 0)
 					{
 						VkResult res = VK_SUCCESS;
 
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 						//Rendering
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-						Engine_Ref_Lock_Mutex(&pEffect->mutex);
+						//Engine_Ref_Lock_Mutex(&pEffect->mutex);
 						{
 							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
 							Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -2038,7 +2045,7 @@ void DrawSignature_Fundamental(GraphicsEffectSignature* pSignature, RHeaderGraph
 								0, NULL
 							);
 						}
-						Engine_Ref_Unlock_Mutex(&pEffect->mutex);
+						//Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 					}
 					pointer += pEffect->Header.AllocationSize;
 				}
@@ -2104,10 +2111,10 @@ TEXRESULT Destroy_Simplified(ElementGraphics* pElement, ElementGraphics* pElemen
 		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles1);
 		memset(&pEffect->AllocationParticles1, 0, sizeof(pEffect->AllocationParticles1));
 	}
-	if (((pEffectOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pEffect->mutex, &pEffectOverlay->mutex) != Success) : true) && TestNULL(&pEffect->mutex, sizeof(pEffect->mutex)) != Success) {
-		Engine_Ref_Destroy_Mutex(&pEffect->mutex);
-		memset(&pEffect->mutex, 0, sizeof(pEffect->mutex));
-	}
+	//if (((pEffectOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pEffect->mutex, &pEffectOverlay->mutex) != Success) : true) && TestNULL(&pEffect->mutex, sizeof(pEffect->mutex)) != Success) {
+		//Engine_Ref_Destroy_Mutex(&pEffect->mutex);
+		//memset(&pEffect->mutex, 0, sizeof(pEffect->mutex));
+	//}
 
 	//for full destruct items.
 	if ((((pEffectOverlay != NULL) ? (pEffect->Particles != pEffectOverlay->Particles) : false) || Full == true) && pEffect->Particles != NULL) {
@@ -2249,10 +2256,10 @@ TEXRESULT Destroy_Fundamental(ElementGraphics* pElement, ElementGraphics* pEleme
 		Graphics_Ref_GPUfree(pGraphicsWindow->pLogicalDevice, &pEffect->AllocationParticles1);
 		memset(&pEffect->AllocationParticles1, 0, sizeof(pEffect->AllocationParticles1));
 	}
-	if (((pEffectOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pEffect->mutex, &pEffectOverlay->mutex) != Success) : true) && TestNULL(&pEffect->mutex, sizeof(pEffect->mutex)) != Success) {
-		Engine_Ref_Destroy_Mutex(&pEffect->mutex);
-		memset(&pEffect->mutex, 0, sizeof(pEffect->mutex));
-	}
+	//if (((pEffectOverlay != NULL) ? (Engine_Ref_Compare_Mutex(&pEffect->mutex, &pEffectOverlay->mutex) != Success) : true) && TestNULL(&pEffect->mutex, sizeof(pEffect->mutex)) != Success) {
+	//	Engine_Ref_Destroy_Mutex(&pEffect->mutex);
+	//	memset(&pEffect->mutex, 0, sizeof(pEffect->mutex));
+	//}
 
 	//for full destruct items.
 	if ((((pEffectOverlay != NULL) ? (pEffect->Particles != pEffectOverlay->Particles) : false) || Full == true) && pEffect->Particles != NULL) {
@@ -2272,21 +2279,21 @@ TEXRESULT Destroy_Fundamental(ElementGraphics* pElement, ElementGraphics* pEleme
 TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplified* pEffect, uint32_t ThreadIndex)
 {
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-	#ifndef NDEBUG
+#ifndef NDEBUG
 	if (pGraphicsWindow == NULL) {
 		Engine_Ref_ObjectError("ReCreate_Simplified()", "pElement", pElement, "ElementGraphics.iGraphicsWindow Invalid.");
 		return (Invalid_Parameter | Failure);
 	}
-	#endif
-
+#endif
 	VkResult res = VK_SUCCESS;
 	TEXRESULT tres = Success;
+	//Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
 
-	Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//DescriptorLayout
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	if (pEffect->ParticlesSize != 0)
+	{
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//DescriptorLayout
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	{
 		VkDescriptorSetLayoutBinding BindingsCompute[ChemistrySimplifiedBuffersCount] = { (ChemistryFundamentalBuffersCount) * sizeof(*BindingsCompute) };
@@ -2665,8 +2672,8 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 
 		uint64_t InputBindingDescsSize = 1;
 		VkVertexInputBindingDescription InputBindingDescs[1] = { sizeof(InputBindingDescs) * InputBindingDescsSize };
-		uint64_t InputAttribDescsSize = 3;
-		VkVertexInputAttributeDescription InputAttribDescs[3] = { sizeof(InputAttribDescs) * InputAttribDescsSize };
+		uint64_t InputAttribDescsSize = 4;
+		VkVertexInputAttributeDescription InputAttribDescs[4] = { sizeof(InputAttribDescs) * InputAttribDescsSize };
 
 		//Buffer Binding Main
 		InputBindingDescs[0].binding = 0;
@@ -2688,6 +2695,11 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		InputAttribDescs[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 		InputAttribDescs[2].location = 2;
 		InputAttribDescs[2].offset = offsetof(GPU_Particle, Magnitude);
+
+		InputAttribDescs[3].binding = 0;
+		InputAttribDescs[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		InputAttribDescs[3].location = 3;
+		InputAttribDescs[3].offset = offsetof(GPU_Particle, Acceleration);
 
 
 		//pipeline
@@ -2789,7 +2801,7 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		RasterizationState.depthClampEnable = VK_FALSE;
 		RasterizationState.rasterizerDiscardEnable = VK_FALSE;
 		RasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-		RasterizationState.lineWidth = 6.0f;
+		RasterizationState.lineWidth = 10.0f;
 		RasterizationState.cullMode = VK_CULL_MODE_NONE; //CULL MODE
 		RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		RasterizationState.depthBiasEnable = VK_FALSE;
@@ -3149,8 +3161,10 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 	vkFreeCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 	vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
 	*/
+	}
+
+
 	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
-	return (Success);
 
 	return (Success);
 }
@@ -3585,16 +3599,17 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-
 	VkResult res = VK_SUCCESS;
 	TEXRESULT tres = Success;
 
-	Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
+	//Engine_Ref_Create_Mutex(&pEffect->mutex, MutexType_Plain);
+	if (pEffect->ParticlesSize != 0)
+	{
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//DescriptorLayout
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//DescriptorLayout
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	{
 		VkDescriptorSetLayoutBinding BindingsCompute[ChemistryFundamentalBuffersCount] = { (ChemistryFundamentalBuffersCount) * sizeof(*BindingsCompute) };
 		size_t i = 0;
@@ -3779,9 +3794,9 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 		ShaderStages[1].pName = "main";
 
 		uint64_t InputBindingDescsSize = 1;
-		VkVertexInputBindingDescription InputBindingDescs[1] = {sizeof(InputBindingDescs) * InputBindingDescsSize };
-		uint64_t InputAttribDescsSize = 3;
-		VkVertexInputAttributeDescription InputAttribDescs[3] = { sizeof(InputAttribDescs) * InputAttribDescsSize };
+		VkVertexInputBindingDescription InputBindingDescs[1] = { sizeof(InputBindingDescs) * InputBindingDescsSize };
+		uint64_t InputAttribDescsSize = 4;
+		VkVertexInputAttributeDescription InputAttribDescs[4] = { sizeof(InputAttribDescs) * InputAttribDescsSize };
 
 		//Buffer Binding Main
 		InputBindingDescs[0].binding = 0;
@@ -3803,6 +3818,11 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 		InputAttribDescs[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 		InputAttribDescs[2].location = 2;
 		InputAttribDescs[2].offset = offsetof(GPU_Particle, Magnitude);
+
+		InputAttribDescs[3].binding = 0;
+		InputAttribDescs[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		InputAttribDescs[3].location = 3;
+		InputAttribDescs[3].offset = offsetof(GPU_Particle, Acceleration);
 
 
 		//pipeline
@@ -3967,7 +3987,7 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Rendering
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
+
 	/*
 	VkCommandPool VkCmdPool = NULL;
 	VkCommandBuffer VkCmdBuffer = NULL;
@@ -4264,6 +4284,9 @@ TEXRESULT ReCreate_Fundamental(ElementGraphics* pElement, ChemistryEffectFundame
 	vkFreeCommandBuffers(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, 1, &VkCmdBuffer);
 	vkDestroyCommandPool(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VkCmdPool, NULL);
 	*/
+
+	}
+
 	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
@@ -4276,7 +4299,9 @@ TEXRESULT Pack_Simplified(const ElementGraphics* pElement, ElementGraphics* pCop
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedEffect->mutex, 0, sizeof(pCopiedEffect->mutex));
+		//memset(&pCopiedEffect->mutex, 0, sizeof(pCopiedEffect->mutex));
+
+		memset(&pCopiedEffect->Offset, 0, sizeof(pCopiedEffect->Offset));
 
 		memset(&pCopiedEffect->AllocationParticles0, 0, sizeof(pCopiedEffect->AllocationParticles0));
 		memset(&pCopiedEffect->AllocationParticles1, 0, sizeof(pCopiedEffect->AllocationParticles1));
@@ -4352,7 +4377,7 @@ TEXRESULT Pack_Fundamental(const ElementGraphics* pElement, ElementGraphics* pCo
 {
 	if (pData != NULL)
 	{
-		memset(&pCopiedEffect->mutex, 0, sizeof(pCopiedEffect->mutex));
+		//memset(&pCopiedEffect->mutex, 0, sizeof(pCopiedEffect->mutex));
 
 		memset(&pCopiedEffect->AllocationParticles0, 0, sizeof(pCopiedEffect->AllocationParticles0));
 		memset(&pCopiedEffect->AllocationParticles1, 0, sizeof(pCopiedEffect->AllocationParticles1));
@@ -4507,6 +4532,67 @@ TEXRESULT Create_Fundamental(ElementGraphics* pElement, ChemistryEffectFundament
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Read Particles
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TEXRESULT ReadParticles_Simplified(RHeaderGraphicsWindow* pGraphicsWindow, ElementGraphics* pElement, ChemistryEffectSimplified* pEffect, uint64_t* pParticlesSize, GPU_Particle** pParticles, uint32_t ThreadIndex)
+{
+	VkResult res = VK_SUCCESS;
+
+	if (pEffect->ParticlesSize != 0)
+	{
+
+	
+	Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+	*pParticles = (GPU_Particle*)((void*)(((uint64_t)pEffect->AllocationParticles1.Allocater.pArenaAllocater->MappedMemory + pEffect->AllocationParticles1.Pointer)));
+	*pParticlesSize = pEffect->ParticlesSize;
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Write Particles
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TEXRESULT WriteParticles_Simplified(RHeaderGraphicsWindow* pGraphicsWindow, ElementGraphics* pElement, ChemistryEffectSimplified* pEffect, uint64_t ParticlesSize, GPU_Particle* Particles, uint32_t ThreadIndex)
+{	
+	if (pEffect->ParticlesSize != 0)
+	{
+	/*Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+	
+	{
+		VkMemoryRequirements MemoryRequirements = { sizeof(MemoryRequirements) };
+		MemoryRequirements.alignment = pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minStorageBufferOffsetAlignment;
+		MemoryRequirements.size = pEffect->ParticlesSize * sizeof(*pEffect->Particles);
+		MemoryRequirements.memoryTypeBits = NULL;
+		pEffect->AllocationParticles0 = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, MemoryRequirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
+		if (pEffect->AllocationParticles0.SizeBytes == NULL)
+		{
+			Engine_Ref_FunctionError("ReCreate_Simplified()", "Not Enough Space In GPU Memory!", NULL);
+			return (Out_Of_Memory_Result | Failure);
+		}
+		GPU_Particle* pParticles = (GPU_Particle*)((void*)(((uint64_t)pEffect->AllocationParticles0.Allocater.pArenaAllocater->MappedMemory + pEffect->AllocationParticles0.Pointer)));
+		memcpy(pParticles, pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+	}
+	{
+		VkMemoryRequirements MemoryRequirements = { sizeof(MemoryRequirements) };
+		MemoryRequirements.alignment = pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.minStorageBufferOffsetAlignment;
+		MemoryRequirements.size = pEffect->ParticlesSize * sizeof(*pEffect->Particles);
+		MemoryRequirements.memoryTypeBits = NULL;
+		pEffect->AllocationParticles1 = Graphics_Ref_GPUmalloc(pGraphicsWindow->pLogicalDevice, MemoryRequirements, TargetMemory_Src, AllocationType_Linear, ThreadIndex);
+		if (pEffect->AllocationParticles1.SizeBytes == NULL)
+		{
+			Engine_Ref_FunctionError("ReCreate_Simplified()", "Not Enough Space In GPU Memory!", NULL);
+			return (Out_Of_Memory_Result | Failure);
+		}
+		GPU_Particle* pParticles = (GPU_Particle*)((void*)(((uint64_t)pEffect->AllocationParticles1.Allocater.pArenaAllocater->MappedMemory + pEffect->AllocationParticles1.Pointer)));
+		memcpy(pParticles, pEffect->Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+	}
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex); */
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -4610,6 +4696,7 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Destroy_Chemistry"), &ChemistryRes.pDestroy_Chemistry, &Destroy_Chemistry, Destruct, 100.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::Update_Chemistry"), &ChemistryRes.pUpdate_Chemistry, &Update_Chemistry, EveryFrame, 0.01f, 0, NULL);
 
-
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::ReadParticles_Simplified"), &ChemistryRes.pReadParticles_Simplified, &ReadParticles_Simplified, NoCall, 0.0f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData("Chemistry::WriteParticles_Simplified"), &ChemistryRes.pWriteParticles_Simplified, &WriteParticles_Simplified, NoCall, 0.0f, 0, NULL);
 }
 

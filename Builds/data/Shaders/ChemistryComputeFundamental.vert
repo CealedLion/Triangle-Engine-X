@@ -4,10 +4,12 @@
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec4 PositionVelocity;
 layout(location = 2) in vec4 Magnitude;
+layout(location = 3) in vec4 Acceleration;
 
 layout(location = 0) out vec4 outPosition;
 layout(location = 1) out vec4 outPositionVelocity;
 layout(location = 2) out vec4 outMagnitude;
+layout(location = 3) out vec4 outAcceleration;
 
 struct Particle {	
 	vec4 Position;
@@ -34,6 +36,7 @@ void main(void)
 	outPosition = Position;
 	outPositionVelocity = PositionVelocity;
 	outMagnitude = Magnitude;
+	outAcceleration = Acceleration;
 
 	if (gl_VertexIndex == 0)
 	{

@@ -1498,7 +1498,7 @@ typedef enum GraphicsHeaderType{
 	GraphicsHeader_Camera = 1006,
 	GraphicsHeader_Light = 1007,
 	GraphicsHeader_Skin = 1008,
-	GraphicsHeader_Position = 109,
+	GraphicsHeader_Position = 1009,
 	GraphicsHeader_AnimationChannel = 1010,
 	GraphicsHeader_Animation = 1011,
 	GraphicsHeader_Material = 1012,
@@ -2665,7 +2665,7 @@ CreateInfo Parameters:
 */
 typedef struct GraphicsEffectCreateInfoGeneric2D {
 	vec2 Size; //size in percentage of screen.
-	vec3 Position; //position in percentage of screen.
+	//vec3 Position; //position in percentage of screen.
 	//bounding box means everything outside of it wont be rendered.
 	vec2 BoundingBoxSize; //size in percentage of screen.
 	vec2 BoundingBoxPosition; //position in percentage of screen.
@@ -2673,9 +2673,7 @@ typedef struct GraphicsEffectCreateInfoGeneric2D {
 	int TextureOffset[2];
 	int TextureSize[2];
 }GraphicsEffectCreateInfoGeneric2D;
-typedef struct GraphicsEffectGeneric2D {
-	GraphicsEffectTemplate Header; //required
-
+typedef struct GPU_GraphicsEffectGeneric2D {
 	vec2 Size; //size in percentage of screen.
 	vec3 Position; //position in percentage of screen.
 	//bounding box means everything outside of it wont be rendered.
@@ -2684,8 +2682,21 @@ typedef struct GraphicsEffectGeneric2D {
 
 	int TextureOffset[2];
 	int TextureSize[2];
+}GPU_GraphicsEffectGeneric2D;
+typedef struct GraphicsEffectGeneric2D {
+	GraphicsEffectTemplate Header; //required
+
+	vec2 Size; //size in percentage of screen.
+	//vec3 Position; //position in percentage of screen.
+	//bounding box means everything outside of it wont be rendered.
+	vec2 BoundingBoxSize; //size in percentage of screen.
+	vec2 BoundingBoxPosition; //position in percentage of screen.
+
+	int TextureOffset[2];
+	int TextureSize[2];
 
 	//every reinit
+
 #ifdef TEX_EXPOSE_GRAPHICS
 	VkPipeline VkPipeline;
 
@@ -2698,16 +2709,6 @@ typedef struct GraphicsEffectGeneric2D {
 	void* VkShaderFragment;
 #endif
 }GraphicsEffectGeneric2D;
-typedef struct GPU_GraphicsEffectGeneric2D {
-	vec2 Size; //size in percentage of screen.
-	vec3 Position; //position in percentage of screen.
-	//bounding box means everything outside of it wont be rendered.
-	vec2 BoundingBoxSize; //size in percentage of screen.
-	vec2 BoundingBoxPosition; //position in percentage of screen.
-
-	int TextureOffset[2];
-	int TextureSize[2];
-}GPU_GraphicsEffectGeneric2D;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Main
@@ -2921,12 +2922,12 @@ FormatDetails Graphics_Ref_Get_FormatDetails(GraphicsFormat format)
 
 	return function(format);
 }
-void Graphics_Ref_Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent)
+void Graphics_Ref_Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent, uint32_t ThreadIndex)
 {
-	void(*function)(mat4 * pMatrix, ObjectAllocation Parent) =
-		(void(*)(mat4 * pMatrix, ObjectAllocation Parent))GraphicsRes.pCalculate_TotalMatrix;
+	void(*function)(mat4 * pMatrix, ObjectAllocation Parent, uint32_t ThreadIndex) =
+		(void(*)(mat4 * pMatrix, ObjectAllocation Parent, uint32_t ThreadIndex))GraphicsRes.pCalculate_TotalMatrix;
 
-	function(pMatrix, Parent);
+	function(pMatrix, Parent, ThreadIndex);
 }
 
 #ifdef TEX_EXPOSE_GRAPHICS

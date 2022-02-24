@@ -960,7 +960,7 @@ typedef enum FragmentShader2DVariables {
 	Fragment2DConstant_int32_0,
 	Fragment2DConstant_int32_1,
 	Fragment2DConstant_int32_2,
-	Fragment2DConstant_int32_5,
+	Fragment2DConstant_int32_4,
 
 	Fragment2DConstant_float32vec2_NULL,
 	Fragment2DConstant_float32vec3_NULL,
@@ -1247,7 +1247,7 @@ Fragment2DVariable_UniformConstantPointer_SampledImage_float32_Emissive, Fragmen
 (4<<SpvWordCountShift)|SpvOpConstant, Fragment2DType_int32, Fragment2DConstant_int32_0, 0,\
 (4<<SpvWordCountShift)|SpvOpConstant, Fragment2DType_int32, Fragment2DConstant_int32_1, 1,\
 (4<<SpvWordCountShift)|SpvOpConstant, Fragment2DType_int32, Fragment2DConstant_int32_2, 2,\
-(4<<SpvWordCountShift)|SpvOpConstant, Fragment2DType_int32, Fragment2DConstant_int32_5, 5,\
+(4<<SpvWordCountShift)|SpvOpConstant, Fragment2DType_int32, Fragment2DConstant_int32_4, 4,\
 /*input locations*/\
 (4<<SpvWordCountShift)|SpvOpTypePointer, Fragment2DType_InputPointer_float32vec2, SpvStorageClassInput, Fragment2DType_float32vec2,\
 (4<<SpvWordCountShift)|SpvOpTypePointer, Fragment2DType_InputPointer_float32vec3, SpvStorageClassInput, Fragment2DType_float32vec3,\
@@ -1336,7 +1336,7 @@ Fragment2DVariable_UniformConstantPointer_SampledImage_float32_Emissive, Fragmen
 	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment2DType_UniformPointer_float32vec4, Fragment2DVariable_UniformPointer_float32vec4_BaseColourFactor, Fragment2DVariable_UniformPointer_struct_Material, Fragment2DConstant_int32_0,\
 	(4<<SpvWordCountShift)|SpvOpLoad, Fragment2DType_float32vec4, Fragment2DLoadedVariable_float32vec4_BaseColourFactor, Fragment2DVariable_UniformPointer_float32vec4_BaseColourFactor,\
 	/*alphacutoff*/\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment2DType_UniformPointer_float32, Fragment2DVariable_UniformPointer_float32_AlphaCutoff, Fragment2DVariable_UniformPointer_struct_Material, Fragment2DConstant_int32_5,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment2DType_UniformPointer_float32, Fragment2DVariable_UniformPointer_float32_AlphaCutoff, Fragment2DVariable_UniformPointer_struct_Material, Fragment2DConstant_int32_4,\
 	(4<<SpvWordCountShift)|SpvOpLoad, Fragment2DType_float32, Fragment2DLoadedVariable_float32_AlphaCutoff, Fragment2DVariable_UniformPointer_float32_AlphaCutoff,\
 	/*get infos index offset*/\
 	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment2DType_PushConstantPointer_int32, Fragment2DVariable_PushConstantPointer_int32_Mode, Fragment2DVariable_PushConstantPointer_struct_PushConstants, Fragment2DConstant_int32_1,\
@@ -2386,7 +2386,7 @@ SPIRV_Header(Fragment3DVariables_MAX + (Fragment3DDynamSize * attributesize))\
 	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment3DType_UniformPointer_float32vec4, Fragment3DVariable_UniformPointer_float32vec4_BaseColourFactor, Fragment3DVariable_UniformPointer_struct_Material, Fragment3DConstant_int_0,\
 	(4<<SpvWordCountShift)|SpvOpLoad, Fragment3DType_float32vec4, Fragment3DLoadedVariable_float32vec4_BaseColourFactor, Fragment3DVariable_UniformPointer_float32vec4_BaseColourFactor,\
 	/*alphacutoff*/\
-	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment3DType_UniformPointer_float32, Fragment3DVariable_UniformPointer_float32_AlphaCutoff, Fragment3DVariable_UniformPointer_struct_Material, Fragment3DConstant_int_5,\
+	(5<<SpvWordCountShift)|SpvOpAccessChain, Fragment3DType_UniformPointer_float32, Fragment3DVariable_UniformPointer_float32_AlphaCutoff, Fragment3DVariable_UniformPointer_struct_Material, Fragment3DConstant_int_4,\
 	(4<<SpvWordCountShift)|SpvOpLoad, Fragment3DType_float32, Fragment3DLoadedVariable_float32_AlphaCutoff, Fragment3DVariable_UniformPointer_float32_AlphaCutoff,\
 }
 

@@ -4,6 +4,7 @@
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec4 PositionVelocity;
 layout(location = 2) in vec4 Magnitude;
+layout(location = 3) in vec4 Acceleration;
 
 layout(location = 0) out vec4 AlbedoOrTransperancy;
 layout(location = 1) out vec4 RevealageOrPosition;

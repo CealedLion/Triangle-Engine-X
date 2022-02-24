@@ -103,7 +103,7 @@ FormatDetails Get_FormatDetails(GraphicsFormat format)
 }
 /*
 * Added in 1.0.0
-* calculates the total matrix of a object, animations and hierarchy and all.
+* calculates the total matrix of a 3d object, animations and hierarchy and all.
 * @param Parent is the allocation of the target parent of pPosition header to calculate the matrix from.
 * @param pMatrix is a pointer to the resulting computed matrix.
 */
@@ -392,6 +392,7 @@ void Calculate_TotalMatrix(mat4* pMatrix, ObjectAllocation Parent, uint32_t Thre
 	}
 	Object_Ref_End_ObjectPointer(Parent, false, false, ThreadIndex);
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //GPU allocation
@@ -4342,7 +4343,6 @@ TEXRESULT Pack_GraphicsWindowHeader(const RHeaderGraphicsWindow* pResourceHeader
 	return (Success);
 }
 
-
 TEXRESULT Pack_CameraHeader(const RHeaderCamera* pResourceHeader, RHeaderCamera* pCopiedResourceHeader, uint64_t* pBufferPointer, void* pData, uint32_t ThreadIndex) {
 	if (pData != NULL)
 	{
@@ -4631,7 +4631,6 @@ TEXRESULT Create_WeightsHeader(RHeaderWeights* pResourceHeader, RHeaderWeightsCr
 	*pAllocationSize = sizeof(RHeaderWeights) + (sizeof(*pResourceHeader->Weights) * pCreateInfo->WeightsSize);
 	return (Success);
 }
-
 
 TEXRESULT Create_ImageSourceHeader(RHeaderImageSource* pResourceHeader, RHeaderImageSourceCreateInfo* pCreateInfo, uint64_t* pAllocationSize, uint32_t ThreadIndex) {
 	if (pResourceHeader == NULL)
@@ -5530,12 +5529,21 @@ void Update_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 	else
 	{
 		GPU_GraphicsEffectGeneric2D* pGPU_effect = (GPU_GraphicsEffectGeneric2D*)((uint64_t)GPU_BufferPointers[0]);
-		
-		glm_vec2_copy(pEffect->Size, pGPU_effect->Size);
-		glm_vec3_copy(pEffect->Position, pGPU_effect->Position);
 
+		ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Position, ThreadIndex);
+		RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+
+		if (pPositionHeader != NULL) {
+			mat4 Matrix;
+			glm_mat4_identity(Matrix);
+			Calculate_TotalMatrix(&Matrix, pObject->Header.Allocation, ThreadIndex);
+
+			glm_vec3_copy(Matrix[3], pGPU_effect->Position);
+			glm_vec2_add(Matrix[3], pEffect->BoundingBoxPosition, pGPU_effect->BoundingBoxPosition);
+		}
+
+		glm_vec2_copy(pEffect->Size, pGPU_effect->Size);
 		glm_vec2_copy(pEffect->BoundingBoxSize, pGPU_effect->BoundingBoxSize);
-		glm_vec2_copy(pEffect->BoundingBoxPosition, pGPU_effect->BoundingBoxPosition);
 
 		pGPU_effect->TextureOffset[0] = pEffect->TextureOffset[0];
 		pGPU_effect->TextureOffset[1] = pEffect->TextureOffset[1];
@@ -5544,6 +5552,9 @@ void Update_Generic2D(ElementGraphics* pElement, ResourceHeader* pHeader, Object
 		pGPU_effect->TextureSize[1] = pEffect->TextureSize[1];
 
 		GPU_BufferPointers[0] += sizeof(GPU_GraphicsEffectGeneric2D);
+
+		if (pPositionHeader != NULL)
+			Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
 	}
 }
 
@@ -6777,7 +6788,7 @@ TEXRESULT Create_Generic2D(ElementGraphics* pElement, GraphicsEffectGeneric2D* p
 		}
 #endif
 		glm_vec2_copy(pEffectCreateInfo->Size, pEffect->Size);
-		glm_vec3_copy(pEffectCreateInfo->Position, pEffect->Position);
+		//glm_vec3_copy(pEffectCreateInfo->Position, pEffect->Position);
 
 		glm_vec2_copy(pEffectCreateInfo->BoundingBoxSize, pEffect->BoundingBoxSize);
 		glm_vec2_copy(pEffectCreateInfo->BoundingBoxPosition, pEffect->BoundingBoxPosition);
@@ -7645,9 +7656,8 @@ TEXRESULT Update_Graphics() {
 			RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 			if (pGraphicsWindow != NULL) {
 				VkResult res = VK_SUCCESS;
-				if (pGraphicsWindow->RecreateFlag == true) {
-					
-					//f
+				if (pGraphicsWindow->RecreateFlag == true) {					
+
 					Destroy_SwapChain(pGraphicsWindow, false, ThreadIndex);
 					if (Create_SwapChain(pGraphicsWindow, ThreadIndex) != Success) {
 						return (Success);

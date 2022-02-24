@@ -24,7 +24,6 @@ layout(push_constant) uniform PushConstantsComputeFundamental {
 	int Part;
 	int Particles;
 	float Multiplier;
-	int Resolution;
 }PushConstants;
 
 bool CubePointIntersect(vec3 c0p0, vec3 c0p1, vec3 p1)
@@ -53,7 +52,7 @@ void main(void)
 	{	
 		if (gl_GlobalInvocationID.x != i)
 		{	
-			if (distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) > 0.002f)
+			if (distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) > 0.001f)
 			{
 			//5 fundamental forces
 			//doing forces like this makes it faster then light, mayby we have to quantize..;
@@ -79,7 +78,6 @@ void main(void)
 		
 			//perpindicular/outer field 				
 			//mayby also make a deadzone that is the shape of the inner field?;				
-			float magnetismstrengh = 1.0f;
 			float barycenterdistance = 0.001f;
 			//scale magneticorientationvector to set distance of magnetic field. 	
 			vec3 orientationvector = normalize(cross(cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz),
@@ -93,8 +91,8 @@ void main(void)
 			//needs to both increase in strength and increase in distance decay as compression goes up;
 			//currently at distance 2 ratio 0.5 the decay is 4x greater is that correct?;
 			//float forcestrengh = ((1.0f / fieldcompressionfactor) / pow(length((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - (Particles0.ParticlesS[i].Position.xyz + orientationvector))), 3.0f / fieldcompressionfactor));
-			float r3decay = pow(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz + orientationvector.xyz) + 0.1f, 3.0f) * 700;
-			float r2decay = pow(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) + 1.0f, 2.0f);		
+			float r3decay = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz + orientationvector.xyz)) + 0.1f, 3.0f);
+			float r2decay = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz)) + 0.1f, 2.0f);		
 			//now find direction of it
 			vec3 forcedirection = normalize(cross(cross(orientationvector, Particles0.ParticlesS[i].Magnitude.xyz), relativevector));
 
@@ -106,34 +104,36 @@ void main(void)
 			//vec3 forcedirectionfromvelocity = cross(Particles0.ParticlesS[i].PositionVelocity.xyz, );
 
 			//Magnetic Particle Circular Motion In Magnetic Field Transform.
-			totalpos += (spinc * spini) * (((cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz, forcedirection) / r3decay) * 0.0040f) * magnetismstrengh);
+			totalpos += (spinc * spini) * ((cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz, forcedirection) / r3decay) * 0.0001f);
 			//Magnetic Positional Transform
-			totalpos += (spinc * spini) * ((((relativevector * ((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, forcedirection)) / PI) + 0.5f) * 2) / r3decay) * 0.003f) * magnetismstrengh);
+			totalpos += (spinc * spini) * (((relativevector * ((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, forcedirection)) / PI) + 0.5f) * 2) / r3decay) * 0.0005f);
 			//Magnetic Drag Positional Transform
-			//needs to be denormalizing when unaligned and normalizing when aligned;
-			//NEEDS TO NOT VIOLATE ENERGY CONSERVATION AND NOT JUST REDUCE VELOCITY FOR BOTH PARTICLES.;
-			//totalpos += (spinc * spini) * ((((-Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * length(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz - Particles0.ParticlesS[i].PositionVelocity.xyz)) / r3decay) * 0.1f)) * magnetismstrengh;
+			totalpos += (spinc * spini) * ((((Particles0.ParticlesS[i].PositionVelocity.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz)) / r3decay) * 0.01f); // * length(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz - Particles0.ParticlesS[i].PositionVelocity.xyz)
 			//Magnetic Repulsive Positional Transform (Diamagnetism)
-			totalpos += (spinc * spini) * (((relativevector / r3decay) * 0.00027f) * magnetismstrengh);
+			//should only exist if the i or c particle has a magnetic field, does nucleus experience diamagnetism?
+			//totalpos += (spinc + spini) * ((relativevector / r3decay) * 0.000001f);
+
 
 			//Magnetic Particle Precession Motion In Magnetic Field Transform.
 			//rate of precession, theres an equilibrium where the amount of energy deflected by precession = total force exerted;
 			//the combined forced should be a combination of this making it precess, and the other one making it normalize;
 			//calculating the strength of the precession relative to the normalization is extremely difficult.;
-			totalrot += (spinc * spini) * (((cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, forcedirection) / r3decay) * 0.001f) * magnetismstrengh);
+			totalrot += (spinc * spini) * ((cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, forcedirection) / r3decay) * 0.001f);
 			//Magnetic Particle Alignment Transform.
-			//not supposed to align but precess....;
-			totalrot += (spinc * spini) * ((-(forcedirection / r3decay) * 0.001f) * magnetismstrengh);	
+			//not supposed to align but mostly precess....;
+			totalrot += (spinc * spini) * (-(forcedirection / r3decay) * 0.00001f);	
 
 			//emission calculation	
 
 			//normal force (electrostatic)
-			totalpos += (chargec * chargei) * (normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz) / r2decay) * 0.0001f;
+			//correct 1 * 1 * 6 vs wrong 6 * 6....
+			totalpos += ((chargec / abs(chargec)) * chargei) * (normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz) / r2decay) * 0.005f;
+
 			//perpindicular (light)
 			//a particle accelerated in direction x signicantly enough it releases perpindicular energy that induces motion in particles in direction -x.;
 			//also when a particle's magnetic field is hit it creates a copy of the impacting wave.;
 			//needs to follow dominant frequency theory too;
-			//totalpos += ((chargec * chargei) * ((length(Particles1.ParticlesS[i].Acceleration.xyz) > Threshold) ? (-Particles1.ParticlesS[i].Acceleration.xyz / r2decay) : vec3(0.0f))) * 0.1f;
+			//totalpos += ((chargec / abs(chargec)) * chargei) * ((length(Particles1.ParticlesS[i].Acceleration.xyz) > Threshold) ? (-Particles1.ParticlesS[i].Acceleration.xyz / r2decay) : vec3(0.0f))) * 0.1f;
 
 			//gravity force (irrelevent on this scale)
 			//totalpos += ((1.0 / 404331557902116024553602703216.58) / distancesqaured) * pParticle2->Size; // ((0.00000000001) / distancesqaured) * pParticle2->Size
@@ -141,38 +141,37 @@ void main(void)
 			totalpos = ((length(totalpos.xyz) > 0.0f)) ? totalpos : vec3(0.0f);
 			totalrot = ((length(totalrot.xyz) > 0.0f)) ? totalrot : vec3(0.0f);
 
-			totalpos = ((length(totalpos.xyz) < 100.0f)) ? totalpos : vec3(0.0f);
-			totalrot = ((length(totalrot.xyz) < 100.0f)) ? totalrot : vec3(0.0f);
+			totalpos = ((length(totalpos.xyz) < 1.0f)) ? totalpos : vec3(0.0f);
+			totalrot = ((length(totalrot.xyz) < 1.0f)) ? totalrot : vec3(0.0f);
 
-			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (totalpos / massc) * PushConstants.Multiplier;
-			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz += (totalrot / massc) * PushConstants.Multiplier;
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (totalpos / massc) * PushConstants.Multiplier * 0.0001;
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz += (totalrot / massc) * PushConstants.Multiplier * 0.0001;
 			Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz);
 			}
 		}
 	}
-	
 
-
-	
-	if (length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) > 0.0009f)
+	if (length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) > 0.0001f)
 	{
-	float bleedm = 0.001f * PushConstants.Multiplier;
+	float bleedm = 0.000001f * PushConstants.Multiplier;
 	float bleed = 1.0f - bleedm;
 	Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * bleed;
 	}
-	/*
-	if (length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) < 0.0001f)
-	{
-	float bleedm = 0.0001f * PushConstants.Multiplier;
-	float bleed = 1.0f + bleedm;
-	Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * bleed;
-	}*/
 
-	if (length(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) > 0.5f)
+	//if (length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) < 0.0005f)
 	{
-		Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (normalize(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) * 0.0000001f) * PushConstants.Multiplier;
+	//float bleedm = 0.001f * PushConstants.Multiplier;
+	//float bleed = 1.0f + bleedm;
+	//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * bleed;
+	}
+
+	if (length(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) > 3.1f)
+	{
+		Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (normalize(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) * 0.00001f) * PushConstants.Multiplier;
 		//Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = normalize(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) * length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * 0.8);
 	}
+
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (normalize(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) * 0.000000001f) * PushConstants.Multiplier;
 
 	Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz = (Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz);
 

@@ -1635,9 +1635,9 @@ TEXRESULT Load_3Dscene(const UTF8* Path, ResourceHeaderAllocation iGraphicsWindo
 
 void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, ResourceHeaderAllocation iGraphicsWindow, ResourceHeaderAllocation iScene, uint32_t ThreadIndex)
 {	
-	if (ObjGet(src_v, "childs") != NULL)
+	if (ObjGet(src_v, "Childs") != NULL)
 	{
-		Value* childsV = ObjGet(src_v, "childs");
+		Value* childsV = ObjGet(src_v, "Childs");
 		Value* nextV = Begin(childsV);
 		while (nextV != 0)
 		{
@@ -1699,6 +1699,7 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 			}
 			else
 				CreateInfoMaterial.AlphaMode = AlphaMode_Blend;
+			//CreateInfoMaterial.AlphaMode = AlphaMode_Mask;
 
 			if (ObjGet(elementV, "AlphaCutoff") != NULL)
 			{
@@ -1706,7 +1707,7 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 				CreateInfoMaterial.AlphaCutoff = *GetNum(AlphaCutoffV);
 			}
 			else
-				CreateInfoMaterial.AlphaCutoff = 0.0f;
+				CreateInfoMaterial.AlphaCutoff = 0.5f;
 
 			if (ObjGet(elementV, "Button") != NULL)
 			{
@@ -2138,32 +2139,73 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 			{
 				CreateInfoMaterial.BaseColourMode = MaterialMode_Solid;
 			}
-
-			ResourceHeaderAllocation iResourceHeader2d;
+			
+			ResourceHeaderAllocation iPositionHeader;
 			{
+				RHeaderPositionCreateInfo CreateInfo = { sizeof(CreateInfo) };
+
+				vec3 Translation;
+				glm_vec3_zero(Translation);
+				vec4 Rotation;
+				glm_vec4_zero(Rotation);
+				vec3 Scale;
+				glm_vec3_one(Scale);
+
+				if (ObjGet(elementV, "Position") != NULL)
+				{
+					Value* elementPositionV = ObjGet(elementV, "Position");
+					Value* elementPositionNextV = Begin(elementPositionV);
+					for (size_t i1 = 0; i1 < 3; i1++)
+					{
+						Translation[i1] = *GetNum(elementPositionNextV);
+						elementPositionNextV = Next(elementPositionNextV);
+					}
+				}
+				else
+					for (size_t i1 = 0; i1 < 2; i1++)
+						Translation[i1] = 0.5f;
+
+				glm_mat4_identity(CreateInfo.Matrix);
+
+				mat4 identitym;
+				glm_mat4_identity(identitym);
+				mat4 translationm;
+				glm_mat4_identity(translationm);
+				glm_translate(translationm, Translation);
+				mat4 rotationm;
+				glm_mat4_identity(rotationm);
+				glm_quat_mat4(Rotation, rotationm);
+				mat4 scalem;
+				glm_mat4_identity(scalem);
+				glm_scale(scalem, Scale);
+
+				glm_mul_sse2(translationm, rotationm, CreateInfo.Matrix);
+				glm_mul_sse2(CreateInfo.Matrix, scalem, CreateInfo.Matrix);
+				glm_mul_sse2(CreateInfo.Matrix, identitym, CreateInfo.Matrix);
+
 				ResourceHeaderCreateInfo MainCreateInfo;
 				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
-				MainCreateInfo.Identifier = (uint32_t)ResourceHeader_Generic;
+				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Position;
 				MainCreateInfo.Name = Name;
-				Object_Ref_Create_ResourceHeader(&iResourceHeader2d, MainCreateInfo, NULL, ThreadIndex);
-				Object_Ref_Add_Object_ResourceHeaderChild(iResourceHeader2d, iObject, ThreadIndex);
-
+				Object_Ref_Create_ResourceHeader(&iPositionHeader, MainCreateInfo, &CreateInfo, ThreadIndex);
+				Object_Ref_Add_Object_ResourceHeaderChild(iPositionHeader, iObject, ThreadIndex);
 			}
-			ResourceHeaderAllocation RHeadermtl;
+
+			ResourceHeaderAllocation iMaterialHeader;
 			{
 				ResourceHeaderCreateInfo MainCreateInfo;
 				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 				MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_Material;
 				MainCreateInfo.Name = Name;
-				Object_Ref_Create_ResourceHeader(&RHeadermtl, MainCreateInfo, &CreateInfoMaterial, ThreadIndex);
-				Object_Ref_Add_Object_ResourceHeaderChild(RHeadermtl, iObject, ThreadIndex);
+				Object_Ref_Create_ResourceHeader(&iMaterialHeader, MainCreateInfo, &CreateInfoMaterial, ThreadIndex);
+				Object_Ref_Add_Object_ResourceHeaderChild(iMaterialHeader, iObject, ThreadIndex);
 			}
 			ElementAllocation iElement;
 			{
-				RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(RHeadermtl, true, false, ThreadIndex);
+				RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(iMaterialHeader, true, false, ThreadIndex);
 				ElementGraphicsCreateInfo CreateInfo;
 				memset(&CreateInfo, 0, sizeof(CreateInfo));
-				CreateInfo.iMaterial = RHeadermtl;
+				CreateInfo.iMaterial = iMaterialHeader;
 				CreateInfo.iGraphicsWindow = iGraphicsWindow;
 
 				CreateInfo.EffectCreateInfosSize = 1;
@@ -2234,19 +2276,21 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 					else
 						for (size_t i1 = 0; i1 < 2; i1++)
 							InfoText.Size[i1] = 1.0f;
+					/*
 					if (ObjGet(elementV, "Position") != NULL)
 					{
 						Value* elementPositionV = ObjGet(elementV, "Position");
 						Value* elementPositionNextV = Begin(elementPositionV);
 						for (size_t i1 = 0; i1 < 3; i1++)
 						{
-							InfoText.Position[i1] = *GetNum(elementPositionNextV);
+							bb;
+							//InfoText.Position[i1] = *GetNum(elementPositionNextV);
 							elementPositionNextV = Next(elementPositionNextV);
 						}
 					}
 					else
 						for (size_t i1 = 0; i1 < 3; i1++)
-							InfoText.Position[i1] = 0.5f;
+							InfoText.Position[i1] = 0.5f;*/
 					if (ObjGet(elementV, "BoundingBoxSize") != NULL)
 					{
 						Value* elementBoundingBoxSizeV = ObjGet(elementV, "BoundingBoxSize");
@@ -2266,13 +2310,13 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 						Value* elementBoundingBoxPositionNextV = Begin(elementBoundingBoxPositionV);
 						for (size_t i1 = 0; i1 < 2; i1++)
 						{
-							InfoText.BoundingBoxPosition[i1] = *GetNum(elementBoundingBoxPositionV);
+							InfoText.BoundingBoxPosition[i1] = *GetNum(elementBoundingBoxPositionNextV);
 							elementBoundingBoxPositionNextV = Next(elementBoundingBoxPositionNextV);
 						}
 					}
 					else
 						for (size_t i1 = 0; i1 < 2; i1++)
-							InfoText.BoundingBoxPosition[i1] = InfoText.Position[i1];
+							InfoText.BoundingBoxPosition[i1] = 0.0f;
 
 
 					ElementCreateInfo MainCreateInfo;
@@ -2280,7 +2324,7 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 					MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
 					MainCreateInfo.Name = Name;
 					Object_Ref_Create_Element(&iElement, MainCreateInfo, &CreateInfo, ThreadIndex);
-					Object_Ref_Add_ResourceHeader_ElementChild(iElement, iResourceHeader2d, ThreadIndex);
+					Object_Ref_Add_ResourceHeader_ElementChild(iElement, iPositionHeader, ThreadIndex);
 					free(CreateInfo.EffectCreateInfos);
 					free(InfoText.iFonts);
 				}
@@ -2305,19 +2349,21 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 					else
 						for (size_t i1 = 0; i1 < 2; i1++)
 							Info2D.Size[i1] = 1.0f;
+					/*
 					if (ObjGet(elementV, "Position") != NULL)
 					{
 						Value* elementPositionV = ObjGet(elementV, "Position");
 						Value* elementPositionNextV = Begin(elementPositionV);
 						for (size_t i1 = 0; i1 < 3; i1++)
 						{
-							Info2D.Position[i1] = *GetNum(elementPositionNextV);
+							bb;
+							//Info2D.Position[i1] = *GetNum(elementPositionNextV);
 							elementPositionNextV = Next(elementPositionNextV);
 						}
 					}
 					else
 						for (size_t i1 = 0; i1 < 3; i1++)
-							Info2D.Position[i1] = 0.5f;
+							Info2D.Position[i1] = 0.5f;*/
 					if (ObjGet(elementV, "BoundingBoxSize") != NULL)
 					{
 						Value* elementBoundingBoxSizeV = ObjGet(elementV, "BoundingBoxSize");
@@ -2330,30 +2376,30 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 					}
 					else
 						for (size_t i1 = 0; i1 < 2; i1++)
-							Info2D.BoundingBoxSize[i1] = Info2D.Size[i1];
+							Info2D.BoundingBoxSize[i1] = Info2D.Size[i1];		
 					if (ObjGet(elementV, "BoundingBoxPosition") != NULL)
 					{
 						Value* elementBoundingBoxPositionV = ObjGet(elementV, "BoundingBoxPosition");
 						Value* elementBoundingBoxPositionNextV = Begin(elementBoundingBoxPositionV);
 						for (size_t i1 = 0; i1 < 2; i1++)
 						{
-							Info2D.BoundingBoxPosition[i1] = *GetNum(elementBoundingBoxPositionV);
+							Info2D.BoundingBoxPosition[i1] = *GetNum(elementBoundingBoxPositionNextV);
 							elementBoundingBoxPositionNextV = Next(elementBoundingBoxPositionNextV);
 						}
 					}
 					else
 						for (size_t i1 = 0; i1 < 2; i1++)
-							Info2D.BoundingBoxPosition[i1] = Info2D.Position[i1];
+							Info2D.BoundingBoxPosition[i1] = 0.0f;
 
 					ElementCreateInfo MainCreateInfo;
 					memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 					MainCreateInfo.Identifier = (uint32_t)GraphicsElement_ElementGraphics;
 					MainCreateInfo.Name = Name;
 					Object_Ref_Create_Element(&iElement, MainCreateInfo, &CreateInfo, ThreadIndex);
-					Object_Ref_Add_ResourceHeader_ElementChild(iElement, iResourceHeader2d, ThreadIndex);
+					Object_Ref_Add_ResourceHeader_ElementChild(iElement, iPositionHeader, ThreadIndex);
 					free(CreateInfo.EffectCreateInfos);
 				}
-				Object_Ref_End_ResourceHeaderPointer(RHeadermtl, true, false, ThreadIndex);
+				Object_Ref_End_ResourceHeaderPointer(iMaterialHeader, true, false, ThreadIndex);
 			}
 			parse_g2d(elementV, iObject, fileloc, iGraphicsWindow, iScene, ThreadIndex);
 		}

@@ -304,7 +304,6 @@ typedef struct PushConstantsComputeSimplified {
 	int Part;
 	int Particles;
 	float Multiplier;
-	int Resolution;
 }PushConstantsComputeSimplified;
 /*
 * Added in 1.0.0
@@ -357,7 +356,9 @@ typedef struct ChemistryEffectSimplified {
 	float Multiplier;
 
 	//every reinit
-	Mutex mutex;
+	//Mutex mutex;
+
+	vec3 Offset;
 
 	GPU_Allocation AllocationParticles0;
 	GPU_Allocation AllocationParticles1;
@@ -459,7 +460,7 @@ typedef struct ChemistryEffectFundamental {
 	uint64_t Resolution;
 
 	//every reinit
-	Mutex mutex;
+	//Mutex mutex;
 
 	GPU_Allocation AllocationParticles0;
 	GPU_Allocation AllocationParticles1;
@@ -516,14 +517,35 @@ struct ChemistryResStruct {
 	void* pInitialise_Chemistry;
 	void* pDestroy_Chemistry;
 	void* pUpdate_Chemistry;
+	void* pReadParticles_Simplified;
+	void* pWriteParticles_Simplified;
 }ChemistryRes;
 
 //Initialise_Resources MUST be called to use the library in your dll
 void Chemistry_Initialise_Resources(FunctionInfo*** pExternFunctions, uint64_t* pExternFunctionsSize, ResourceInfo*** pExternResources, uint64_t* pExternResourcesSize) {
 	memset(&ChemistryRes, 0, sizeof(ChemistryRes));
+
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Chemistry::ReadParticles_Simplified"), &ChemistryRes.pReadParticles_Simplified);
+	FunctionImport(pExternFunctions, pExternFunctionsSize, (const UTF8*)CopyData((void*)"Chemistry::WriteParticles_Simplified"), &ChemistryRes.pWriteParticles_Simplified);
 }
 
+TEXRESULT Chemistry_Ref_ReadParticles_Simplified(RHeaderGraphicsWindow* pGraphicsWindow, ElementGraphics* pElement, ChemistryEffectSimplified* pEffect, uint64_t* pParticlesSize, GPU_Particle** pParticles, uint32_t ThreadIndex)
+{
+	TEXRESULT(*function)(RHeaderGraphicsWindow * pGraphicsWindow, ElementGraphics * pElement, ChemistryEffectSimplified * pEffect, uint64_t * pParticlesSize, GPU_Particle * *pParticles, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(RHeaderGraphicsWindow * pGraphicsWindow, ElementGraphics * pElement, ChemistryEffectSimplified * pEffect, uint64_t * pParticlesSize, GPU_Particle * *pParticles, uint32_t ThreadIndex))ChemistryRes.pReadParticles_Simplified;
 
+	return function(pGraphicsWindow, pElement, pEffect, pParticlesSize, pParticles, ThreadIndex);
+}
 
+/*
+dont use this shit better to just recreate
+*/
+TEXRESULT Chemistry_Ref_WriteParticles_Simplified(RHeaderGraphicsWindow* pGraphicsWindow, ElementGraphics* pElement, ChemistryEffectSimplified* pEffect, uint64_t ParticlesSize, GPU_Particle* Particles, uint32_t ThreadIndex)
+{
+	TEXRESULT(*function)(RHeaderGraphicsWindow * pGraphicsWindow, ElementGraphics * pElement, ChemistryEffectSimplified * pEffect, uint64_t ParticlesSize, GPU_Particle * Particles, uint32_t ThreadIndex) =
+		(TEXRESULT(*)(RHeaderGraphicsWindow * pGraphicsWindow, ElementGraphics * pElement, ChemistryEffectSimplified * pEffect, uint64_t ParticlesSize, GPU_Particle * Particles, uint32_t ThreadIndex))ChemistryRes.pWriteParticles_Simplified;
+
+	return function(pGraphicsWindow, pElement, pEffect, ParticlesSize, Particles, ThreadIndex);
+}
 
 

@@ -285,6 +285,29 @@ void Update_Text(ElementGraphics* pElement, ResourceHeader* pHeader, Object* pOb
 		{		
 			memcpy((void*)((uint64_t)GPU_BufferPointers[0]), pEffect->GPU_GraphicsEffectInfos, pEffect->GPU_GraphicsEffectInfosSize * sizeof(*pEffect->GPU_GraphicsEffectInfos));
 		}
+
+		ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Position, ThreadIndex);
+		RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+
+		if (pPositionHeader != NULL) {
+			mat4 Matrix;
+			glm_mat4_identity(Matrix);
+			Graphics_Ref_Calculate_TotalMatrix(&Matrix, pObject->Header.Allocation, ThreadIndex);
+
+			GPU_GraphicsEffectText* pGraphicsEffects = (GPU_GraphicsEffectText*)((uint64_t)GPU_BufferPointers[0]);
+			for (size_t i = 0; i < pEffect->GPU_GraphicsEffectInfosSize; i++)
+			{
+				GPU_GraphicsEffectText* pGPU_effect = &pGraphicsEffects[i];
+				glm_vec3_add(pGPU_effect->Position, Matrix[3], pGPU_effect->Position);
+				glm_vec2_add(pGPU_effect->BoundingBoxPosition, Matrix[3], pGPU_effect->BoundingBoxPosition);
+			}
+
+		}
+
+		if (pPositionHeader != NULL)
+			Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+
+
 		GPU_BufferPointers[0] += sizeof(*pEffect->GPU_GraphicsEffectInfos) * pEffect->GPU_GraphicsEffectInfosSize;
 	}
 }
@@ -396,9 +419,9 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 				pGPU_effect->Size[0] = 0;
 				pGPU_effect->Size[1] = 0;
 
-				pGPU_effect->Position[0] = (pEffect->Position[0] - pEffect->Size[0]) + pGPU_effect->Size[0] + ((AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
-				pGPU_effect->Position[1] = ((pEffect->Position[1] - pEffect->Size[1]) - pGPU_effect->Size[1]) + ((AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
-				pGPU_effect->Position[2] = pEffect->Position[2];
+				pGPU_effect->Position[0] = (0.0f - pEffect->Size[0]) + pGPU_effect->Size[0] + ((AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
+				pGPU_effect->Position[1] = ((0.0f - pEffect->Size[1]) - pGPU_effect->Size[1]) + ((AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
+				pGPU_effect->Position[2] = 0.0f;
 
 				pGPU_effect->AdvanceX = AdvanceX;
 				pGPU_effect->AdvanceY = AdvanceY;
@@ -414,9 +437,9 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 					pGPU_effect->Size[0] = 0;
 					pGPU_effect->Size[1] = 0;
 
-					pGPU_effect->Position[0] = (pEffect->Position[0] - pEffect->Size[0]) + pGPU_effect->Size[0] + ((AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
-					pGPU_effect->Position[1] = ((pEffect->Position[1] - pEffect->Size[1]) - pGPU_effect->Size[1]) + ((AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
-					pGPU_effect->Position[2] = pEffect->Position[2];
+					pGPU_effect->Position[0] = (0.0f - pEffect->Size[0]) + pGPU_effect->Size[0] + ((AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
+					pGPU_effect->Position[1] = ((0.0f - pEffect->Size[1]) - pGPU_effect->Size[1]) + ((AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
+					pGPU_effect->Position[2] = 0.0f;
 
 					pGPU_effect->AdvanceX = AdvanceX;
 					pGPU_effect->AdvanceY = AdvanceY;
@@ -553,9 +576,9 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 					AdvanceY += (delta.y >> 6) * scalefactor;
 				}
 
-				pGPU_effect->Position[0] = (pEffect->Position[0] - pEffect->Size[0]) + pGPU_effect->Size[0] + ((((pFont->FtFace->glyph->metrics.horiBearingX >> 6) * scalefactor) + AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
-				pGPU_effect->Position[1] = (pEffect->Position[1] - pEffect->Size[1]) + pGPU_effect->Size[1] - ((((pFont->FtFace->glyph->metrics.horiBearingY >> 6) * scalefactor) - AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
-				pGPU_effect->Position[2] = pEffect->Position[2];
+				pGPU_effect->Position[0] = (0.0f - pEffect->Size[0]) + pGPU_effect->Size[0] + ((((pFont->FtFace->glyph->metrics.horiBearingX >> 6) * scalefactor) + AdvanceX) / (float)pGraphicsWindow->CurrentExtentWidth);
+				pGPU_effect->Position[1] = (0.0f - pEffect->Size[1]) + pGPU_effect->Size[1] - ((((pFont->FtFace->glyph->metrics.horiBearingY >> 6) * scalefactor) - AdvanceY) / (float)pGraphicsWindow->CurrentExtentHeight);
+				pGPU_effect->Position[2] = 0.0f;
 
 				if (tab == true) {
 					pGPU_effect->AdvanceX = AdvanceX;
@@ -604,7 +627,8 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 			Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
 		}
-		else
+		
+		else if (pTextImages0Size != NULL)
 		{
 			RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
 #ifndef NDEBUG
@@ -979,7 +1003,7 @@ TEXRESULT Create_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, Gr
 		}
 #endif
 		glm_vec2_copy(pEffectCreateInfo->Size, pEffect->Size);
-		glm_vec3_copy(pEffectCreateInfo->Position, pEffect->Position);
+		//glm_vec3_copy(pEffectCreateInfo->Position, pEffect->Position);
 
 		glm_vec2_copy(pEffectCreateInfo->BoundingBoxSize, pEffect->BoundingBoxSize);
 		glm_vec2_copy(pEffectCreateInfo->BoundingBoxPosition, pEffect->BoundingBoxPosition);
@@ -1002,7 +1026,6 @@ TEXRESULT Create_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, Gr
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Check_Click(ElementAllocation* pReturnElement, ResourceHeaderAllocation* pReturnResourceHeader, ObjectAllocation* pReturnObject, uint32_t x, uint32_t y) {	
-	/**/
 	float lowest = FLT_MAX;
 	uint32_t ThreadIndex = 0;
 	for (size_t i = 0; i < ObjectsRes.pUtils->InternalElementBuffer.AllocationDatas.BufferSize; i++) {
@@ -1031,18 +1054,33 @@ void Check_Click(ElementAllocation* pReturnElement, ResourceHeaderAllocation* pR
 												if (pEffect->Header.Identifier == GraphicsEffect_Generic2D) {
 													GraphicsEffectGeneric2D* pEffect1 = pEffect;
 
-													float px = ((pEffect1->BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
-													float py = ((pEffect1->BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
+													ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Position, ThreadIndex);
+													RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+													vec3 Position;
+													vec3 BoundingBoxPosition;
+													if (pPositionHeader != NULL) {
+														mat4 Matrix;
+														glm_mat4_identity(Matrix);
+														Graphics_Ref_Calculate_TotalMatrix(&Matrix, pObject->Header.Allocation, ThreadIndex);
+														glm_vec3_copy(Matrix[3], Position);
+														glm_vec2_add(Matrix[3], pEffect1->BoundingBoxPosition, BoundingBoxPosition);
+													}
+													if (pPositionHeader != NULL)
+														Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+
+
+													float px = ((BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
+													float py = ((BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
 
 													float sx = ((pEffect1->BoundingBoxSize[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
 													float sy = ((pEffect1->BoundingBoxSize[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
 
 													if (x > (px - sx) &&
 														x < (px + sx) &&
-														y >(py - sy) &&
+														y > (py - sy) &&
 														y < (py + sy) &&
-														pEffect1->Position[2] < lowest) {
-														lowest = pEffect1->Position[2];
+														Position[2] <= lowest) {
+														lowest = Position[2];
 														*pReturnElement = pElement->Header.Allocation;
 														*pReturnResourceHeader = pParentHeader->Header.Allocation;
 														*pReturnObject = pObject->Header.Allocation;
@@ -1050,19 +1088,34 @@ void Check_Click(ElementAllocation* pReturnElement, ResourceHeaderAllocation* pR
 												}
 												else if (pEffect->Header.Identifier == GUIEffect_Text) {
 													GraphicsEffectText* pEffect1 = pEffect;
+													
+													ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pObject->Header.Allocation, GraphicsHeader_Position, ThreadIndex);
+													RHeaderPosition* pPositionHeader = Object_Ref_Get_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
+													vec3 Position;
+													vec3 BoundingBoxPosition;
+													if (pPositionHeader != NULL) {
+														mat4 Matrix;
+														glm_mat4_identity(Matrix);
+														Graphics_Ref_Calculate_TotalMatrix(&Matrix, pObject->Header.Allocation, ThreadIndex);
+														glm_vec3_copy(Matrix[3], Position);
+														glm_vec2_add(Matrix[3], pEffect1->BoundingBoxPosition, BoundingBoxPosition);
+													}
+													if (pPositionHeader != NULL)
+														Object_Ref_End_ResourceHeaderPointer(iPositionHeader, false, false, ThreadIndex);
 
-													float px = ((pEffect1->BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
-													float py = ((pEffect1->BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
+
+													float px = ((BoundingBoxPosition[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
+													float py = ((BoundingBoxPosition[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
 
 													float sx = ((pEffect1->BoundingBoxSize[0]) * (float)pGraphicsWindow->CurrentExtentWidth);
 													float sy = ((pEffect1->BoundingBoxSize[1]) * (float)pGraphicsWindow->CurrentExtentHeight);
 
 													if (x > (px - sx) &&
 														x < (px + sx) &&
-														y >(py - sy) &&
+														y > (py - sy) &&
 														y < (py + sy) &&
-														pEffect1->Position[2] < lowest) {
-														lowest = pEffect1->Position[2];
+														Position[2] <= lowest) {
+														lowest = Position[2];
 														*pReturnElement = pElement->Header.Allocation;
 														*pReturnResourceHeader = pParentHeader->Header.Allocation;
 														*pReturnObject = pObject->Header.Allocation;
@@ -1241,6 +1294,6 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 	//Functions
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Initialise_GUI"), &GUIRes.pInitialise_GUI, &Initialise_GUI, Construct, 100.0f, 0, NULL);
 	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Destroy_GUI"), &GUIRes.pDestroy_GUI, &Destroy_GUI, Destruct, 100.0f, 0, NULL);
-	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Update_GUI"), &GUIRes.pUpdate_GUI, &Update_GUI, MouseButton_Input, 0.01f, 0, NULL);
+	FunctionExport(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, (const UTF8*)CopyData((void*)"GUI::Update_GUI"), &GUIRes.pUpdate_GUI, &Update_GUI, EveryFrame, 0.01f, 0, NULL);
 
 }

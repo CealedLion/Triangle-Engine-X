@@ -201,7 +201,7 @@ typedef struct RHeaderFont {
 */
 typedef struct GraphicsEffectCreateInfoText {
 	vec2 Size; //size in percentage of screen.
-	vec3 Position; //position in percentage of screen.
+	//vec3 Position; //position in percentage of screen.
 	//bounding box means everything outside of it wont be rendered.
 	vec2 BoundingBoxSize; //size in percentage of screen.
 	vec2 BoundingBoxPosition; //position in percentage of screen.
@@ -233,7 +233,7 @@ typedef struct GraphicsEffectText {
 	GraphicsEffectTemplate Header;
 
 	vec2 Size; //size in percentage of screen.
-	vec3 Position; //position in percentage of screen.
+	//vec3 Position; //position in percentage of screen.
 	//bounding box means everything outside of it wont be rendered.
 	vec2 BoundingBoxSize; //size in percentage of screen.
 	vec2 BoundingBoxPosition; //position in percentage of screen.
