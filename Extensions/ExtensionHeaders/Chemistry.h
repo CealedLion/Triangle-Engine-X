@@ -261,6 +261,132 @@ const uint8_t ChemistryElementsElectrons[][8] = {
 	{2, 8, 18, 32, 32, 18, 7, 0,}, //ChemistryElementType_Tennessine
 	{2, 8, 18, 32, 32, 18, 8, 0,}, //ChemistryElementType_Oganesson
 };
+/*
+* Added in 1.0.0
+* All the elements and their neutron counts in their most common
+  stable isotopes
+*/
+const uint8_t ChemistryElementsNeutrons[] = {
+	0, //UNDEFEIND
+	1, //ChemistryElementType_Hydrogen
+	2, //ChemistryElementType_Helium
+	4, //ChemistryElementType_Lithium
+	5, //ChemistryElementType_Berylium
+	6, //ChemistryElementType_Boron
+	6, //ChemistryElementType_Carbon
+	7, //ChemistryElementType_Nitrogen
+	8, //ChemistryElementType_Oxygen
+	10, //ChemistryElementType_Flourine
+	10, //ChemistryElementType_Neon
+	12, //ChemistryElementType_Sodium
+	12, //ChemistryElementType_Magnesium
+	14, //ChemistryElementType_Aluminium
+	14, //ChemistryElementType_Silicon
+	16, //ChemistryElementType_Phosphorous
+	16, //ChemistryElementType_Sulphur
+	17, //ChemistryElementType_Chlorine
+	22, //ChemistryElementType_Argon
+	20, //ChemistryElementType_Potassium
+	20, //ChemistryElementType_Calcium
+	24, //ChemistryElementType_Scandium
+	26, //ChemistryElementType_Titanium
+	28, //ChemistryElementType_Vanadium
+	28, //ChemistryElementType_Chromium
+	30, //ChemistryElementType_Manganese
+	30, //ChemistryElementType_Iron
+	32, //ChemistryElementType_Cobalt
+	31, //ChemistryElementType_Nickel
+	35, //ChemistryElementType_Copper
+	35, //ChemistryElementType_Zinc
+	39, //ChemistryElementType_Gallium
+	41, //ChemistryElementType_Germanium
+	42, //ChemistryElementType_Arsenic
+	45, //ChemistryElementType_Selenium
+	45, //ChemistryElementType_Bromine
+	48, //ChemistryElementType_Krypton
+	48, //ChemistryElementType_Rubidium
+	50, //ChemistryElementType_Strontium
+	50, //ChemistryElementType_Yttrium
+	51, //ChemistryElementType_Zirconium
+	52, //ChemistryElementType_Niobium
+	54, //ChemistryElementType_Molybdenum
+	55, //ChemistryElementType_Technetium
+	57, //ChemistryElementType_Ruthenium
+	58, //ChemistryElementType_Rhodium
+	60, //ChemistryElementType_Palladium
+	61, //ChemistryElementType_Silver
+	64, //ChemistryElementType_Cadmium
+	66, //ChemistryElementType_Indium
+	69, //ChemistryElementType_Tin
+	71, //ChemistryElementType_Antimony
+	76, //ChemistryElementType_Tellurium
+	74, //ChemistryElementType_Iodine
+	77, //ChemistryElementType_Xenon
+	78, //ChemistryElementType_Cesium
+	81, //ChemistryElementType_Barium
+	82, //ChemistryElementType_Lanthanum
+	82, //ChemistryElementType_Cerium
+	82, //ChemistryElementType_Praseodynium
+	84, //ChemistryElementType_Neodynium
+	84, //ChemistryElementType_Promethium
+	88, //ChemistryElementType_Samarium
+	89, //ChemistryElementType_Europium
+	93, //ChemistryElementType_Gadolinium
+	94, //ChemistryElementType_Terbium
+	97, //ChemistryElementType_Dysprosium
+	98, //ChemistryElementType_Holmium
+	99, //ChemistryElementType_Erbium
+	100, //ChemistryElementType_Thulium
+	103, //ChemistryElementType_Ytterbium
+	104, //ChemistryElementType_Lutetium
+	106, //ChemistryElementType_Hafnium
+	108, //ChemistryElementType_Tantalum
+	110, //ChemistryElementType_Tungsten
+	111, //ChemistryElementType_Rhenium
+	114, //ChemistryElementType_Osmium
+	115, //ChemistryElementType_Iridium
+	117, //ChemistryElementType_Platinium
+	118, //ChemistryElementType_Gold
+	121, //ChemistryElementType_Mercury
+	123, //ChemistryElementType_Thallium
+	125, //ChemistryElementType_Lead
+	126, //ChemistryElementType_Bismuth
+	125, //ChemistryElementType_Polonium
+	125, //ChemistryElementType_Astatine
+	136, //ChemistryElementType_Radon
+	136, //ChemistryElementType_Francium
+	138, //ChemistryElementType_Radium
+	138, //ChemistryElementType_Actinium
+	142, //ChemistryElementType_Thorium
+	148, //ChemistryElementType_Protactinium
+	146, //ChemistryElementType_Uranium
+	144, //ChemistryElementType_Neptunium
+	150, //ChemistryElementType_Plutonium
+	148, //ChemistryElementType_Americium
+	151, //ChemistryElementType_Curium
+	150, //ChemistryElementType_Berkelium
+	153, //ChemistryElementType_Californium
+	153, //ChemistryElementType_Einsteinium
+	157, //ChemistryElementType_Fermium
+	157, //ChemistryElementType_Mendelevium
+	157, //ChemistryElementType_Nobelium
+	163, //ChemistryElementType_Lawrencium
+	163, //ChemistryElementType_Rutherfordium
+	163, //ChemistryElementType_Dubnium
+	163, //ChemistryElementType_Seaborgium
+	163, //ChemistryElementType_Bohrium
+	161, //ChemistryElementType_Hassium
+	169, //ChemistryElementType_Meitnerium
+	171, //ChemistryElementType_Darmstadtium
+	171, //ChemistryElementType_Roentgenium
+	173, //ChemistryElementType_Copernicium
+	173, //ChemistryElementType_Nihonium
+	175, //ChemistryElementType_Flerovium
+	175, //ChemistryElementType_Moscovium
+	177, //ChemistryElementType_Livermorium
+	177, //ChemistryElementType_Tennessine
+	176, //ChemistryElementType_Oganesson
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Structs

@@ -326,6 +326,7 @@ void FileIconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllo
 void AtomSizerClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocation ClickedResourceHeader, ObjectAllocation ClickedObject, ResourceHeaderAllocation iButton, GUIButtonCallbackState Action)
 {
 	static bool clicked = false;
+	static int flip = -1;
 	if (Action == GUIButtonState_Press && clicked == false)
 	{
 		uint32_t ThreadIndex = 0;
@@ -359,7 +360,6 @@ void AtomSizerClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAll
 		Chemistry_Ref_ReadParticles_Simplified(pGraphicsWindow, pElement, pEffect, &ParticlesSize, &Particles, ThreadIndex);
 
 		//free(pEffect->Particles);
-		Engine_Ref_FunctionError("SIZE", "ASAA", weight);
 
 		pEffect->ParticlesSize = ParticlesSize;
 		pEffect->Particles = calloc(pEffect->ParticlesSize + 1 + weight, sizeof(*pEffect->Particles));
@@ -372,7 +372,7 @@ void AtomSizerClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAll
 			pEffect->Particles[pEffect->ParticlesSize].Position[0] = (1.0 * x);
 			pEffect->Particles[pEffect->ParticlesSize].Position[1] = (1.0 * y);
 			pEffect->Particles[pEffect->ParticlesSize].Position[2] = 0.0001f;
-			pEffect->Particles[pEffect->ParticlesSize].Position[3] = 1836.0f * weight;
+			pEffect->Particles[pEffect->ParticlesSize].Position[3] = (1836.0f * 0.1f) * weight;
 			pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[0] = 0.0f;
 			pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[1] = 0.0f;
 			pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[2] = 0.0f;
@@ -396,19 +396,20 @@ void AtomSizerClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAll
 					pEffect->Particles[pEffect->ParticlesSize].Position[1] = (sin((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (1.0 * y);
 					pEffect->Particles[pEffect->ParticlesSize].Position[2] = 0.001f;
 					pEffect->Particles[pEffect->ParticlesSize].Position[3] = 1.0f;
-					pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00) + -0.0f;
+					pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00);
 					pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
 					pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[2] = 0.0f;
 					pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[3] = -1.0f;
-					pEffect->Particles[pEffect->ParticlesSize].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1;
-					pEffect->Particles[pEffect->ParticlesSize].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1;
-					pEffect->Particles[pEffect->ParticlesSize].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? 1 : -1; //(((int)i % 2) * 2) - 1
+					pEffect->Particles[pEffect->ParticlesSize].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 0;
+					pEffect->Particles[pEffect->ParticlesSize].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 0;
+					pEffect->Particles[pEffect->ParticlesSize].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? (flip * -1) : (flip * 1);
 					pEffect->Particles[pEffect->ParticlesSize].Magnitude[3] = 1.0f;
 
 					pEffect->Particles[pEffect->ParticlesSize].Acceleration[3] = 1.0f;
 					pEffect->ParticlesSize++;
 				}
 			}
+			flip = (flip * -1);
 		}
 
 		Object_Ref_ReCreate_Element(iMolecularSimulation, ThreadIndex);
@@ -457,7 +458,7 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 		{
 			if (strcmp(pElement->Header.Name, NameIndices[i]) == 0)
 			{
-				/*
+				
 				ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 				ChemistryEffectSimplified* pEffect = NULL;
 				Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
@@ -470,7 +471,7 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 				pEffect->ParticlesSize = ParticlesSize;
 				pEffect->Particles = calloc(pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
 				memcpy(pEffect->Particles, Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
-
+				/*
 				{
 					float x = 0.2;
 					float y = 0.2;
@@ -502,7 +503,7 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 							pEffect->Particles[pEffect->ParticlesSize].Position[0] = (cos((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (1.0 * x);
 							pEffect->Particles[pEffect->ParticlesSize].Position[1] = (sin((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (1.0 * y);
 							pEffect->Particles[pEffect->ParticlesSize].Position[2] = 0.01f;
-							pEffect->Particles[pEffect->ParticlesSize].Position[3] = 10.0f;
+							pEffect->Particles[pEffect->ParticlesSize].Position[3] = 1.0f;
 							pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00) + -0.0f;
 							pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
 							pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[2] = 0.0f;
@@ -517,9 +518,26 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 						}
 					}
 				}
+				*/
+				pEffect->Particles[pEffect->ParticlesSize].Position[0] = 0.01f;
+				pEffect->Particles[pEffect->ParticlesSize].Position[1] = 0.01f;
+				pEffect->Particles[pEffect->ParticlesSize].Position[2] = 0.01f;
+				pEffect->Particles[pEffect->ParticlesSize].Position[3] = 1.0f;
+				pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[0] = 0.0f;
+				pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[1] = 0.0f;
+				pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[2] = 0.0f;
+				pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[3] = -1.0f;
+				pEffect->Particles[pEffect->ParticlesSize].Magnitude[0] = 0.0f;
+				pEffect->Particles[pEffect->ParticlesSize].Magnitude[1] = 0.0f;
+				pEffect->Particles[pEffect->ParticlesSize].Magnitude[2] = 1.0; //(((int)i % 2) * 2) - 1
+				pEffect->Particles[pEffect->ParticlesSize].Magnitude[3] = 1.0f;
+
+				pEffect->Particles[pEffect->ParticlesSize].Acceleration[3] = 1.0f;
+				pEffect->ParticlesSize++;
+
 
 				Object_Ref_ReCreate_Element(iMolecularSimulation, ThreadIndex);
-				Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);		*/
+				Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);		
 			}
 		}
 	
@@ -1807,7 +1825,7 @@ TEXRESULT Update_Chat()
 
 	if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress)
 	{
-		speed = 0.00001f;
+		speed = 0.000025f;
 	}
 	else
 	{
@@ -2836,156 +2854,58 @@ TEXRESULT Initialise_Chat() {
 				Info.Multiplier = 0.0f;
 
 				uint64_t it = 0;
-				
-				for (size_t i1 = 0; i1 < 1; i1++)
-				{
-					for (int i = 0; i < 0; i++)
-					{
-						uint32_t weight = ChemistryElementType_Oxygen;
-						float x = 0.2;
-						float y = 0.2;
-						float z = 0;
-
-						Info.Particles[it].Position[0] = (i * x);
-						Info.Particles[it].Position[1] = (i1 * y);
-						Info.Particles[it].Position[2] = 0.0001f;
-						Info.Particles[it].Position[3] = 1836.0f * weight;
-						Info.Particles[it].PositionVelocity[0] = 0.0f;
-						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = 0.0f;
-						Info.Particles[it].PositionVelocity[3] = weight;
-						Info.Particles[it].Magnitude[0] = 0.0f;
-						Info.Particles[it].Magnitude[1] = 0.0f;
-						Info.Particles[it].Magnitude[2] = 1.0f;
-						Info.Particles[it].Magnitude[3] = 0.0f;
-						it++;
-
-						int shellsizes[] = { 2, 8, 18, 32, 50 };
-						int shellprevsizes[] = { 0, 2, 10, 28, 60 };
-						for (size_t shell = 0; shell < 5; shell++)
-						{
-							uint32_t val = min(max((int)weight - shellprevsizes[shell], 0), shellsizes[shell]);
-							for (size_t i2 = 0; i2 < val; i2++)
-							{
-								Info.Particles[it].Position[0] = (cos((i2) * (6.28318531f / val)) * ((shell + 1) * 0.01)) + (i * x);
-								Info.Particles[it].Position[1] = (sin((i2) * (6.28318531f / val)) * ((shell + 1) * 0.01)) + (i1 * y);
-								Info.Particles[it].Position[2] = 0.001f;
-								Info.Particles[it].Position[3] = 1.0f;
-								Info.Particles[it].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00) + -0.0f;
-								Info.Particles[it].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
-								Info.Particles[it].PositionVelocity[2] = 0.0f;
-								Info.Particles[it].PositionVelocity[3] = -1.0f;
-								Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1;
-								Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1;
-								Info.Particles[it].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? 1 : -1; //(((int)i % 2) * 2) - 1
-								Info.Particles[it].Magnitude[3] = 1.0f;
-								it++;
-							}
-						}
-					}
-				}
 
 				for (size_t i1 = 0; i1 < 1; i1++)
 				{
 					for (int i = 0; i < 1; i++)
 					{
-						uint32_t weight = ChemistryElementType_Carbon;
-						float x = 0.015;
-						float y = 0.01;
-						float z = 0;
+						uint32_t neutron = 22;
+						uint32_t proton = 22;
 
-						Info.Particles[it].Position[0] = (i * x) - 0.01;
-						Info.Particles[it].Position[1] = (i1 * y);
-						Info.Particles[it].Position[2] = 0.0f;
-						Info.Particles[it].Position[3] = 1000.0f * weight;
-						Info.Particles[it].PositionVelocity[0] = -0.0000f;
-						Info.Particles[it].PositionVelocity[1] = 0.0f;
-						Info.Particles[it].PositionVelocity[2] = 0.0f;
-						Info.Particles[it].PositionVelocity[3] = weight;
-						Info.Particles[it].Magnitude[0] = 0.0f;
-						Info.Particles[it].Magnitude[1] = 0.0f;
-						Info.Particles[it].Magnitude[2] = 1.0f;
-						Info.Particles[it].Magnitude[3] = 0.0f;
-						it++;
-
-						int shellsizes[] = { 2, 8, 18, 32, 50 };
-						int shellprevsizes[] = { 0, 2, 10, 28, 60 };
-						for (size_t shell = 0; shell < 5; shell++)
-						{
-							uint32_t val = min(max((int)weight - shellprevsizes[shell], 0), shellsizes[shell]);
-							for (size_t i2 = 0; i2 < val; i2++)
-							{
-								Info.Particles[it].Position[0] = (cos((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (i * x) - 0.01;
-								Info.Particles[it].Position[1] = (sin((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (i1 * y);
-								Info.Particles[it].Position[2] = -0.01f;
-								Info.Particles[it].Position[3] = 10.0f;
-								Info.Particles[it].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00) + -0.0f;
-								Info.Particles[it].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
-								Info.Particles[it].PositionVelocity[2] = 0.0f;
-								Info.Particles[it].PositionVelocity[3] = -1.0f;
-								Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1;
-								Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1;
-								Info.Particles[it].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? 1 : -1; //(((int)i % 2) * 2) - 1
-								Info.Particles[it].Magnitude[3] = 1.0f;
-
-								it++;
-							}
-						}
-					}
-				}
-
-				/*
-				int spawnindices[] = { ChemistryElementType_Oxygen, ChemistryElementType_Carbon};
-				for (size_t i1 = 1; i1 < 2; i1++)
-				{
-					for (int i = 0; i < 2; i++)
-					{
-						uint32_t weight = spawnindices[i];
-						float x = 0.13;
-						float y = 0.13;
-						float z = 0;
+						float x = 0.0;
+						float y = 0.0;
+						float z = 0.0;
 
 						Info.Particles[it].Position[0] = (i * x);
 						Info.Particles[it].Position[1] = (i1 * y);
 						Info.Particles[it].Position[2] = 0.0f;
-						Info.Particles[it].Position[3] = 100.0f;
-						Info.Particles[it].PositionVelocity[0] = -0.0000f;
+						Info.Particles[it].Position[3] = ((1836.15267f * proton) + (1838.68366f * neutron)) * 0.1f;
+						Info.Particles[it].PositionVelocity[0] = 0.0f;
 						Info.Particles[it].PositionVelocity[1] = 0.0f;
 						Info.Particles[it].PositionVelocity[2] = 0.0f;
-						Info.Particles[it].PositionVelocity[3] = weight;
+						Info.Particles[it].PositionVelocity[3] = proton;
 						Info.Particles[it].Magnitude[0] = 0.0f;
 						Info.Particles[it].Magnitude[1] = 0.0f;
 						Info.Particles[it].Magnitude[2] = 1.0f;
 						Info.Particles[it].Magnitude[3] = 0.0f;
 						it++;
 
-						int shellsizes[] = { 2, 8, 18, 32, 50 };
-						int shellprevsizes[] = { 0, 2, 10, 28, 60 };
-						for (size_t shell = 0; shell < 5; shell++)
+						int shellsizes[] =     { 2,  2, 6,  2, 6, 10,    2, 6, 10, 14,    2, 6, 10, 14, 18 };
+						int shellprevsizes[] = { 0,  2, 4,  10, 12, 18,  28, 30, 36, 46,  60, 62, 68, 78, 92 };
+						for (size_t shell = 0; shell < 15; shell++)
 						{
-							uint32_t val = min(max((int)weight - shellprevsizes[shell], 0), shellsizes[shell]);
+							uint32_t val = min(max((int)proton - shellprevsizes[shell], 0), shellsizes[shell]);
 							for (size_t i2 = 0; i2 < val; i2++)
 							{
-								Info.Particles[it].Position[0] = (cos((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (i * x);
-								Info.Particles[it].Position[1] = (sin((i2) * (6.28318531f / val)) * ((shell + 1) * 0.001)) + (i1 * y);
-								Info.Particles[it].Position[2] = 0.01f;
-								Info.Particles[it].Position[3] = 10.0f;
-								Info.Particles[it].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00) + -0.0f;
+								Info.Particles[it].Position[0] = (cos((i2) * (6.28318531f / val)) * ((shell + 1) * 0.2)) + (i * x);
+								Info.Particles[it].Position[1] = (sin((i2) * (6.28318531f / val)) * ((shell + 1) * 0.2)) + (i1 * y);
+								Info.Particles[it].Position[2] = -0.001f * i2;
+								Info.Particles[it].Position[3] = 1.0f;
+								Info.Particles[it].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00);
 								Info.Particles[it].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
 								Info.Particles[it].PositionVelocity[2] = 0.0f;
 								Info.Particles[it].PositionVelocity[3] = -1.0f;
-								Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1;
-								Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1;
-								Info.Particles[it].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? 1 : -1; //(((int)i % 2) * 2) - 1
+								Info.Particles[it].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 0.0;
+								Info.Particles[it].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 0.0;
+								Info.Particles[it].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? -1 : 1;
+
 								Info.Particles[it].Magnitude[3] = 1.0f;
 								it++;
 							}
 						}
 					}
 				}
-				
-			
-				*/
+
 				Info.ParticlesSize = it;
 
 				ElementCreateInfo MainCreateInfo;
