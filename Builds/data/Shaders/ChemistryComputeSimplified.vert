@@ -140,7 +140,7 @@ void main(void)
 	}	
 	else if (gl_VertexIndex == 1)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.01), 1.0f));
+		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.05), 1.0f));
 	}	
 	else if (gl_VertexIndex == 2)
 	{
@@ -148,6 +148,6 @@ void main(void)
 	}
 	else if (gl_VertexIndex == 3)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.01f), 1.0f));
+		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.05f), 1.0f));
 	}
 }
