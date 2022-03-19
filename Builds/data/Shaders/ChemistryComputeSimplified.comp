@@ -1,6 +1,6 @@
 #version 450
 #extension GL_KHR_vulkan_glsl : enable
-#define PI 3.1415926535
+#define PI 3.141592653589793238462643
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
@@ -20,9 +20,13 @@ layout(std430, set = 0, binding = 1) buffer ParticlesBuffer1 {
 	Particle ParticlesS[];
 }Particles1;
 
-layout(push_constant) uniform PushConstantsComputeFundamental {
+layout (set = 0, binding = 2, r32f) uniform image3D Field0;
+layout (set = 0, binding = 3, r32f) uniform image3D Field1;
+
+layout(push_constant) uniform PushConstantsComputeSimplified {
 	int Part;
 	int Particles;
+	int SimulationResolution;
 	float Multiplier;
 }PushConstants;
 
@@ -48,8 +52,8 @@ void main(void)
 	}
 	else if (PushConstants.Part == 1)
 	{	
-	//float offset = 0.43f;
-	float offset = 0.20f;
+
+	float offset = 1.00f;
 	float pairingrange = 0.05f;
 	int pairedparticleindex = -1;
 
@@ -65,9 +69,7 @@ void main(void)
 	float chargec = Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.w;
 	float massc = Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.w;
 	float spinc = Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.w;
-	//acceleration starts out as the base magnetic field strength
-	Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz = vec3(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz * spinc);
-
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz = vec3(0);
 	for (int i = 0; i < PushConstants.Particles; i++) 
 	{	
 		if (gl_GlobalInvocationID.x != i)
@@ -101,37 +103,27 @@ void main(void)
 			vec3 forcedirectionc = normalize(cross(cross(orientationvectorc, Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz), relativevectorc));
 
 			//if interacting particle and current particle are electrons and they are close enough, they pair. is exclusive.
-			pairedparticleindex = ((disci < pairingrange) ? (spini != 0.0f ? (spinc != 0.0f ? i : pairedparticleindex) : pairedparticleindex) : pairedparticleindex);
+			//pairedparticleindex = ((disci < pairingrange) ? (spini != 0.0f ? (spinc != 0.0f ? i : pairedparticleindex) : pairedparticleindex) : pairedparticleindex);
 
 			//oh fuck we forgot magnetism from orbital velocity;
 			//vec3 forcedirectionfromvelocity = cross(Particles0.ParticlesS[i].PositionVelocity.xyz, );
 
+			//use magnetic field too ;
+			vec4 MagneticFieldVector = imageLoad(Field0, ivec3(round(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz * 30) + (PushConstants.SimulationResolution / 2)));
 
-			//it doesn stabilize its either endless attraction or endless repulsion, cant realy make distanced pairing with that bro ;
-			//pairing should only half the magnetic field or something not completely void it. ;
-			//the problem is that these approximations of magnetic field are not directional ;
-			//needs to be the other one whats the problem with calculating diamagnetism from calculating srength of magnetic fields on a certain point ;
+			if (disci > 0.01f)
+			{
+			totalpos += (relativevectori * length(MagneticFieldVector.xyz)) * 0.060f;
 
+			Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz += abs(chargec) * ((forcedirectioni) / r3decayi);
+			//totalpos += (relativevectori * length(Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz)) * 0.060f;
 
-			//acceleration is modified to be extent/strength of the magnetic field of current particle which we can calculate diamangetims with. 			
-			float r3decayiss = pow(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) + offset, 3.0f);
-			//Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz += ((Particles0.ParticlesS[i].Magnitude.xyz * spini) / r3decayiss) * pow(offset, 3.0f);
-
-			if (disci > 0.001f)
-			{		
 			//this adds the actual transform of own field diamangetism, which is 1 frame delayed. 
 			//totalpos += ((-length(Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz) * relativevectorc) / r3decayc) * 0.15f;
 
-			//totalpos += abs(chargei) * ((relativevectori) / r3decayi) * 0.15f;
-			totalpos += abs(chargei) * ((relativevectori) / r3decayi) * 0.020f;
-			//totalpos += abs(chargei) * ((relativevectori) / r3decayi) * 0.030f;
-
-
-			//totalpos += ((relativevectori * (((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, forcedirectioni)) / PI) + 0.5f) * 2)) / r3decayi) * 0.1750f;
-
-
 			totalmagdirectioni += abs(chargec) * ((forcedirectioni * spini) / r3decayi);
 			totalmagrelativei += abs(chargec) * ((relativevectori * spini) / r3decayi);
+
 			totalmagdirectionc += abs(chargei) * ((forcedirectionc * spinc) / r3decayc);
 			totalmagrelativec += abs(chargei) * ((relativevectorc * spinc) / r3decayc);
 
@@ -147,21 +139,17 @@ void main(void)
 			}
 		}
 	}
+	
+
+
+	imageStore(Field1, ivec3(round(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz * 30) + (PushConstants.SimulationResolution / 2)), vec4(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz * spinc, 1));
+	
 	/*
 	TODO:
 
 	secondary state of carbon it seems to already be fine, 2 electrons pairing is fine, but they need to be bale to break apart
 	electrons need to stay in the center the reason why not might be due to compression of distances algorirthm so ugh remove that? 
 	ANS: carbon might be fine without unpairing. to form tetrahedral. 
-
-	add a thing that locks inner electrons in the center but not fully pair ? 
-	ANS: just make the inner non-interact circle larger
-
-	mayby make universal systesm for pairing electrons and pairing nucleus and initial 2 particles 
-	when they get close they'd have to "Slow down" or something mayby if in radius reduce force? or drag? 
-	this is for optimization
-
-	unpairing electrons
 
 	proper thermodynamic regulation force that makes the simulation at a set temperature. 
 	proper pressure simulation and container simulation
@@ -173,11 +161,15 @@ void main(void)
 	lorentz transformation
 	1 / (1 / sqrt(1 -  (pow(v, 2) / pow(c, 2))))
 	cos(arcsin(v / c))
-	*/
+	*/	
+
+	//Magnetic Repulsive Positional Transform (Diamagnetism)
+	//wrong;
+	//totalpos += (totalmagrelativei * (length(totalmagdirectioni) > 0.0001 ? length(totalmagdirectioni) : 1.0f)) * 0.10f;
 	//Magnetic Particle Circular Motion In Magnetic Field Transform.
 	//totalpos += cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz, totalmagdirectioni) * 0.000001f;
 	//Magnetic Positional Transform
-	//totalpos += (totalmagrelativei * (((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, normalize(totalmagdirectioni))) / PI) + 0.5f) * 2)) * 0.17f;
+	//totalpos += (totalmagrelativei * (((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, normalize(totalmagdirectioni))) / PI) + 0.5f) * 2)) * 0.20f;
 	//Magnetic Drag Positional Transform
 	//totalpos += (length(totalmagdirectioni) * -(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz)) * 0.0000001f;
 	//Magnetic Particle Precession Motion In Magnetic Field Transform.
@@ -187,10 +179,6 @@ void main(void)
 	//totalrot += cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, totalmagdirectioni) * 0.000001f;
 	//Magnetic Particle Alignment Transform.
 	//totalrot += (totalmagdirectioni * -((((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, normalize(totalmagdirectioni))) / PI) + 0.5f) * 2) + 0.5f)) * 0.0000001f;
-
-	//DEPRECATED;
-	//Magnetic Repulsive Positional Transform (Diamagnetism)
-	//totalpos += (totalmagrelativei * (length(totalmagdirectioni) > 0.0001 ? length(totalmagdirectioni) : 1.0f)) * 0.05f;
 
 	//temp checks
 	totalpos = length(totalpos) > 0.0f ? totalpos : vec3(0);

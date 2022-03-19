@@ -7,15 +7,23 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 struct Particle {	
 	vec4 Position;
 	vec4 PositionVelocity;
+	vec4 Magnitude;
+	vec4 Acceleration;
+	//int Info0[2][2][2];
+	//int level;
 };
 
-layout(std430, set = 0, binding = 0) buffer ParticlesBuffer {
+
+layout(std430, set = 0, binding = 0) buffer ParticlesBuffer0 {
 	Particle ParticlesS[];
-}Particles;
+}Particles0;
+layout(std430, set = 0, binding = 1) buffer ParticlesBuffer1 {
+	Particle ParticlesS[];
+}Particles1;
 
 
-layout (set = 0, binding = 1, r32f) uniform image3D Result0;
-layout (set = 0, binding = 2, r32f) uniform image3D Result1;
+layout (set = 0, binding = 2, r32f) uniform image3D Result0;
+layout (set = 0, binding = 3, r32f) uniform image3D Result1;
 
 
 layout(push_constant) uniform PushConstantsButterfly {
@@ -24,6 +32,7 @@ layout(push_constant) uniform PushConstantsButterfly {
 
 void main(void)
 {
+/*
 	vec4 TotalData = vec4(0);
 	int size = 1;	
 	if (PushConstants.PingPongIndex == 0)
@@ -85,5 +94,5 @@ void main(void)
 	else
 	{
 		imageStore(Result0, ivec3(gl_GlobalInvocationID.xyz), TotalData);
-	}
+	}*/
 }

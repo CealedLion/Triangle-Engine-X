@@ -15,7 +15,7 @@ struct Particle {
 	vec4 Position;
 	vec4 PositionVelocity;
 	vec4 Magnitude;
-
+	vec4 Acceleration;
 	//int Info0[2][2][2];
 	//int level;
 };
@@ -27,8 +27,13 @@ layout(std430, set = 0, binding = 1) buffer ParticlesBuffer1 {
 	Particle ParticlesS[];
 }Particles1;
 
+layout (set = 0, binding = 2, r32f) uniform image3D Field0;
+layout (set = 0, binding = 3, r32f) uniform image3D Field1;
+
 layout(push_constant) uniform PushConstantsFundamental {
 	mat4 VP;
+	int Particles;
+	int SimulationResolution;
 }PushConstants;
 
 vec3 arr[42] = {
@@ -40,8 +45,6 @@ vec3(0.000000, 0.000000, 1.000000),vec3(0.587786, 0.000000, 0.809017),vec3(-0.95
 vec3(0.587786, 0.000000, -0.809017),vec3(0.000000, 0.000000, -1.000000),vec3(0.688189, 0.525736, 0.499997),vec3(-0.262869, 0.525738, 0.809012),vec3(-0.850648, 0.525736, 0.000000),vec3(-0.262869, 0.525738, -0.809012),
 vec3(0.688189, 0.525736, -0.499997),vec3(0.162456, 0.850654, 0.499995),vec3(0.525730, 0.850652, 0.000000),vec3(-0.425323, 0.850654, 0.309011),vec3(-0.425323, 0.850654, -0.309011),vec3(0.162456, 0.850654, -0.499995)
 };
-
-
 int indices[240] = {
 1, 14, 13,
 2, 14, 16,
@@ -125,8 +128,6 @@ int indices[240] = {
 14, 2, 15
 };
 
-
-
 void main(void)
 {
 	outPosition = Position;
@@ -134,13 +135,29 @@ void main(void)
 	outMagnitude = Magnitude;
 	outAcceleration = Acceleration;
 
+	int idx = gl_InstanceIndex;
+	int z = idx / (PushConstants.SimulationResolution * PushConstants.SimulationResolution);
+    idx -= (z * PushConstants.SimulationResolution * PushConstants.SimulationResolution);
+    int y = idx / PushConstants.SimulationResolution;
+    int x = idx % PushConstants.SimulationResolution;
+
+	ivec3 invoc = ivec3(x, y, z);
+
+	vec4 direction = imageLoad(Field1, ivec3(invoc));
+	if (length(direction.xyz) < 0.03)
+	{
+		direction.xyz = vec3(0);
+	}
+
+	if (gl_InstanceIndex < PushConstants.Particles)
+	{
 	if (gl_VertexIndex == 0)
 	{
 		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
 	}	
 	else if (gl_VertexIndex == 1)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.05), 1.0f));
+		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.15), 1.0f));
 	}	
 	else if (gl_VertexIndex == 2)
 	{
@@ -148,6 +165,26 @@ void main(void)
 	}
 	else if (gl_VertexIndex == 3)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.05f), 1.0f));
+		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.15f), 1.0f));
+	}
+	}
+	else
+	{
+	if (gl_VertexIndex == 0)
+	{
+		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033), 1.0f));
+	}	
+	else if (gl_VertexIndex == 1)
+	{
+		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033) + (direction.xyz * 0.05), 1.0f));
+	}	
+	else if (gl_VertexIndex == 2)
+	{
+		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033), 1.0f));
+	}
+	else if (gl_VertexIndex == 3)
+	{
+		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033) + (direction.xyz * 0.05f), 1.0f));
+	}
 	}
 }

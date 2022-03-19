@@ -4,14 +4,22 @@
 struct Particle {	
 	vec4 Position;
 	vec4 PositionVelocity;
+	vec4 Magnitude;
+	vec4 Acceleration;
+	//int Info0[2][2][2];
+	//int level;
 };
 
-layout(std430, set = 0, binding = 0) buffer ParticlesBuffer {
-	Particle Particles[];
-}Particles;
 
-layout (set = 0, binding = 1, r32f) uniform image3D Result0;
-layout (set = 0, binding = 2, r32f) uniform image3D Result1;
+layout(std430, set = 0, binding = 0) buffer ParticlesBuffer0 {
+	Particle ParticlesS[];
+}Particles0;
+layout(std430, set = 0, binding = 1) buffer ParticlesBuffer1 {
+	Particle ParticlesS[];
+}Particles1;
+
+layout (set = 0, binding = 2, r32f) uniform image3D Result0;
+layout (set = 0, binding = 3, r32f) uniform image3D Result1;
 
 
 layout(push_constant) uniform PushConstantsFullModel {
@@ -58,4 +66,5 @@ void main(void)
 		}
 	}
 	OutAlbedoOrTransperancy = vec4(Res0, 0, Res1, Res0 + Res1);
+	//OutAlbedoOrTransperancy = vec4(Res0, 0, Res1, Res0 + Res1);
 }

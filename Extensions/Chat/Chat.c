@@ -23,7 +23,7 @@
 //	UTF8* DefaultIP; // = (UTF8*)"216.58.223.255";
 //}Config;
 
-float speed = 0.001f;
+float speed = 0.01f;
 const float mouseSpeed = 0.0000001f;
 const float ScrollSpeed = 50.0f;
 
@@ -164,7 +164,7 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 	Particles[*pIterator].Magnitude[3] = 0.0f; //nuclear spin exists but eh.
 	Particles[*pIterator].Acceleration[1] = -1.0f;
 	(*pIterator)++;
-
+	
 	
 	int shellsizes[] =     { 2,  2, 6,  2,  6,  10,  2,  6,  10, 14,  2,  6,  10, 14, 18 };
 	int shellprevsizes[] = { 0,  2, 4,  10, 12, 18,  28, 30, 36, 46,  60, 62, 68, 78, 92 };
@@ -189,12 +189,14 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 			(*pIterator)++;
 		}
 	}
+	
 	/*
-	uint32_t val = 2;
+	uint32_t val = 6;
+	
 	for (size_t i2 = 0; i2 < val; i2++)
 	{
-		Particles[*pIterator].Position[0] = (cos((i2) * (6.28318531f / val)) * ((0 + 1) * 0.1)) + Position[0];
-		Particles[*pIterator].Position[1] = (sin((i2) * (6.28318531f / val)) * ((0 + 1) * 0.1)) + Position[1];
+		Particles[*pIterator].Position[0] = (cos((i2) * (6.28318531f / val)) * (0.02)) + Position[0];
+		Particles[*pIterator].Position[1] = (sin((i2) * (6.28318531f / val)) * (0.02)) + Position[1];
 		Particles[*pIterator].Position[2] = (-0.001f * i2) + Position[2];
 		Particles[*pIterator].Position[3] = 1.0f; //mass
 		Particles[*pIterator].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00);
@@ -207,11 +209,49 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 		Particles[*pIterator].Magnitude[3] = 1.0f; //spin
 		Particles[*pIterator].Acceleration[1] = -1.0f;
 		(*pIterator)++;
+	}*/
+	/*
+	val = 1;
+	for (size_t i2 = 0; i2 < val; i2++)
+	{
+		Particles[*pIterator].Position[0] = (cos((i2) * (6.28318531f / val)) * (0.00)) + Position[0];
+		Particles[*pIterator].Position[1] = (sin((i2) * (6.28318531f / val)) * (0.00)) + Position[1] + 0.25;
+		Particles[*pIterator].Position[2] = (-0.001f * i2) + Position[2];
+		Particles[*pIterator].Position[3] = 1.0f; //mass
+		Particles[*pIterator].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00);
+		Particles[*pIterator].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
+		Particles[*pIterator].PositionVelocity[2] = 0.0f;
+		Particles[*pIterator].PositionVelocity[3] = -1.0f; //charge
+		Particles[*pIterator].Magnitude[0] = 0.0f;
+		Particles[*pIterator].Magnitude[1] = ((((int)i2 % 2) * 2) - 1);
+		Particles[*pIterator].Magnitude[2] = 0.0f;
+		Particles[*pIterator].Magnitude[3] = 1.0f; //spin
+		Particles[*pIterator].Acceleration[1] = -1.0f;
+		(*pIterator)++;
 	}
-
-
-
-	val = Element - 2;
+	
+	val = 3;
+	for (size_t i2 = 0; i2 < val; i2++)
+	{
+		Particles[*pIterator].Position[0] = (sin((i2) * (6.28318531f / val)) * (0.40)) + Position[0];
+		Particles[*pIterator].Position[1] = (-0.001f * i2) + Position[1] + -0.2;
+		Particles[*pIterator].Position[2] = (cos((i2) * (6.28318531f / val)) * (0.40)) + Position[2];
+		Particles[*pIterator].Position[3] = 1.0f; //mass
+		Particles[*pIterator].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00);
+		Particles[*pIterator].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
+		Particles[*pIterator].PositionVelocity[2] = 0.0f;
+		Particles[*pIterator].PositionVelocity[3] = -1.0f; //charge
+		Particles[*pIterator].Magnitude[0] = sin((i2 + 1) * (6.28318531f / val)) * 1.0;
+		Particles[*pIterator].Magnitude[1] = 0.0f;
+		Particles[*pIterator].Magnitude[2] = cos((i2 + 1) * (6.28318531f / val)) * 1.0;
+		Particles[*pIterator].Magnitude[3] = 1.0f; //spin
+		Particles[*pIterator].Acceleration[1] = -1.0f;
+		(*pIterator)++;
+	}
+	*/
+	/*
+	
+	 val = 6;
 	for (size_t i2 = 0; i2 < val; i2++)
 	{
 		Particles[*pIterator].Position[0] = (cos((i2) * (6.28318531f / val)) * ((0 + 1) * 0.2)) + Position[0];
@@ -222,9 +262,28 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 		Particles[*pIterator].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
 		Particles[*pIterator].PositionVelocity[2] = 0.0f;
 		Particles[*pIterator].PositionVelocity[3] = -1.0f; //charge
-		Particles[*pIterator].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1.0;
-		Particles[*pIterator].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1.0;
+		Particles[*pIterator].Magnitude[0] = cos((i2 ) * (6.28318531f / val)) * 1.0;
+		Particles[*pIterator].Magnitude[1] = sin((i2 ) * (6.28318531f / val)) * 1.0;
 		Particles[*pIterator].Magnitude[2] = 0.0f;
+		Particles[*pIterator].Magnitude[3] = 1.0f; //spin
+		Particles[*pIterator].Acceleration[1] = -1.0f;
+		(*pIterator)++;
+	}
+
+	val = 2;
+	for (size_t i2 = 0; i2 < val; i2++)
+	{
+		Particles[*pIterator].Position[0] = (cos((i2) * (6.28318531f / val)) * ((0 + 1) * 0.2)) + Position[0];
+		Particles[*pIterator].Position[1] = (sin((i2) * (6.28318531f / val)) * ((0 + 1) * 0.2)) + Position[1];
+		Particles[*pIterator].Position[2] = (-0.001f * i2) + Position[2];
+		Particles[*pIterator].Position[3] = 1.0f; //mass
+		Particles[*pIterator].PositionVelocity[0] = (cos((i2 + 1) * (6.28318531f / val)) * 0.00);
+		Particles[*pIterator].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
+		Particles[*pIterator].PositionVelocity[2] = 0.0f;
+		Particles[*pIterator].PositionVelocity[3] = -1.0f; //charge
+		Particles[*pIterator].Magnitude[0] = cos((i2) * (6.28318531f / val)) * 0.0;
+		Particles[*pIterator].Magnitude[1] = sin((i2) * (6.28318531f / val)) * 0.0;
+		Particles[*pIterator].Magnitude[2] = ((((int)i2 % 2) * 2) - 1);
 		Particles[*pIterator].Magnitude[3] = 1.0f; //spin
 		Particles[*pIterator].Acceleration[1] = -1.0f;
 		(*pIterator)++;
@@ -788,6 +847,7 @@ TEXRESULT ChemistryClick_Callback()
 
 TEXRESULT ChemistryKey_Callback()
 {
+	/*
 	uint32_t ThreadIndex = 0;
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
 
@@ -876,7 +936,7 @@ TEXRESULT ChemistryKey_Callback()
 
 
 	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
-
+	*/
 	return (Success);
 }
 
@@ -1927,7 +1987,7 @@ TEXRESULT Update_Chat()
 	}
 	else
 	{
-		speed = 0.001f;
+		speed = 0.01f;
 	}
 
 	if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress)
@@ -2951,6 +3011,8 @@ TEXRESULT Initialise_Chat() {
 
 				Info.Multiplier = 0.0f;
 
+				Info.SimulationResolution = 64;
+
 				uint64_t it = 0;
 
 				vec3 Position;
@@ -2959,6 +3021,8 @@ TEXRESULT Initialise_Chat() {
 
 				Position[1] += 1.0f;
 				//Add_ChemistryElement(10, Position, Info.Particles, &it, -1);
+
+				//dont forget to add magnetismw field shit here too;
 
 				Info.ParticlesSize = it;
 
