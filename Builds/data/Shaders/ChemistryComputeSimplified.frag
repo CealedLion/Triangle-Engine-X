@@ -23,9 +23,9 @@ layout(push_constant) uniform PushConstantsFundamental {
 void main(void)
 {
 	//vec4 Data1 = imageLoad(Field1, ivec3(0));
-	AlbedoOrTransperancy = vec4(0, 0.5, 0, 1);
+	//AlbedoOrTransperancy = vec4(0, 0.5, 0, 1);
 
 
-	//AlbedoOrTransperancy = vec4(PositionVelocity.w + Acceleration.w, 0 + Acceleration.w, (-PositionVelocity.w + 1) + Acceleration.w, 1);
+	AlbedoOrTransperancy = vec4(PositionVelocity.w + Acceleration.w, 0 + Acceleration.w, (-PositionVelocity.w + 1) + Acceleration.w, 1);
 	//AlbedoOrTransperancy = vec4((Magnitude.x + 1) / 2, (Magnitude.y + 1) / 2, (Magnitude.z + 1) / 2, 1);
 }

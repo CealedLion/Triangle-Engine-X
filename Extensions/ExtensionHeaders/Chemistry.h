@@ -434,7 +434,6 @@ typedef struct PushConstantsComputeSimplified {
 	int SimulationResolution;
 	float Multiplier;
 
-
 	mat4 Rotation;
 	vec4 Position;
 	int ResolutionX;

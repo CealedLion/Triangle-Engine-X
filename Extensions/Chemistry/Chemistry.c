@@ -1381,70 +1381,30 @@ void Draw_Simplified(ElementGraphics* pElement, ResourceHeader* pHeader, Object*
 {
 	if (pEffect->ParticlesSize != 0)
 	{
-		//particles
-		{
-			//Engine_Ref_Lock_Mutex(&pEffect->mutex);
-			VkBuffer vkBuffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
-			VkDeviceSize VkOffset = pEffect->AllocationParticles1.Pointer;
+		//Engine_Ref_Lock_Mutex(&pEffect->mutex);
+		VkBuffer vkBuffer = pEffect->AllocationParticles1.Allocater.pArenaAllocater->VkBuffer;
+		VkDeviceSize VkOffset = pEffect->AllocationParticles1.Pointer;
 
-			vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
+		vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->VkPipeline);
 
-			PushConstantsSimplified PushConstants;
-			memset(&PushConstants, 0, sizeof(PushConstants));
-			glm_mat4_copy(CameraVP, PushConstants.VP);
-			PushConstants.SimulationResolution = pEffect->Magnetism.SimulationResolution;
-			PushConstants.Particles = pEffect->ParticlesSize;
-			vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-				pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
+		PushConstantsSimplified PushConstants;
+		memset(&PushConstants, 0, sizeof(PushConstants));
+		glm_mat4_copy(CameraVP, PushConstants.VP);
+		PushConstants.SimulationResolution = pEffect->Magnetism.SimulationResolution;
+		PushConstants.Particles = pEffect->ParticlesSize;
+		vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
+			pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
-			vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSet, 0, NULL);
+		vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSet, 0, NULL);
 
-			vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
+		vkCmdBindVertexBuffers(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 0, 1, &vkBuffer, &VkOffset);
 
-			vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 4, pEffect->ParticlesSize +
-				(pEffect->Magnetism.SimulationResolution * pEffect->Magnetism.SimulationResolution * pEffect->Magnetism.SimulationResolution), 0, 0);
-			//Engine_Ref_Unlock_Mutex(&pEffect->mutex);
-		}
-		/*
-		//MAGNETISM
-		{
-			vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pEffect->Magnetism.VkPipeline);
+		//vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 4, pEffect->ParticlesSize +
+		//	(pEffect->Magnetism.SimulationResolution * pEffect->Magnetism.SimulationResolution * pEffect->Magnetism.SimulationResolution), 0, 0);
+		//Engine_Ref_Unlock_Mutex(&pEffect->mutex);
 
-			PushConstantsFullModel PushConstants;
-			memset(&PushConstants, 0, sizeof(PushConstants));
-
-			mat4 CameraPositionMatrix;
-			glm_mat4_identity(CameraPositionMatrix);
-			Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCamera->Header.iObjects[0], ThreadIndex);
-			//this is retarded;
-			glm_mat4_inv_precise_sse2(CameraPositionMatrix, CameraPositionMatrix);
-
-			vec4 Translation;
-			glm_vec3_zero(Translation);
-			mat4 Rotation;
-			glm_mat4_zero(Rotation);
-			vec3 Scale;
-			glm_vec3_one(Scale);
-
-			glm_decompose(CameraPositionMatrix, Translation, Rotation, Scale);
-
-			glm_mat4_copy(Rotation, PushConstants.Rotation);
-
-			glm_vec4_copy(Translation, PushConstants.Position);
-			PushConstants.PingPongIndex = pEffect->Magnetism.PingPongIndex;
-			PushConstants.FieldOfView = 70.0f;
-			PushConstants.ResolutionX = pGraphicsWindow->CurrentExtentWidth;
-			PushConstants.ResolutionY = pGraphicsWindow->CurrentExtentHeight;
-			//glm_vec3_copy(pEffect->Magnetism.Position, PushConstants.Position);
-			vkCmdPushConstants(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->Magnetism.VkPipelineLayout, VK_SHADER_STAGE_ALL, 0,
-				pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
-
-			vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				pEffect->Magnetism.VkPipelineLayout, 0, 1, &pEffect->Magnetism.VkDescriptorSet, 0, NULL);
-
-			vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 6, 1, 0, 0);
-		}*/
+		vkCmdDraw(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, 4, pEffect->ParticlesSize, 0, 0);
 	}
 }
 
@@ -1642,7 +1602,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 					if (pEffect->Header.Identifier == ChemistryEffects_Simplified && pEffect->ParticlesSize != 0)
 					{
 						VkResult res = VK_SUCCESS;
-
+						/*
 						RHeaderMaterial* pMaterial = Object_Ref_Get_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 #ifndef NDEBUG
 						if (pMaterial == NULL) {
@@ -1661,7 +1621,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 							Engine_Ref_ObjectError("DrawSignature_FullModel()", "pMaterial", pMaterial, "ElementGraphics.EmissiveTexture.iTexture Invalid.");
 							return (Invalid_Parameter | Failure);
 						}
-#endif
+#endif*/
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 						//Rendering
 						////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1707,6 +1667,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								0, NULL
 							);
 						}
+						/*
 						{
 							VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
 							Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1758,7 +1719,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								0, NULL,
 								1, &Barrier
 							);
-						}
+						}*/
 						{
 							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->VkPipelineCompute);
 							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -1782,6 +1743,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 
 								vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->ParticlesSize, 1, 1);
 							}
+							/*
 							vkCmdBindPipeline(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pEffect->Magnetism.VkPipelineComputeField);
 							vkCmdBindDescriptorSets(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
 								pEffect->VkPipelineLayout, 0, 1, &pEffect->VkDescriptorSet, 0, NULL);
@@ -1798,7 +1760,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 									pGraphicsWindow->pLogicalDevice->pPhysicalDevice->Properties.limits.maxPushConstantsSize, &PushConstants);
 
 								vkCmdDispatch(pGraphicsWindow->SwapChain.FrameBuffers[FrameIndex].VkRenderCommandBuffer, pEffect->Magnetism.SimulationResolution / 8, pEffect->Magnetism.SimulationResolution / 8, pEffect->Magnetism.SimulationResolution / 8);
-							}
+							}*/
 						}
 						{
 							VkBufferMemoryBarrier Barrier = { sizeof(Barrier) };
@@ -1842,6 +1804,7 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								0, NULL
 							);
 						}
+						/*
 						{
 							VkImageMemoryBarrier Barrier = { sizeof(Barrier) };
 							Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1893,11 +1856,11 @@ void DrawSignature_Simplified(GraphicsEffectSignature* pSignature, RHeaderGraphi
 								0, NULL,
 								1, &Barrier
 							);
-						}
+						}*/
 
-						Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
-						Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
-						Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
+						//Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
+						//Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, false, false, ThreadIndex);
+						//Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, false, false, ThreadIndex);
 					}
 					pointer += pEffect->Header.AllocationSize;
 				}

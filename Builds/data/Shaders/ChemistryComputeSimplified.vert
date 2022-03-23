@@ -144,11 +144,11 @@ void main(void)
 	ivec3 invoc = ivec3(x, y, z);
 
 	vec4 direction = imageLoad(Field1, ivec3(invoc));
-	if (length(direction.xyz) < 0.03)
+	if (length(direction.xyz) < 0.0025)
 	{
 		direction.xyz = vec3(0);
 	}
-
+	/*
 	if (gl_InstanceIndex < PushConstants.Particles)
 	{
 	if (gl_VertexIndex == 0)
@@ -186,5 +186,22 @@ void main(void)
 	{
 		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033) + (direction.xyz * 0.05f), 1.0f));
 	}
+	}
+	*/
+	if (gl_VertexIndex == 0)
+	{
+		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
+	}	
+	else if (gl_VertexIndex == 1)
+	{
+		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.15), 1.0f));
+	}	
+	else if (gl_VertexIndex == 2)
+	{
+		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
+	}
+	else if (gl_VertexIndex == 3)
+	{
+		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.15f), 1.0f));
 	}
 }

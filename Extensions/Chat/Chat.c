@@ -847,7 +847,6 @@ TEXRESULT ChemistryClick_Callback()
 
 TEXRESULT ChemistryKey_Callback()
 {
-	/*
 	uint32_t ThreadIndex = 0;
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
 
@@ -936,7 +935,7 @@ TEXRESULT ChemistryKey_Callback()
 
 
 	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
-	*/
+	
 	return (Success);
 }
 
@@ -1983,7 +1982,7 @@ TEXRESULT Update_Chat()
 
 	if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress)
 	{
-		speed = 0.000025f;
+		speed = 0.0005f;
 	}
 	else
 	{
@@ -3011,7 +3010,7 @@ TEXRESULT Initialise_Chat() {
 
 				Info.Multiplier = 0.0f;
 
-				Info.SimulationResolution = 64;
+				Info.SimulationResolution = 8;
 
 				uint64_t it = 0;
 

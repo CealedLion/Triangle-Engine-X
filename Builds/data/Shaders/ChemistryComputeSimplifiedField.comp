@@ -33,31 +33,50 @@ layout(push_constant) uniform PushConstantsComputeSimplified {
 
 void main(void)
 {
+	if (PushConstants.Part == 0)
+	{
+	imageStore(Field0, ivec3(gl_GlobalInvocationID.xyz), imageLoad(Field1, ivec3(gl_GlobalInvocationID.xyz)));
+	}
+	else if (PushConstants.Part == 1)
+	{	
+	//just do r3 decay from point i guess it only has to be approximate ,
+	//also have a multiply decay.
+	//regulate magnetic field in the other shader so that a point doesnt give that much strength.
+	//mayby if its already at a threshold value it wont add more or something
 
-	vec4 TotalData = vec4(0);
+	//just averaging decay, 
+	//but mayby we should do more relistic verson? 
+
+	vec3 TotalData = vec3(0);
 	int size = 1;	
 	for (int ix = -size; ix <= size; ix++) {
 		for (int iy = -size; iy <= size; iy++) {
 			for (int iz = -size; iz <= size; iz++) {	
 				vec4 Data0 = imageLoad(Field0, ivec3(gl_GlobalInvocationID.xyz) + ivec3(ix, iy, iz));
-				vec4 Data1 = imageLoad(Field0, ivec3(gl_GlobalInvocationID.xyz));
+				//vec4 Data1 = imageLoad(Field0, ivec3(gl_GlobalInvocationID.xyz));
 
-				vec3 Coord0 = ivec3(ix, iy, iz);
-				vec3 Coord1 = ivec3(0);
+				//vec3 Coord0 = ivec3(ix, iy, iz);
+				//vec3 Coord1 = ivec3(0);
 					
-				float NormalizedFactor0 = 1.0f / clamp(max(max(abs(Data0.x), abs(Data0.y)), abs(Data0.z)), 0.000000000001, 100000000.0);
-				vec3 Normalized0 = Data0.xyz * NormalizedFactor0;
+				//float NormalizedFactor0 = 1.0f / clamp(max(max(abs(Data0.x), abs(Data0.y)), abs(Data0.z)), 0.000000000001, 100000000.0);
+				//vec3 Normalized0 = Data0.xyz * NormalizedFactor0;
 
-				float Difference = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Coord0 + Normalized0, vec3(gl_GlobalInvocationID.xyz)), 0.0, 1.0) + 1.0);
+				//float Difference = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Coord0 + Normalized0, vec3(gl_GlobalInvocationID.xyz)), 0.0, 1.0) + 1.0);
 
-				TotalData.xyz += ((Data0.xyz + ((gl_GlobalInvocationID.xyz + Coord0 + Normalized0) - gl_GlobalInvocationID.xyz)) * Difference);
-				TotalData.w += Data0.w * Difference;
+				//TotalData.xyz += ((Data0.xyz + ((gl_GlobalInvocationID.xyz + Coord0 + Normalized0) - gl_GlobalInvocationID.xyz)) * Difference);
+				///TotalData.w += Data0.w * Difference;
 
+				TotalData.xyz += Data0.xyz;
 				//remove energy but dont change direction smh?...
 			//	float Difference1 = (-clamp(distance(vec3(gl_GlobalInvocationID.xyz) + Data1.xyz, vec3(gl_GlobalInvocationID.xyz) + Coord0), 0.0, 0.99) + 0.99) / 0.99;
 				//TotalData.xyz -= Data1.xyz * Difference1;
+				
 			}
 		}
 	}
-	imageStore(Field1, ivec3(gl_GlobalInvocationID.xyz), TotalData);
+	TotalData.xyz = TotalData.xyz / (3 * 3 * 3);
+	//TotalData.xyz = TotalData.xyz * 0.99;
+
+	imageStore(Field1, ivec3(gl_GlobalInvocationID.xyz), vec4(TotalData, 1));
+	}
 }
