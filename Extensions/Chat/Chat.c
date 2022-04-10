@@ -153,7 +153,7 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 	Particles[*pIterator].Position[0] = Position[0];
 	Particles[*pIterator].Position[1] = Position[1];
 	Particles[*pIterator].Position[2] = Position[2];
-	Particles[*pIterator].Position[3] = ((1836.15267f * Element) + (1838.68366f * ChemistryElementsNeutrons[Element])) * 10000.1f; //mass
+	Particles[*pIterator].Position[3] = ((1836.15267f * Element) + (1838.68366f * ChemistryElementsNeutrons[Element])); //mass
 	Particles[*pIterator].PositionVelocity[0] = 0.0f;
 	Particles[*pIterator].PositionVelocity[1] = 0.0f;
 	Particles[*pIterator].PositionVelocity[2] = 0.0f;
@@ -903,15 +903,13 @@ TEXRESULT ChemistryKey_Callback()
 	}
 	//mayby add cut and stuff too 
 
-
-
 	size_t aa = pEffect->ParticlesSize;
 	for (size_t i = 0; i < aa; i++)
 	{
 		if (pEffect->Particles[i].Acceleration[3] == 1.0f)
 		{
 			//manipulation
-			float speed = 0.1f;
+			float speed = 0.4f;
 			if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress)
 				speed = 0.01f;
 			if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress)
@@ -1855,12 +1853,14 @@ TEXRESULT Update_Chat()
 		Object_Ref_End_ElementPointer(CurClickedElement, true, false, ThreadIndex);
 	}
 	*/
-	
+	static int cpufps = 0;
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1) {	
 		double FPS = ((double)pGraphicsWindow->FramesDone);
+		double CPUFPS = ((double)cpufps);
 		double MSPF = 1000.0f / ((double)pGraphicsWindow->FramesDone);
 		pGraphicsWindow->FramesDone = 0;
-		
+		cpufps = 0;
+
 		lasttime = ((double)clock() / (double)CLOCKS_PER_SEC);
 
 		ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
@@ -1870,12 +1870,22 @@ TEXRESULT Update_Chat()
 
 		//free(pEffect->UTF8_Text);
 		char buffer[128 + 19];
-		snprintf(&buffer, 128 + 19, "FPS: %f   MSPF: %f", ((float)FPS), ((float)MSPF));
-
+		snprintf(&buffer, 128 + 19, "FPS: %f   CPUFPS: %f", ((float)FPS), ((float)CPUFPS));
+		/*
+		double powtest = 0.0;
+		int val = 100;
+		for (size_t i = 1; i < 1 + val; i++)
+		{
+			powtest += 1.0 / pow(((double)i) * 0.1, 3.0);
+		}
+		powtest = powtest / val;
+		snprintf(&buffer, 128 + 19, "POWTEST: %f", ((float)powtest));
+		*/
 		pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
 		Object_Ref_ReCreate_Element(iFPS_DisplayText, ThreadIndex);
 		Object_Ref_End_ElementPointer(iFPS_DisplayText, true, false, ThreadIndex);
 	}
+	cpufps++;
 
 	if (pGraphicsWindow->pWindow->STATE_KEY_R == KeyPress)
 	{
@@ -3019,7 +3029,7 @@ TEXRESULT Initialise_Chat() {
 				Add_ChemistryElement(6, Position, Info.Particles, &it, -1);
 
 				Position[1] += 1.0f;
-				//Add_ChemistryElement(10, Position, Info.Particles, &it, -1);
+				Add_ChemistryElement(3, Position, Info.Particles, &it, -1);
 
 				//dont forget to add magnetismw field shit here too;
 

@@ -52,78 +52,143 @@ void main(void)
 	}
 	else if (PushConstants.Part == 1)
 	{	
-	float offset = 0.4f;
-	float pairingrange = 0.07f;
+	/*
+	TODO:
+
+	proper thermodynamic regulation force that makes the simulation at a set temperature. 
+	proper pressure simulation and container simulation
+	
+	magnetic drag isnt relative but oh well none of it is. so make it all relative;
+
+	magnetism from orbital velocity
+
+	lorentz transformation
+	1 / (1 / sqrt(1 -  (pow(v, 2) / pow(c, 2))))
+	cos(arcsin(v / c)) 
+	*/	
+	//1. mayby a geometric system where distances directly calculate the radius of the magnetic field? 
+	//get half of the distance between i and c, thats the magnetic field influence radius between those 2 particles, 
+	//then average all them out. then use that final value and 1 / cubicroot(x) to get final effective diamagnetic cross sectionx
+	//calculating extent of the magnetic field	
+	//ugh but larger magnetic fields then become less strong as they get larger its not exactly right but idk  
+	//the calculating average density just needs to be mroe accurate 1 / pow(x, 3) is just temporary 
+	//totalmagstrengthc =  PI * pow(totalmagstrengthc, 2) * (1 / pow(totalmagstrengthc, 3));
+	//slightly less decay means that its closer to average but this is just temporary
+	//hmm the problem with lithium seems to be geometrical, afterall this is just a multipication by cross section but that might nto be correct in this situation
+	//effective cross section should increase with distance 
+	//its just lithium thats wrong, boron is fine, so 1 electron is wrong 
+	/*
+	diamagnetism problem, 2 options.
+
+	A. pursue autism quantized magnetic Field
+
+	B. continue trying to make diamagnetism more accurate without it. 
+	
+	instead it actually works because the magnetic field lattice interactions spread the force around with pow(d, 3) decay, 
+	which makes some of the force cancel eachother out which is why 2 electrons is less diamagnetism then 1.
+
+	magnetic field extent is r3, but also interactions travel through it r3 or r2 or none? i think none, but the force still divides between the particles that are 
+	lattice connected but whats the formula for the division between particles 
+
+	its a bit more complicated then just decay, the interactions propagate through the magnetic field at r2 but if there is only 1 place for the energy to sink it will
+	obviously make that move with full force when there is multiple particles i think its weighted by r2.
+
+	HERE: 
+
+	vector to get barycenter of where the diamangeitc energy is hitting and use w as the magnitude of the impacts 
+	
+	which we can then get r2 decay from it? from i to c
+	
+	and then we need to divide the force somehow . . .  just divide it i gues we already know its right bro 
+	*/
+
+
+	float offset = 1.00f;
+	float pairingrange = 0.05f;
 	int pairedparticleindex = -1;
 
 	vec3 totalpos = vec3(0.0f);
 	vec3 totalrot = vec3(0.0f);
 
-	vec3 totalmagdirectionc = vec3(0.0f);
-	vec3 totalmagrelativec = vec3(0.0f);
-
 	vec3 totalmagdirectioni = vec3(0.0f);
 	vec3 totalmagrelativei = vec3(0.0f);
+
+	vec3 totaldiamagp = vec3(0.0f);
+	vec3 totaldiamagn = vec3(0.0f);
+
+	vec3 totaldiamagsrcp = vec3(0.0f);
+	vec3 totaldiamagsrcn = vec3(0.0f);
 
 	float chargec = Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.w;
 	float massc = Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.w;
 	float spinc = Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.w;
-
+	//lattice 
+	float totalmaglattice = 1.0f;
+	vec3 totalmag = (Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz * Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.w);
 	for (int i = 0; i < PushConstants.Particles; i++) 
 	{	
 		if (gl_GlobalInvocationID.x != i)
 		{	
 			float chargei = Particles0.ParticlesS[i].PositionVelocity.w;		
 			float massi = Particles0.ParticlesS[i].Position.w;		
-			float spini = Particles0.ParticlesS[i].Magnitude.w;
-			
+			float spini = Particles0.ParticlesS[i].Magnitude.w;		
 			//mayby also make a deadzone that is the shape of the inner field?;		
 			float barycenterdistance = 0.000001f;
-
 			float disci = distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz);
-			float r2decayci = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz)) + offset, 2.0f);	
-
+			float r2decayci = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) + offset), 2.0f);	
 			//scale magneticorientationvector to set distance of magnetic field. 	
 			vec3 orientationvectori = normalize(cross(cross((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz), Particles0.ParticlesS[i].Magnitude.xyz), Particles0.ParticlesS[i].Magnitude.xyz)) * barycenterdistance;
-			//vec3 orientationvectorc = normalize(cross(cross((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz)) * barycenterdistance;
-
+			vec3 orientationvectorc = normalize(cross(cross((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz), Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz)) * barycenterdistance;
 			//vector between field center and particle
 			vec3 relativevectori = normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - (Particles0.ParticlesS[i].Position.xyz + orientationvectori));
-			//vec3 relativevectorc = normalize(Particles0.ParticlesS[i].Position.xyz - (Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + orientationvectorc));
+			vec3 relativevectorc = normalize(Particles0.ParticlesS[i].Position.xyz - (Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + orientationvectorc));
 			//how compressed a given degree of the field is due to the particle obstruction. 
 			//float fieldcompressionfactori = (acos(dot(normalize(orientationvectori), relativevectori)) / PI);
 			//float fieldcompressionfactorc = (acos(dot(normalize(orientationvectorc), relativevectorc)) / PI);
 			//distance decays 
 			//float forcestrengh = ((1.0f / fieldcompressionfactor) / pow(length((Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - (Particles0.ParticlesS[i].Position.xyz + orientationvector))), 3.0f / fieldcompressionfactor));
-			float r3decayi = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz + orientationvectori.xyz)) + offset, 3.0f);
-			//float r3decayc = pow((distance(Particles0.ParticlesS[i].Position.xyz, Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + orientationvectorc.xyz)) + offset, 3.0f);
+			float r3decayi = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz + orientationvectori.xyz) + offset), 3.0f);
+			float r3decayc = pow((distance(Particles0.ParticlesS[i].Position.xyz, Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + orientationvectorc.xyz) + offset), 3.0f);
 			//now find direction of it
 			vec3 forcedirectioni = normalize(cross(cross(orientationvectori, Particles0.ParticlesS[i].Magnitude.xyz), relativevectori));
-			//vec3 forcedirectionc = normalize(cross(cross(orientationvectorc, Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz), relativevectorc));
-
-			//if interacting particle and current particle are electrons and they are close enough, they pair. is exclusive.
-			pairedparticleindex = ((disci < pairingrange) ? (spini != 0.0f ? (spinc != 0.0f ? i : pairedparticleindex) : pairedparticleindex) : pairedparticleindex);
-			
+			vec3 forcedirectionc = normalize(cross(cross(orientationvectorc, Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz), relativevectorc));
 			//oh fuck we forgot magnetism from orbital velocity;
 			//vec3 forcedirectionfromvelocity = cross(Particles0.ParticlesS[i].PositionVelocity.xyz, );
+			//if interacting particle and current particle are electrons and they are close enough, they pair. is exclusive.
+			pairedparticleindex = ((disci < pairingrange) ? (spini != 0.0f ? (spinc != 0.0f ? i : pairedparticleindex) : pairedparticleindex) : pairedparticleindex);
+
+			float r3decay2 = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) + offset), 3.0f);
+			//this is the amount of lattice connection. 
+			//basicially, calculate diamagnetism force barycenter position of c, distance from c position to this barycenter is the baseline/normalization distance for 
+			//the distance decay between barycenter and i particle position. 
+			float discbarycenter = distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz);
+			float disibarycenter = distance(Particles0.ParticlesS[i].Position.xyz, Particles0.ParticlesS[i].Position.xyz + Particles0.ParticlesS[i].Acceleration.xyz);
+			totalmaglattice += (Particles0.ParticlesS[i].Acceleration.w) / pow(disibarycenter / discbarycenter, 3.0f);
+
+			//the problem is induced magnetic field mayby;
+			totalmag += (Particles0.ParticlesS[i].Magnitude.xyz * Particles0.ParticlesS[i].Magnitude.w) / r3decay2;
 
 			if (disci > 0.02f)
 			{
 			//NEW DIAMAGNETISM METHOD PROGRAM IT MORE SIMILAR TO OLD SYSTEM BUT DIFFERENT STILL;
-			//different in that its caused by electrostatic;
-			//totalpos += abs(chargei) * (Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.x != -1.0f ? 1.2f : 1.0f) * ((relativevectori) / r3decayi) * 0.011f;
-			//diamagnetism varies from r2 to r3 decay depending on how large the extent of the magnetic field is. ;
-			seems to be correct, what now?;
-			float r3decaydiamagnetismi = pow(distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) + offset, 2.5f);
-			totalpos += (abs(chargei) * abs(chargec)) * (Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.x != -1.0f ? 1.2f : 1.0f) * ((relativevectori) / r3decaydiamagnetismi) * 0.061f;
+			//different in that its caused by electrostatic; 
+			//diamagnetism varies from r2 to r3 decay depending on how large the extent of the magnetic field is. ;		
+			//does it really decay r3 once it gets to magnetic field? probably. 	 
+			//float discioffset = (disci + offset);
+			//float r23decaydiamagnetismi = pow(min(max(discioffset - (dynamicoffset), offset), discioffset), 2.0f);
+			//r23decaydiamagnetismi = r23decaydiamagnetismi * pow(min(max(discioffset - (disci - dynamicoffset), offset), discioffset), 3.0f);
+			float r23decaydiamagnetismi = pow((distance(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz, Particles0.ParticlesS[i].Position.xyz) + offset), 3.0f);
+			//electrostatic flux strength determines repulsion strength. 
+			//this needs (Particles0.ParticlesS[i].Acceleration.x != -1 ? 0.0f : 1.0f) * but that makes paired electrons not cancel out diamagnetism 
+			//either paired electrons dont emit diamagnetism.. HOW? orrrrrr they dont cancel out diamagnetism 
+			totaldiamagp += ((chargec * chargei) > 0.0f) ? (chargec * chargei) * ((normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz)) / r23decaydiamagnetismi) : vec3(0);
+			totaldiamagn += ((chargec * chargei) < 0.0f) ? (chargec * chargei) * ((normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz)) / r23decaydiamagnetismi) : vec3(0);
+			//i dont think it needs decay 
+			totaldiamagsrcp += ((chargec * chargei) > 0.0f) ? abs(chargec * chargei) * ((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz)) : vec3(0);
+			totaldiamagsrcn += ((chargec * chargei) < 0.0f) ? abs(chargec * chargei) * ((Particles0.ParticlesS[i].Position.xyz - Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz)) : vec3(0);
 
-			//totalpos += (relativevectori * (((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, forcedirectioni)) / PI) + 0.5f) * 2)) * 0.20f;
-
-			totalmagdirectioni += abs(chargec) * ((forcedirectioni * spini) / r3decayi);
-			totalmagrelativei += abs(chargec) * ((relativevectori * spini) / r3decayi);
-
-			//totalmagdirectionc += abs(chargei) * ((forcedirectionc * spinc) / r3decayc);
-			//totalmagrelativec += abs(chargei) * ((relativevectorc * spinc) / r3decayc);
+			totalmagdirectioni += ((forcedirectioni * spini) / r3decayi); 
+			totalmagrelativei += ((relativevectori * spini) / r3decayi);
 
 			//normal force (electrostatic)
 			totalpos += (chargec * chargei) * (normalize(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz - Particles0.ParticlesS[i].Position.xyz) / r2decayci) * 0.1f;
@@ -137,29 +202,26 @@ void main(void)
 			}
 		}
 	}
-	Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.x = pairedparticleindex;
-	/*
-	TODO:
+	//Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.x = pairedparticleindex;
+	//might be wrong because it adds to magnetic strength  
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.w = length(totalmag);
+	//calculating how much force is lost due to other particles in the magnetic lattice.
+	//totalmaglattice = (Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.w / sqrt(totalmaglattice));
+	//totalmaglattice = (Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.x != -1) ? 0.0f : 1.0f;
+	//gets percentage of the total electrostatic energy that is of 1 energy type, and uses that to calculate real diamagnetism transform since different energy types cancel out their diamangetic effect when combined, and then multiplies it by the total diamagnetic transform. 
+	//the closer the diamagnetism p and n magnitudes the more it cancels out the total diamagnetic force.
+	//totalpos += length(totaldiamagp + totaldiamagn) * normalize(totaldiamagp + -totaldiamagn) * totalmaglattice * 0.5f;	
+	//didamagnetism force barycenter ;
+	//this needs to be more like average position of where diamagnetic force is hitting the magnetic field, so figure out how to make that, we already have the direction component what about distance? 
+	//mayby a similar system to this but with positions instead of direction vector forces. 
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].Acceleration.xyz = length(totaldiamagsrcp + totaldiamagsrcn) * normalize(totaldiamagsrcp + -totaldiamagsrcn);	
 
-	proper thermodynamic regulation force that makes the simulation at a set temperature. 
-	proper pressure simulation and container simulation
-	
-	magnetic drag isnt relative but oh well none of it is. so make it all relative;
+	totalpos += (length(totaldiamagp + totaldiamagn) * normalize(totaldiamagp + -totaldiamagn) * Particles0.ParticlesS[gl_GlobalInvocationID.x].Acceleration.w * 0.5f) / sqrt(totalmaglattice);
 
-	magnetism from orbital velocity
-
-	lorentz transformation
-	1 / (1 / sqrt(1 -  (pow(v, 2) / pow(c, 2))))
-	cos(arcsin(v / c))
-	*/	
-
-	//Magnetic Repulsive Positional Transform (Diamagnetism)
-	//wrong;
-	//totalpos += (totalmagrelativei * (length(totalmagdirectioni) > 0.0001 ? length(totalmagdirectioni) : 1.0f)) * 0.10f;
 	//Magnetic Particle Circular Motion In Magnetic Field Transform.
 	//totalpos += cross(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz, totalmagdirectioni) * 0.000001f;
 	//Magnetic Positional Transform
-	totalpos += (totalmagrelativei * (((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, normalize(totalmagdirectioni))) / PI) + 0.5f) * 2)) * 0.10f;
+	//totalpos += totalmagrelativei * (((-acos(dot(Particles0.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz, normalize(totalmagdirectioni))) / PI) + 0.5f) * 2) * 0.01f;
 	//Magnetic Drag Positional Transform
 	//totalpos += (length(totalmagdirectioni) * -(Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz)) * 0.0000001f;
 	//Magnetic Particle Precession Motion In Magnetic Field Transform.
@@ -182,22 +244,24 @@ void main(void)
 	Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz = normalize(Particles1.ParticlesS[gl_GlobalInvocationID.x].Magnitude.xyz);
 
 	//temporary slowdown effect
-	if (length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) > 0.001f)
+	if (length(Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) > 0.0001f)
 	{
 		float bleedm = 0.01f * PushConstants.Multiplier;
 		float bleed = 1.0f - bleedm;
 		Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz = Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz * bleed;
 	} 
-	//container 
+	/*//container 
 	if (length(Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) > 10.0f)
 	{
 		Particles1.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz += (normalize(-Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) * 0.00001f) * PushConstants.Multiplier;
-	}
-
+	}*/
+	//if paired it will add positions together to get average position.
 	Particles1.ParticlesS[gl_GlobalInvocationID.x].Position.xyz = pairedparticleindex != -1 ?
 		((Particles0.ParticlesS[pairedparticleindex].Position.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz) / 2) : Particles0.ParticlesS[gl_GlobalInvocationID.x].Position.xyz;
-
-	Particles1.ParticlesS[gl_GlobalInvocationID.x].Position.xyz += ((Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) * 0.01f) * PushConstants.Multiplier;
+	//if paired it will add position velocity with paired particle to get combined force.
+	Particles1.ParticlesS[gl_GlobalInvocationID.x].Position.xyz += ((pairedparticleindex != -1 ?
+		((Particles0.ParticlesS[pairedparticleindex].PositionVelocity.xyz + Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz) / 2) : Particles0.ParticlesS[gl_GlobalInvocationID.x].PositionVelocity.xyz
+		) * 0.01f) * PushConstants.Multiplier;
 	}
 }
 

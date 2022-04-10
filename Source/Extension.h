@@ -958,7 +958,7 @@ const UTF8* Get_FilePathExtension(const UTF8* FileName) {
 		newstring[(filenamelen - lastof)] = '\0';
 		return  newstring;
 	}
-	return (UTF8*)" ";
+	return (UTF8*)malloc(1);
 }
 /*
 * Added in 1.0.0
@@ -975,7 +975,7 @@ const UTF8* Get_FilePathRoot(const UTF8* FileName) {
 		newstring[lastof] = '\0';
 		return  newstring;
 	}
-	return (UTF8*)" ";
+	return (UTF8*)malloc(1);
 }
 /*
 * Added in 1.0.0
@@ -1093,7 +1093,6 @@ TEXRESULT UTF8_To_UTF32(UTF8* src, UTF32** dst) {
 
 	*dst = (UTF32*)calloc(srclen, sizeof(UTF32));
 	UTF32* target = *dst;
-
 
 	while (source < sourceend)
 	{

@@ -1059,7 +1059,6 @@ void DestroyAndDeAllocate_Object(ObjectAllocation Allocation, uint32_t Pointer, 
 			End_ResourceHeaderPointer(pObject->Header.iResourceHeaders[i], true, false, ThreadIndex);
 		}
 	}
-	//doesnt work bcuuuzzzzzzzzzzzzzz   arena allokators are locked at the same time !? ;
 	for (size_t i = 0; i < pObject->Header.iChildrenSize; i++)
 	{
 		Object* pChild = Get_ObjectPointer(pObject->Header.iChildren[i], true, false, ThreadIndex);
@@ -4100,7 +4099,6 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex) {
 
 		ReCreate_Object(pAllocationData->Allocation.Object, ThreadIndex);
 
-
 		i += pObject->Header.AllocationSize;
 	}
 	for (size_t i = 0; i < ResourceHeadersSize;)
@@ -4157,7 +4155,6 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex) {
 		c89atomic_store_32(&pAllocationData->LatestPointer, Pointer);
 
 		ReCreate_ResourceHeader(pAllocationData->Allocation.ResourceHeader, ThreadIndex);
-
 
 		i += pResourceHeader->Header.AllocationSize;
 	}
@@ -4219,11 +4216,7 @@ TEXRESULT Read_TEIF(const UTF8* Path, uint32_t ThreadIndex) {
 		Engine_Ref_Unlock_Mutex(&Utils.InternalResourceHeaderBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 		Engine_Ref_Unlock_Mutex(&Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
-
 	free(data.pData);
-
-	Engine_Ref_FunctionError("TESETTES1", "T", 0);
-
 	return Success;
 }
 
