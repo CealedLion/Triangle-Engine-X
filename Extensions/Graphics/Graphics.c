@@ -7639,10 +7639,8 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		{
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
 			break;
-		}
-		
-	}
-	
+		}	
+	}	
 	Engine_Ref_Exit_Thread(0);
 }
 
@@ -7656,13 +7654,14 @@ TEXRESULT Update_Graphics() {
 			RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 			if (pGraphicsWindow != NULL) {
 				VkResult res = VK_SUCCESS;
-				if (pGraphicsWindow->RecreateFlag == true) {					
+				if (pGraphicsWindow->RecreateFlag == true) {		
 
 					Destroy_SwapChain(pGraphicsWindow, false, ThreadIndex);
 					if (Create_SwapChain(pGraphicsWindow, ThreadIndex) != Success) {
+						Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 						return (Success);
 					}
-					//Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
+					Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
 
 					for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 						AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
@@ -8305,9 +8304,9 @@ TEXRESULT Destroy_Graphics() {
 				
 				//c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				//pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
-
+				//Engine_Ref_FunctionError("Destroy_Graphics()", "Destroying Swapchain", 1);
 				Destroy_SwapChain(pGraphicsWindow, false);
-
+				
 				//c89atomic_flag_clear(&pGraphicsWindow->CloseFlag);
 				
 			
@@ -8315,7 +8314,7 @@ TEXRESULT Destroy_Graphics() {
 			}
 		}
 	}
-
+	Engine_Ref_FunctionError("Destroy_Graphics()", "Destroying Signatures", 1);
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -8334,8 +8333,9 @@ TEXRESULT Destroy_Graphics() {
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderTextureSig, ThreadIndex);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderBufferSig, ThreadIndex);
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderRenderSig, ThreadIndex);
-	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig, ThreadIndex);
 
+	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig, ThreadIndex);
+	Engine_Ref_FunctionError("Destroy_Graphics()", "Done Destroying Signatures", 1);
 	DeRegister_GraphicsEffectSignature(&Utils.Generic2DSig);
 	DeRegister_GraphicsEffectSignature(&Utils.Generic3DSig);
 
@@ -8410,7 +8410,6 @@ __declspec(dllexport) void Initialise_Resources(ExtensionCreateInfo* ReturnInfo)
 
 	Engine_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
 	Object_Initialise_Resources(&ReturnInfo->pFunctions, &ReturnInfo->pFunctionsSize, &ReturnInfo->pResources, &ReturnInfo->pResourcesSize);
-
 
 	//Config
 	ConfigParameterExport(&ReturnInfo->ConfigParameters, &ReturnInfo->ConfigParametersSize, (const UTF8*)CopyData((void*)"Graphics::ExtensionsEnabled"), &Utils.Config.ExtensionsEnabled, Utils.Config.ExtensionsEnabledSize, sizeof(*Utils.Config.ExtensionsEnabled));

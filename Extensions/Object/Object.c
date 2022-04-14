@@ -3590,7 +3590,7 @@ TEXRESULT DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature
 	}
 	//wait for them to destruct
 	while (Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount > (AllocationsCount - AllocationsToCut)) {
-		//Engine_Ref_FunctionError("DeRegister_ResourceHeaderSignature()", "Waiting", Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount);
+		Engine_Ref_FunctionError("DeRegister_ResourceHeaderSignature()", "Waiting", Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount);
 	}
 
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {

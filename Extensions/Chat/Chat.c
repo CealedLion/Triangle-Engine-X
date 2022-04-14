@@ -1894,7 +1894,7 @@ TEXRESULT Update_Chat()
 			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 			ChemistryEffectSimplified* pEffect = NULL;
 			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
-			pEffect->Multiplier += 0.01f;
+			pEffect->Multiplier += 0.05f;
 			Multiplier = pEffect->Multiplier;
 			Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 		}
@@ -1917,7 +1917,33 @@ TEXRESULT Update_Chat()
 			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 			ChemistryEffectSimplified* pEffect = NULL;
 			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
-			pEffect->Multiplier -= 0.01f;
+			pEffect->Multiplier -= 0.05f;
+			if (pEffect->Multiplier < 0.0f)
+				pEffect->Multiplier = 0.0f;
+			Multiplier = pEffect->Multiplier;
+			Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
+		}
+		{
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+			GraphicsEffectText* pEffect = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
+			//free(pEffect->UTF8_Text);
+			char buffer[128 + 19];
+			snprintf(&buffer, 128 + 19, "Multiplier: %f", Multiplier);
+			pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
+			Object_Ref_ReCreate_Element(iMultiplierText, ThreadIndex);
+			Object_Ref_End_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+		}
+	}
+
+	if (pGraphicsWindow->pWindow->STATE_KEY_P == KeyPress)
+	{
+		float Multiplier = 0.0f;
+		{
+			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
+			ChemistryEffectSimplified* pEffect = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
+			pEffect->Multiplier = 0.0f;
 			if (pEffect->Multiplier < 0.0f)
 				pEffect->Multiplier = 0.0f;
 			Multiplier = pEffect->Multiplier;
