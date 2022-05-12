@@ -1970,7 +1970,6 @@ void parse_g2d(Value* src_v, ObjectAllocation iParent, const UTF8* fileloc, Reso
 					}
 					CreateInfoMaterial.BaseColourTexture.iTexture = iTextureHeader;
 				}
-
 			}
 			if (ObjGet(elementV, "Water") != NULL)
 			{

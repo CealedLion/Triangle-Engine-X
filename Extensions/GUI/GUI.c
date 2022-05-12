@@ -599,6 +599,7 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 			PreviousCodePoint = CurrentCodePoint;
 		}
 		free(UTF32_Text);
+		/**/
 		if (pTextImages1Size != NULL)
 		{
 			RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);		
@@ -616,7 +617,11 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 			}
 #endif
 			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages1, pTextImages1Size, &pImageSource->ImageData)) != Success)
+			{
+				Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
+				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Failed To Create Atlas.");
 				return tres;
+			}
 			Object_Ref_ReCreate_ResourceHeader(pImageSource->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 
@@ -626,8 +631,7 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 
 			Object_Ref_ReCreate_ResourceHeader(pTexture->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
-		}
-		
+		}	
 		else if (pTextImages0Size != NULL)
 		{
 			RHeaderTexture* pTexture = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
@@ -645,7 +649,11 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 			}
 #endif
 			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource->ImageData)) != Success)
+			{
+				Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
+				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Failed To Create Atlas.");
 				return tres;
+			}
 			Object_Ref_ReCreate_ResourceHeader(pImageSource->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 
@@ -669,7 +677,11 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 			}
 #endif
 			if ((tres = Graphics_Ref_Create_ImageAtlas(pTextImages0, pTextImages0Size, &pImageSource->ImageData)) != Success)
+			{
+				Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
+				Engine_Ref_ObjectError("ReCreate_Text()", "pTexture", pTexture, "RHeaderTexture.iImageSource Failed To Create Atlas.");
 				return tres;
+			}
 			Object_Ref_ReCreate_ResourceHeader(pImageSource->Header.Allocation, ThreadIndex);
 			Object_Ref_End_ResourceHeaderPointer(pTexture->iImageSource, true, false, ThreadIndex);
 

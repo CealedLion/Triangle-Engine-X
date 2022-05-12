@@ -401,6 +401,7 @@ typedef struct GPU_Particle {
 	vec4 PositionVelocity;
 	vec4 Magnitude;
 	vec4 Acceleration;
+	vec4 Special0;
 	//int Info0[2][2][2];
 	//int level;
 }GPU_Particle;

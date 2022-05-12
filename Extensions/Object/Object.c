@@ -775,6 +775,13 @@ TEXRESULT Compare_ElementAllocation(ElementAllocation Allocation0, ElementAlloca
 * @note Not Synchronized but doesnt matter.
 */
 AllocationData* Get_ObjectAllocationData(ObjectAllocation Allocation) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ObjectAllocationData()", "Utils.InternalObjectBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	return (Allocation.Identifier != NULL) ? &Utils.InternalObjectBuffer.AllocationDatas.Buffer[Allocation.Pointer] : NULL;
 }
 /*
@@ -786,6 +793,13 @@ AllocationData* Get_ObjectAllocationData(ObjectAllocation Allocation) {
 * @note Not Synchronized but doesnt matter.
 */
 AllocationData* Get_ResourceHeaderAllocationData(ResourceHeaderAllocation Allocation) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ResourceHeaderAllocationData()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	return (Allocation.Identifier != NULL) ? &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[Allocation.Pointer] : NULL;
 }
 /*
@@ -797,6 +811,13 @@ AllocationData* Get_ResourceHeaderAllocationData(ResourceHeaderAllocation Alloca
 * @note Not Synchronized but doesnt matter.
 */
 AllocationData* Get_ElementAllocationData(ElementAllocation Allocation) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ElementAllocationData()", "Utils.InternalElementBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	return (Allocation.Identifier != NULL) ? &Utils.InternalElementBuffer.AllocationDatas.Buffer[Allocation.Pointer] : NULL;
 }
 
@@ -820,8 +841,12 @@ TEXRESULT Find_ObjectSignature(ObjectIdentifier Identifier, ObjectSignature** pp
 		Engine_Ref_ArgsError("Find_ObjectSignature()", "Identifier == NULL");
 		return (Invalid_Parameter | Failure);
 	}
+	if (ppSignature == NULL)
+	{
+		Engine_Ref_ArgsError("Find_ObjectSignature()", "ppSignature == NULL");
+		return (Invalid_Parameter | Failure);
+	}
 #endif
-	//why no sync;
 	for (uint64_t i = 0; i < Utils.ObjectSignaturesSize; i++)
 	{
 		if (Utils.ObjectSignatures[i]->Identifier == Identifier)
@@ -849,6 +874,11 @@ TEXRESULT Find_ResourceHeaderSignature(ResourceHeaderIdentifier Identifier, Reso
 	if (Identifier == NULL)
 	{
 		Engine_Ref_ArgsError("Find_ResourceHeaderSignature()", "Identifier == NULL");
+		return (Invalid_Parameter | Failure);
+	}
+	if (ppSignature == NULL)
+	{
+		Engine_Ref_ArgsError("Find_ResourceHeaderSignature()", "ppSignature == NULL");
 		return (Invalid_Parameter | Failure);
 	}
 #endif
@@ -881,6 +911,11 @@ TEXRESULT Find_ElementSignature(ElementIdentifier Identifier, ElementSignature**
 		Engine_Ref_ArgsError("Find_ElementSignature()", "Identifier == NULL");
 		return (Invalid_Parameter | Failure);
 	}
+	if (ppSignature == NULL)
+	{
+		Engine_Ref_ArgsError("Find_ElementSignature()", "ppSignature == NULL");
+		return (Invalid_Parameter | Failure);
+	}
 #endif
 	for (uint64_t i = 0; i < Utils.ElementSignaturesSize; i++)
 	{
@@ -909,6 +944,13 @@ TEXRESULT Find_ElementSignature(ElementIdentifier Identifier, ElementSignature**
 * @note Not Synchronized but doesnt matter.
 */
 Object* Get_ObjectPointerFromPointer(uint32_t Pointer) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ObjectPointerFromPointer()", "Utils.InternalObjectBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	return &Utils.InternalObjectBuffer.Buffer[Pointer];
 }
 /*
@@ -919,6 +961,13 @@ Object* Get_ObjectPointerFromPointer(uint32_t Pointer) {
 * @note Not Synchronized but doesnt matter.
 */
 ResourceHeader* Get_ResourceHeaderPointerFromPointer(uint32_t Pointer) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ResourceHeaderPointerFromPointer()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	return &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
 }
 /*
@@ -929,6 +978,13 @@ ResourceHeader* Get_ResourceHeaderPointerFromPointer(uint32_t Pointer) {
 * @note Not Synchronized but doesnt matter.
 */
 Element* Get_ElementPointerFromPointer(uint32_t Pointer) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ElementPointerFromPointer()", "Utils.InternalElementBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	return &Utils.InternalElementBuffer.Buffer[Pointer];
 }
 
@@ -1193,7 +1249,6 @@ void TryDestruct_ResourceHeader(AllocationData* pAllocationData, uint32_t Pointe
 		pAllocationData->LatestPointer != Pointer) {
 		uint32_t OverlayPointer = Utils.InternalResourceHeaderBuffer.Buffer[Pointer].Header.OverlayPointer;
 		ResourceHeader* pResourceHeader = &Utils.InternalResourceHeaderBuffer.Buffer[Pointer];
-		//Engine_Ref_FunctionError("freeing()", "size == ", Utils.InternalResourceHeaderBuffer.AllocationsCount);
 		DestroyAndDeAllocate_ResourceHeaderInstance(Pointer, pSignature, false, ThreadIndex);
 		if (OverlayPointer != UINT32_MAX) {
 			c89atomic_fetch_sub_32(&Utils.InternalResourceHeaderBuffer.Buffer[OverlayPointer].Header.UseCount, 1);
@@ -1237,6 +1292,13 @@ void TryDestruct_Element(AllocationData* pAllocationData, uint32_t Pointer, Elem
 * @note Not Synchronized but doesnt matter.
 */
 Object* Get_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ObjectPointer()", "Utils.InternalObjectBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	TEXRESULT tres = Success;
 	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 	if (pAllocationData == NULL)
@@ -1325,6 +1387,13 @@ Object* Get_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consiste
 * @note Not Synchronized but doesnt matter.
 */
 ResourceHeader* Get_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ResourceHeaderPointer()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	TEXRESULT tres = Success;
 	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 	if (pAllocationData == NULL)
@@ -1414,6 +1483,13 @@ ResourceHeader* Get_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, b
 * @note Not Synchronized but doesnt matter.
 */
 Element* Get_ElementPointer(ElementAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Get_ElementPointer()", "Utils.InternalElementBuffer Uninitialized.");
+		return NULL;
+	}
+#endif
 	TEXRESULT tres = Success;
 	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
 	if (pAllocationData == NULL)
@@ -1505,7 +1581,14 @@ Element* Get_ElementPointer(ElementAllocation Allocation, bool Write, bool Consi
 * @note Thread Safe always.
 * @note Not Synchronized but doesnt matter.
 */
-void End_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {	
+void End_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("End_ObjectPointer()", "Utils.InternalObjectBuffer Uninitialized.");
+		return;
+	}
+#endif
 	TEXRESULT tres = Success;
 	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 	if (pAllocationData == NULL)
@@ -1593,6 +1676,13 @@ void End_ObjectPointer(ObjectAllocation Allocation, bool Write, bool Consistent,
 * @note Not Synchronized but doesnt matter.
 */
 void End_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("End_ResourceHeaderPointer()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return;
+	}
+#endif
 	TEXRESULT tres = Success;
 	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 	if (pAllocationData == NULL)
@@ -1680,6 +1770,13 @@ void End_ResourceHeaderPointer(ResourceHeaderAllocation Allocation, bool Write, 
 * @note Not Synchronized but doesnt matter.
 */
 void End_ElementPointer(ElementAllocation Allocation, bool Write, bool Consistent, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("End_ElementPointer()", "Utils.InternalElementBuffer Uninitialized.");
+		return;
+	}
+#endif
 	TEXRESULT tres = Success;
 	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
 	if (pAllocationData == NULL)
@@ -1881,6 +1978,13 @@ TEXRESULT Create_ElementBuffer(ElementBuffer* pBuffer, uint64_t InitialSize)
 * @note Internally Synchronized.
 */
 TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Create_Object()", "Utils.InternalObjectBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	ObjectSignature* pSignature = NULL;
 	Find_ObjectSignature(CreateInfo.Identifier, &pSignature);
 #ifndef NDEBUG
@@ -1963,6 +2067,13 @@ TEXRESULT Create_Object(ObjectAllocation* pAllocation, ObjectCreateInfo CreateIn
 * @note Internally Synchronized.
 */
 TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceHeaderCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Create_ResourceHeader()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	ResourceHeaderSignature* pSignature = NULL;
 	Find_ResourceHeaderSignature(CreateInfo.Identifier, &pSignature);
 #ifndef NDEBUG
@@ -2044,6 +2155,13 @@ TEXRESULT Create_ResourceHeader(ResourceHeaderAllocation* pAllocation, ResourceH
 * @note Internally Synchronized.
 */
 TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo CreateInfo, void* pCreateInfo, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Create_Element()", "Utils.InternalElementBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	ElementSignature* pSignature = NULL;
 	Find_ElementSignature(CreateInfo.Identifier, &pSignature);
 #ifndef NDEBUG
@@ -2131,6 +2249,13 @@ TEXRESULT Create_Element(ElementAllocation* pAllocation, ElementCreateInfo Creat
 * @note Externally Synchronized.
 */
 TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Destroy_Object()", "Utils.InternalObjectBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
 	if (pAllocationData == NULL)
@@ -2162,8 +2287,8 @@ TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t Thread
 	//if it is not aquired then calling destroy does nothing.
 	else {
 		Object* pObject = Get_ObjectPointer(Allocation, false, false, ThreadIndex);
-		if (pObject == NULL)
-			return (Failure);
+		//if (pObject == NULL)
+		//	return (Failure);
 		if (Full == true)
 		{
 			pAllocationData->ScheduleDestruct = true;
@@ -2184,6 +2309,13 @@ TEXRESULT Destroy_Object(ObjectAllocation Allocation, bool Full, uint32_t Thread
 * @note Externally Synchronized.
 */
 TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Destroy_ResourceHeader()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 #ifndef NDEBUG
 	if (pAllocationData == NULL)
@@ -2215,10 +2347,11 @@ TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full,
 	//if it is not aquired then calling destroy does nothing.
 	else {
 		ResourceHeader* pResourceHeader = Get_ResourceHeaderPointer(Allocation, false, false, ThreadIndex);
-		if (pResourceHeader == NULL)
-			return (Failure);
+		//if (pResourceHeader == NULL)
+		//	return (Failure);
 		if (Full == true)
 		{
+			Engine_Ref_ArgsError("Destroy_ResourceHeader()", "SCHEDULING DESTRUCT!");
 			pAllocationData->ScheduleDestruct = true;
 		}
 		End_ResourceHeaderPointer(Allocation, false, false, ThreadIndex);
@@ -2237,6 +2370,13 @@ TEXRESULT Destroy_ResourceHeader(ResourceHeaderAllocation Allocation, bool Full,
 * @note Externally Synchronized.
 */
 TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("Destroy_Element()", "Utils.InternalElementBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
 #ifndef NDEBUG
 	if (pAllocationData == NULL)
@@ -2268,8 +2408,8 @@ TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t Thre
 	//if it is not aquired then calling destroy does nothing.
 	else {
 		Element* pElement = Get_ElementPointer(Allocation, false, false, ThreadIndex);
-		if (pElement == NULL)
-			return (Failure);
+		//if (pElement == NULL)
+		//	return (Failure);
 		if (Full == true)
 		{
 			pAllocationData->ScheduleDestruct = true;
@@ -2292,6 +2432,13 @@ TEXRESULT Destroy_Element(ElementAllocation Allocation, bool Full, uint32_t Thre
 * @note Externally Synchronized.
 */
 TEXRESULT ReCreate_Object(ObjectAllocation Allocation, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalObjectBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_Object()", "Utils.InternalObjectBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	AllocationData* pAllocationData = Get_ObjectAllocationData(Allocation);
 #ifndef NDEBUG
 	if (pAllocationData == NULL)
@@ -2324,6 +2471,13 @@ TEXRESULT ReCreate_Object(ObjectAllocation Allocation, uint32_t ThreadIndex) {
 * @note Externally Synchronized.
 */
 TEXRESULT ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalResourceHeaderBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_ResourceHeader()", "Utils.InternalResourceHeaderBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	AllocationData* pAllocationData = Get_ResourceHeaderAllocationData(Allocation);
 #ifndef NDEBUG
 	if (pAllocationData == NULL)
@@ -2356,6 +2510,13 @@ TEXRESULT ReCreate_ResourceHeader(ResourceHeaderAllocation Allocation, uint32_t 
 * @note Externally Synchronized.
 */
 TEXRESULT ReCreate_Element(ElementAllocation Allocation, uint32_t ThreadIndex) {
+#ifndef NDEBUG
+	if (Utils.InternalElementBuffer.BufferSize == NULL)
+	{
+		Engine_Ref_ArgsError("ReCreate_Element()", "Utils.InternalElementBuffer Uninitialized.");
+		return (Invalid_Parameter | Failure);
+	}
+#endif
 	AllocationData* pAllocationData = Get_ElementAllocationData(Allocation);
 #ifndef NDEBUG
 	if (pAllocationData == NULL)
@@ -3508,32 +3669,35 @@ TEXRESULT DeRegister_ObjectSignature(ObjectSignature* pSignature, uint32_t Threa
 	}
 	if (pSignature->ObjectsCount != NULL)
 	{
-		Engine_Ref_ArgsError("DeRegister_ObjectSignature()", "pSignature still has objects, this is invalid.");
+		Engine_Ref_ArgsError("DeRegister_ObjectSignature()", "pSignature still has resourceheaders, this is invalid.");
 		return (Invalid_Parameter | Failure);
 	}*/
 #endif
+	//lock mutexes for stopping new allocations of this signature type.
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
 		//Engine_Ref_Lock_Mutex(&Utils.InternalObjectBuffer.ArenaAllocaters[i].Mutex);
 		Engine_Ref_Lock_Mutex(&Utils.InternalObjectBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
-	uint32_t AllocationsToCut = 0;
-	uint32_t AllocationsCount = Utils.InternalObjectBuffer.AllocationDatas.AllocationsCount;
+	//uint32_t AllocationsToCut = 0;
+	//uint32_t AllocationsCount = c89atomic_load_i32(&Utils.InternalObjectBuffer.AllocationDatas.AllocationsCount);
 	//set all allocations that are out of range to destruct.
 	for (size_t i = 0; i < Utils.InternalObjectBuffer.AllocationDatas.BufferSize; i++) {
 		AllocationData* pAllocationData = &Utils.InternalObjectBuffer.AllocationDatas.Buffer[i];
 		if (pAllocationData->Allocation.Object.Identifier == pSignature->Identifier) {
 			Destroy_Object(pAllocationData->Allocation.Object, true, ThreadIndex);
-			AllocationsToCut++;
+			//AllocationsToCut++;
 		}
 	}
 	//wait for them to destruct
-	while (Utils.InternalObjectBuffer.AllocationDatas.AllocationsCount > (AllocationsCount - AllocationsToCut)) {
-		//Engine_Ref_FunctionError("DeRegister_ObjectSignature()", "Waiting", Utils.InternalObjectBuffer.AllocationDatas.AllocationsCount);
+	while (c89atomic_load_i32(&pSignature->AllocationsCount) > 0) {
+		Engine_Ref_FunctionError("DeRegister_ObjectSignature()", "Waiting", pSignature->AllocationsCount);
 	}
+
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
 		//Engine_Ref_Unlock_Mutex(&Utils.InternalObjectBuffer.ArenaAllocaters[i].Mutex);
 		Engine_Ref_Unlock_Mutex(&Utils.InternalObjectBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
+
 	Engine_Ref_Lock_Mutex(&Utils.ObjectSignaturesMutex);
 	for (size_t i = 0; i < Utils.ObjectSignaturesSize; i++)
 	{
@@ -3574,23 +3738,28 @@ TEXRESULT DeRegister_ResourceHeaderSignature(ResourceHeaderSignature* pSignature
 		return (Invalid_Parameter | Failure);
 	}*/
 #endif
+	//lock mutexes for stopping new allocations of this signature type.
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
 		//Engine_Ref_Lock_Mutex(&Utils.InternalResourceHeaderBuffer.ArenaAllocaters[i].Mutex);
 		Engine_Ref_Lock_Mutex(&Utils.InternalResourceHeaderBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
-	uint32_t AllocationsToCut = 0;
-	uint32_t AllocationsCount = Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount;
+	//uint32_t AllocationsToCut = 0;
+	//uint32_t AllocationsCount = c89atomic_load_i32(&Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount);
 	//set all allocations that are out of range to destruct.
+	Engine_Ref_FunctionError("DeRegister_ResourceHeaderSignature()", "Waiting for count ", pSignature->AllocationsCount);
 	for (size_t i = 0; i < Utils.InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 		AllocationData* pAllocationData = &Utils.InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
 		if (pAllocationData->Allocation.ResourceHeader.Identifier == pSignature->Identifier) {
 			Destroy_ResourceHeader(pAllocationData->Allocation.ResourceHeader, true, ThreadIndex);
-			AllocationsToCut++;
+			//AllocationsToCut++;
 		}
 	}
 	//wait for them to destruct
-	while (Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount > (AllocationsCount - AllocationsToCut)) {
-		Engine_Ref_FunctionError("DeRegister_ResourceHeaderSignature()", "Waiting", Utils.InternalResourceHeaderBuffer.AllocationDatas.AllocationsCount);
+	Engine_Ref_FunctionError("DeRegister_ResourceHeaderSignature()", "Waiting for ", pSignature->Identifier);
+	
+	//wait, ALLOCATION datas, so somehow somewhere something is ALLOCATING whole new objects ? ;
+	while (c89atomic_load_i32(&pSignature->AllocationsCount) > 0) {
+		Engine_Ref_FunctionError("DeRegister_ResourceHeaderSignature()", "Waiting", pSignature->AllocationsCount);
 	}
 
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
@@ -3627,41 +3796,41 @@ TEXRESULT DeRegister_ElementSignature(ElementSignature* pSignature, uint32_t Thr
 		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature == NULLPTR");
 		return (Invalid_Parameter | Failure);
 	}
-	/*
-	if (pSignature->AllocationsCount != NULL)
+	/*if (pSignature->AllocationsCount != NULL)
 	{
 		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature still has allocations, this is invalid.");
 		return (Invalid_Parameter | Failure);
 	}
 	if (pSignature->ElementsCount != NULL)
 	{
-		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature still has elements, this is invalid.");
+		Engine_Ref_ArgsError("DeRegister_ElementSignature()", "pSignature still has resourceheaders, this is invalid.");
 		return (Invalid_Parameter | Failure);
 	}*/
 #endif
+	//lock mutexes for stopping new allocations of this signature type.
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
 		//Engine_Ref_Lock_Mutex(&Utils.InternalElementBuffer.ArenaAllocaters[i].Mutex);
 		Engine_Ref_Lock_Mutex(&Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
-	uint32_t AllocationsToCut = 0;
-	uint32_t AllocationsCount = Utils.InternalElementBuffer.AllocationDatas.AllocationsCount;
+	//uint32_t AllocationsToCut = 0;
+	//uint32_t AllocationsCount = c89atomic_load_i32(&Utils.InternalElementBuffer.AllocationDatas.AllocationsCount);
 	//set all allocations that are out of range to destruct.
 	for (size_t i = 0; i < Utils.InternalElementBuffer.AllocationDatas.BufferSize; i++) {
 		AllocationData* pAllocationData = &Utils.InternalElementBuffer.AllocationDatas.Buffer[i];
 		if (pAllocationData->Allocation.Element.Identifier == pSignature->Identifier) {
 			Destroy_Element(pAllocationData->Allocation.Element, true, ThreadIndex);
-			AllocationsToCut++;
+			//AllocationsToCut++;
 		}
 	}
 	//wait for them to destruct
-	while (Utils.InternalElementBuffer.AllocationDatas.AllocationsCount > (AllocationsCount - AllocationsToCut)) {
-		//Engine_Ref_FunctionError("DeRegister_ElementSignature()", "Waiting", Utils.InternalElementBuffer.AllocationDatas.AllocationsCount);
+	while (c89atomic_load_i32(&pSignature->AllocationsCount) > 0) {
+		Engine_Ref_FunctionError("DeRegister_ElementSignature()", "Waiting", pSignature->AllocationsCount);
 	}
+
 	for (size_t i = 0; i < EngineRes.pUtils->CPU.MaxThreads; i++) {
 		//Engine_Ref_Unlock_Mutex(&Utils.InternalElementBuffer.ArenaAllocaters[i].Mutex);
 		Engine_Ref_Unlock_Mutex(&Utils.InternalElementBuffer.AllocationDatas.ArenaAllocaters[i].Mutex);
 	}
-
 
 	Engine_Ref_Lock_Mutex(&Utils.ElementSignaturesMutex);
 	for (size_t i = 0; i < Utils.ElementSignaturesSize; i++)
@@ -4281,7 +4450,7 @@ TEXRESULT Initialise_Objects()
 	memset(&Utils, 0, sizeof(Utils));
 
 	//config 
-	Utils.Config.InitialItemsMax = 1024;
+	Utils.Config.InitialItemsMax = 4024;
 	Utils.Config.ActiveMemoryResizing = true;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

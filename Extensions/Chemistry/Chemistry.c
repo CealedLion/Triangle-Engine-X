@@ -2471,8 +2471,9 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
-	RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+//	RHeaderTexture* pTexture0 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
+	//RHeaderTexture* pTexture1 = Object_Ref_Get_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+	/*
 #ifndef NDEBUG
 	if (pTexture0 == NULL) {
 		Engine_Ref_ObjectError("ReCreate_Simplified()", "pMaterial", pMaterial, "RHeaderMaterial.BaseColourTexture.iTexture Invalid.");
@@ -2483,8 +2484,9 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-	RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
-	RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
+
+	//RHeaderImageSource* pImageSource0 = Object_Ref_Get_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
+	//RHeaderImageSource* pImageSource1 = Object_Ref_Get_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
 #ifndef NDEBUG
 	if (pImageSource0 == NULL) {
 		Engine_Ref_ObjectError("ReCreate_Simplified()", "pTexture0", pTexture0, "RHeaderTexture.iImageSource Invalid.");
@@ -2503,8 +2505,8 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		return (Invalid_Parameter | Failure);
 	}
 #endif
-
-	pImageSource0->ImageData->Width = pEffect->Magnetism.SimulationResolution;
+*/
+	/*pImageSource0->ImageData->Width = pEffect->Magnetism.SimulationResolution;
 	pImageSource0->ImageData->Height = pEffect->Magnetism.SimulationResolution;
 	pImageSource0->ImageData->Depth = pEffect->Magnetism.SimulationResolution;
 	pImageSource0->ImageData->Format = GraphicsFormat_R32G32B32A32_SFLOAT;
@@ -2517,7 +2519,7 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 	pImageSource1->ImageData->Format = GraphicsFormat_R32G32B32A32_SFLOAT;
 	pImageSource1->ImageData->MipmapCount = 1;
 	Object_Ref_ReCreate_ResourceHeader(pTexture1->Header.Allocation, ThreadIndex);
-
+	*/
 
 	if (pEffect->ParticlesSize != 0)
 	{
@@ -3125,6 +3127,7 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		BufferInfo.range = pEffect->AllocationParticles1.SizeBytes;
 		Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pEffect->VkDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &BufferInfo, NULL);
 	}
+	/*
 	{
 		VkDescriptorImageInfo ImageInfo = { sizeof(ImageInfo) };
 		ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -3137,7 +3140,7 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 		ImageInfo.imageView = pTexture1->GPU_Texture.VkImageView;
 		ImageInfo.sampler = NULL;
 		Graphics_Ref_Update_Descriptor(pGraphicsWindow->pLogicalDevice, pEffect->VkDescriptorSet, 3, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, NULL, &ImageInfo);
-	}
+	}*/
 	/*
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Rendering
@@ -3857,11 +3860,11 @@ TEXRESULT ReCreate_Simplified(ElementGraphics* pElement, ChemistryEffectSimplifi
 	}
 	*/
 
-	Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
-	Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
+	//Object_Ref_End_ResourceHeaderPointer(pMaterial->BaseColourTexture.iTexture, true, false, ThreadIndex);
+	//Object_Ref_End_ResourceHeaderPointer(pMaterial->EmissiveTexture.iTexture, true, false, ThreadIndex);
 
-	Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
-	Object_Ref_End_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
+	//Object_Ref_End_ResourceHeaderPointer(pTexture0->iImageSource, true, false, ThreadIndex);
+	//Object_Ref_End_ResourceHeaderPointer(pTexture1->iImageSource, true, false, ThreadIndex);
 
 	}
 	Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);

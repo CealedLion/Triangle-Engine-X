@@ -4195,9 +4195,9 @@ TEXRESULT ReCreate_RenderHeader(RHeaderRender* pResourceHeader, uint32_t ThreadI
 			return (Failure);
 		}
 	}
-	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
-	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
 	Object_Ref_End_ResourceHeaderPointer(pTextureTarget->iImageSource, true, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iTextureTarget, true, false, ThreadIndex);
+	Object_Ref_End_ResourceHeaderPointer(pResourceHeader->iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -7284,7 +7284,6 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 				UINT32_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT) {
 				Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkAcquireNextImageKHR Failed, VkResult == ", res);
 			}
-
 			for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 				AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
 				if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Render) {
@@ -7351,13 +7350,11 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 									glm_mat4_identity(CameraPositionMatrix);
 									Calculate_TotalMatrix(&CameraPositionMatrix, pObject->Header.Allocation, ThreadIndex);
 									//multiple position headers is undefined
-
 									mat4 vmat;
 									mat4 pmat;
 									glm_mat4_identity(vmat);
 									glm_mat4_identity(pmat);
 									glm_mat4_inv_precise_sse2(CameraPositionMatrix, vmat);
-
 									if (pCameraHeader != NULL) {
 										switch (pCameraHeader->Type) {
 										case CameraType_Perspective:
@@ -7438,7 +7435,6 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 					}
 				}
 			}
-
 			vkEndCommandBuffer(pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkRenderCommandBuffer);
 		}
 		//alternate break point
@@ -7459,7 +7455,6 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 					}
 				}
 			}
-
 			VkQueue Queue = NULL;
 			vkGetDeviceQueue(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->pLogicalDevice->GraphicsQueueFamilyIndex, QueueIndex1, &Queue);
 
@@ -7496,10 +7491,9 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 			PresentInfo.pSwapchains = SwapChains;
 			PresentInfo.pImageIndices = &pFrameBuffer->SwapChainIndex;
 			PresentInfo.pResults = NULL;
-
 			if ((res = vkQueuePresentKHR(Queue, &PresentInfo)) != VK_SUCCESS) {
 				if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-					//Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res);
+					Engine_Ref_FunctionError("Render_GraphicsWindow()", "Recreate Flag Set. ", res); 
 					c89atomic_flag_test_and_set(&pGraphicsWindow->RecreateFlag);
 				}
 				else {
@@ -7638,6 +7632,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		else
 		{
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
+			Engine_Ref_FunctionError("Render_GraphicsWindow()", "Closing thread due to close/recreate flag. ", res);
 			break;
 		}	
 	}	
@@ -7661,7 +7656,7 @@ TEXRESULT Update_Graphics() {
 						Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, false, false, ThreadIndex);
 						return (Success);
 					}
-					Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
+					//Engine_Ref_FunctionError("Update_Graphics()", "Done creating swapchain ", res);
 
 					for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 						AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
@@ -7669,6 +7664,7 @@ TEXRESULT Update_Graphics() {
 							RHeaderRender* pRenderHeader = Object_Ref_Get_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
 							if (pRenderHeader != NULL) {
 								if (Object_Ref_Compare_ResourceHeaderAllocation(pGraphicsWindow->Header.Allocation, pRenderHeader->iGraphicsWindow) == Success) {
+									Engine_Ref_FunctionError("Update_Graphics()", "REcreating render header ", 0);
 									ReCreate_RenderHeader(pRenderHeader, ThreadIndex);
 								}
 								Object_Ref_End_ResourceHeaderPointer(pAllocationData->Allocation.ResourceHeader, true, false, ThreadIndex);
@@ -8314,7 +8310,7 @@ TEXRESULT Destroy_Graphics() {
 			}
 		}
 	}
-	Engine_Ref_FunctionError("Destroy_Graphics()", "Destroying Signatures", 1);
+	//Engine_Ref_FunctionError("Destroy_Graphics()", "Destroying Signatures", 1);
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//Signatures
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -8335,7 +8331,7 @@ TEXRESULT Destroy_Graphics() {
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderRenderSig, ThreadIndex);
 
 	Object_Ref_DeRegister_ResourceHeaderSignature(&Utils.RHeaderGraphicsWindowSig, ThreadIndex);
-	Engine_Ref_FunctionError("Destroy_Graphics()", "Done Destroying Signatures", 1);
+	//Engine_Ref_FunctionError("Destroy_Graphics()", "Done Destroying Signatures", 1);
 	DeRegister_GraphicsEffectSignature(&Utils.Generic2DSig);
 	DeRegister_GraphicsEffectSignature(&Utils.Generic3DSig);
 
@@ -8385,7 +8381,7 @@ TEXRESULT Destroy_Graphics() {
 	if (Utils.Instance != NULL)
 		vkDestroyInstance(Utils.Instance, NULL);
 
-	Engine_Ref_ArgsError("GRAPHICS DONE ()", "DOEN GRAP");
+	//Engine_Ref_ArgsError("GRAPHICS DONE ()", "DOEN GRAP");
 
 	memset(&Utils, 0, sizeof(Utils));
 	return (Success);

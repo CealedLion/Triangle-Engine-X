@@ -2006,6 +2006,7 @@ typedef struct PerspectiveCamera {
 }PerspectiveCamera;
 /*
 * Added in 1.0.0
+* Keep in mind that orthographic mode needs a different controller, zooms with scaling x and y mag instead of position getting closer.
 */
 typedef struct OrthographicCamera {
 	double x_mag;   // required. must not be zero.
