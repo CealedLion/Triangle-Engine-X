@@ -901,7 +901,6 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 		DynamicStates.dynamicStateCount = statesSize;
 		DynamicStates.pDynamicStates = states;
 
-
 		{
 			VkGraphicsPipelineCreateInfo Info;
 			memset(&Info, 0, sizeof(Info));
@@ -937,7 +936,6 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 			Info.basePipelineHandle = VK_NULL_HANDLE; // Optional
 			Info.basePipelineIndex = -1; // Optional
 
-
 			if ((res = vkCreateGraphicsPipelines(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, VK_NULL_HANDLE, 1, &Info, NULL, &pEffect->VkPipeline)) != VK_SUCCESS)
 			{
 				Engine_Ref_FunctionError("ReCreate_Generic2D()", "vkCreateGraphicsPipelines Failed. VkResult == ", res);
@@ -946,7 +944,6 @@ TEXRESULT ReCreate_Text(ElementGraphics* pElement, GraphicsEffectText* pEffect, 
 		}
 
 	}
-	
 	Object_Ref_End_ResourceHeaderPointer(pElement->iGraphicsWindow, false, false, ThreadIndex);
 	Object_Ref_End_ResourceHeaderPointer(pElement->iMaterial, false, false, ThreadIndex);
 	return (Success);

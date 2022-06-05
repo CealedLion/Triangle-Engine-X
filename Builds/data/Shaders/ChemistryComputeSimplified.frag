@@ -4,20 +4,15 @@
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec4 PositionVelocity;
 layout(location = 2) in vec4 Magnitude;
-layout(location = 3) in vec4 Acceleration;
+layout(location = 3) in vec4 MagnitudeVelocity;
+layout(location = 4) in vec4 Acceleration;
 
 layout(location = 0) out vec4 AlbedoOrTransperancy;
 layout(location = 1) out vec4 RevealageOrPosition;
 
-
-layout (set = 0, binding = 2, r32f) uniform image3D Field0;
-layout (set = 0, binding = 3, r32f) uniform image3D Field1;
-
-
 layout(push_constant) uniform PushConstantsFundamental {
 	mat4 VP;
 	int Particles;
-	int SimulationResolution;
 }PushConstants;
 
 void main(void)

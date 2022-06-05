@@ -959,8 +959,7 @@ GPU_Allocation GPUmalloc(LogicalDevice* pLogicalDevice, VkMemoryRequirements Mem
 			if (ResetCount < EngineRes.pUtils->CPU.MaxThreads)
 			{
 				if (Engine_Ref_TryLock_Mutex(&TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]].mutex) == Success)
-				{
-					
+				{			
 					pArenaAllocater = &TargetBuffer->ArenaAllocaters[TargetBuffer->Indexes[ThreadIndex]];
 					//if (pArenaAllocater->Size == 0)
 					//	ReCreate_GPU_ArenaAllocater(pLogicalDevice, pArenaAllocater, (TargetBuffer->Size > AlignedSize) ? (TargetBuffer->Size) : (TargetBuffer->Size + AlignedSize), TargetMemory);
@@ -1079,7 +1078,6 @@ void GPUfree(LogicalDevice* pLogicalDevice, GPU_Allocation* pAllocation)
 			return;
 		}
 #endif
-
 		GPU_MemoryBuffer* TargetBuffer = NULL;
 		switch (pAllocation->TargetMemory)
 		{
@@ -6956,6 +6954,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 			Engine_Ref_FunctionError("Render_GraphicsWindow()", "Failed To Aquire GraphicsWindow. ", NULL);
 			return (Failure);
 		}
+		Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 
 		VkResult res = VK_SUCCESS;
 		GPU_Allocation** ppTotalAllocations = calloc(Utils.GraphicsEffectSignaturesSize, sizeof(*ppTotalAllocations));
@@ -7279,7 +7278,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		}
 		else {
 
-			Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+			//Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 			if ((res = vkAcquireNextImageKHR(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, pGraphicsWindow->SwapChain.VkSwapChain,
 				UINT32_MAX, pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkImageAvailableSemaphore, NULL, &pFrameBuffer->SwapChainIndex)) == VK_TIMEOUT) {
 				Engine_Ref_FunctionError("Render_GraphicsWindow()", "vkAcquireNextImageKHR Failed, VkResult == ", res);
@@ -7439,7 +7438,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		}
 		//alternate break point
 		if (pGraphicsWindow->RecreateFlag != false || pGraphicsWindow->CloseFlag != false) {
-			Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+			//Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		}
 		else {
 			uint32_t QueueIndex1 = 0;
@@ -7501,13 +7500,15 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 				}
 			}
 			pGraphicsWindow->FramesDone++;
-			Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+			//Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		
 			vkWaitForFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence, VK_TRUE, UINT64_MAX);
 			vkResetFences(pGraphicsWindow->pLogicalDevice->VkLogicalDevice, 1, &pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].VkFrameFence);
 			Engine_Ref_Unlock_Mutex(&pGraphicsWindow->pLogicalDevice->GraphicsQueueMutexes[QueueIndex1]);
+
+			//Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		}
-	
+		Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
 			if (pAllocationData->Allocation.ResourceHeader.Identifier == GraphicsHeader_Material) {
@@ -7624,6 +7625,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		free(ppTotalAllocations);
 		free(ppPointers);
 
+
 		Object_Ref_End_ResourceHeaderPointer(pFrameBuffer->iGraphicsWindow, false, false, ThreadIndex);
 		if (pGraphicsWindow->RecreateFlag == false && pGraphicsWindow->CloseFlag == false)
 		{
@@ -7632,7 +7634,7 @@ void Render_GraphicsWindow(SwapChainFrameBuffer* pFrameBuffer) {
 		else
 		{
 			c89atomic_flag_clear(&pGraphicsWindow->SwapChain.FrameBuffers[pFrameBuffer->FrameIndex].RenderingFlag);
-			Engine_Ref_FunctionError("Render_GraphicsWindow()", "Closing thread due to close/recreate flag. ", res);
+			//Engine_Ref_FunctionError("Render_GraphicsWindow()", "Closing thread due to close/recreate flag. ", res);
 			break;
 		}	
 	}	
@@ -7721,7 +7723,7 @@ TEXRESULT Initialise_Graphics() {
 #ifndef NDEBUG
 	Utils.Config.ValidationLayersEnabledSize = 1;
 #else
-	Utils.Config.ValidationLayersEnabledSize = 0;
+	Utils.Config.ValidationLayersEnabledSize = 1;
 #endif
 
 	Utils.Config.ValidationLayersEnabled[0] = (char*)"VK_LAYER_KHRONOS_validation";

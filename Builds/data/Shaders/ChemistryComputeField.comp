@@ -8,6 +8,7 @@ struct Particle {
 	vec4 Position;
 	vec4 PositionVelocity;
 	vec4 Magnitude;
+	vec4 MagnitudeVelocity;
 	vec4 Acceleration;
 	//int Info0[2][2][2];
 	//int level;

@@ -180,9 +180,18 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 			Particles[*pIterator].PositionVelocity[1] = (sin((i2 + 1) * (6.28318531f / val)) * 0.00);
 			Particles[*pIterator].PositionVelocity[2] = 0.0f;
 			Particles[*pIterator].PositionVelocity[3] = -1.0f; //charge
-			Particles[*pIterator].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1.0;
-			Particles[*pIterator].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1.0;
-			//Particles[*pIterator].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? (flip * -1) : (flip);
+
+			if (shellsizes[shell] != 2)
+			{
+				//Particles[*pIterator].Magnitude[0] = cos((i2 + 1) * (6.28318531f / val)) * 1.0 * (flip);
+				//Particles[*pIterator].Magnitude[1] = sin((i2 + 1) * (6.28318531f / val)) * 1.0 * (flip);
+				//Particles[*pIterator].Magnitude[0] = ((cos((i2) * (6.28318531f / val)) * ((shell + 1) * 1.2)) + Position[0]) * flip;
+				//Particles[*pIterator].Magnitude[1] = ((sin((i2) * (6.28318531f / val)) * ((shell + 1) * 1.2)) + Position[1]) * flip;
+				//Particles[*pIterator].Magnitude[2] = flip;
+				Particles[*pIterator].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? (flip * -1) : (flip);
+			}
+			if (shellsizes[shell] == 2)
+				Particles[*pIterator].Magnitude[2] = ((shellsizes[shell] / 2) <= i2) ? (flip * -1) : (flip);
 			Particles[*pIterator].Magnitude[3] = 1.0f; //spin
 			Particles[*pIterator].Acceleration[1] = -1.0f;
 			(*pIterator)++;
@@ -674,6 +683,12 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 				//Add_ChemistryElement(ChemistryElementType_Titanium, Position, Info.Particles, &it);
 
 
+				int32_t flip = -1;
+				if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress)
+				{
+					flip = 1;
+				}
+
 				pEffect->Particles[pEffect->ParticlesSize].Position[0] = 0.01f;
 				pEffect->Particles[pEffect->ParticlesSize].Position[1] = 0.01f;
 				pEffect->Particles[pEffect->ParticlesSize].Position[2] = 0.01f;
@@ -684,7 +699,7 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 				pEffect->Particles[pEffect->ParticlesSize].PositionVelocity[3] = -1.0f;
 				pEffect->Particles[pEffect->ParticlesSize].Magnitude[0] = 0.0f;
 				pEffect->Particles[pEffect->ParticlesSize].Magnitude[1] = 0.0f;
-				pEffect->Particles[pEffect->ParticlesSize].Magnitude[2] = 1.0; //(((int)i % 2) * 2) - 1
+				pEffect->Particles[pEffect->ParticlesSize].Magnitude[2] = flip; //(((int)i % 2) * 2) - 1
 				pEffect->Particles[pEffect->ParticlesSize].Magnitude[3] = 1.0f;
 
 				pEffect->Particles[pEffect->ParticlesSize].Acceleration[3] = 1.0f;
@@ -770,11 +785,12 @@ void DropdownClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllo
 
 TEXRESULT ChemistryClick_Callback()
 {
+	
 	static vec2 clickpos = { 0.0f, 0.0f };
 
 	uint32_t ThreadIndex = 0;
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
-
+	Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 	static bool clicked = false;
 	if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && clicked == false)
 	{
@@ -790,7 +806,7 @@ TEXRESULT ChemistryClick_Callback()
 		endclickpos[1] = ((((EngineRes.pUtils->MousePos_Callback_state.Y_Position / (float)pGraphicsWindow->CurrentExtentHeight) - 0.5f)) * 2);
 
 		
-		ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
+		ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
 		ChemistryEffectSimplified* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
 
@@ -917,14 +933,16 @@ TEXRESULT ChemistryClick_Callback()
 
 
 		Object_Ref_ReCreate_Element(iMolecularSimulation, ThreadIndex);
-		Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
+		Object_Ref_End_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
 
 
 		clicked = false;
 	}
 
-	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
 
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
+	
 	return (Success);
 }
 
@@ -932,90 +950,144 @@ TEXRESULT ChemistryKey_Callback()
 {
 	uint32_t ThreadIndex = 0;
 	RHeaderGraphicsWindow* pGraphicsWindow = Object_Ref_Get_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
+	Engine_Ref_Lock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
 
-	ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
-	ChemistryEffectSimplified* pEffect = NULL;
-	Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
-
-	GPU_Particle* Particles = NULL;
-	uint64_t ParticlesSize = NULL;
-	Chemistry_Ref_ReadParticles_Simplified(pGraphicsWindow, pElement, pEffect, &ParticlesSize, &Particles, ThreadIndex);
-
-	pEffect->ParticlesSize = ParticlesSize;
-	memcpy(pEffect->Particles, Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
-
-
-	if (pGraphicsWindow->pWindow->STATE_KEY_DELETE == KeyPress)
+	if (pGraphicsWindow->pWindow->STATE_KEY_DELETE == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_C == KeyPress ||
+		pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress ||
+		pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress ||
+		pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
 	{
-		void* oldparticles = pEffect->Particles;
-		pEffect->Particles = calloc(pEffect->ParticlesSize, sizeof(*pEffect->Particles));
-		memcpy(pEffect->Particles, oldparticles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+		ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+		ChemistryEffectSimplified* pEffect = NULL;
+		Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
 
-		size_t aa = pEffect->ParticlesSize;
-		for (size_t i = 0; i < aa; i++)
-		{
-			if (pEffect->Particles[i].Acceleration[3] == 1.0f)
-			{
-				RemoveMember_Array(&pEffect->Particles, pEffect->ParticlesSize, i, sizeof(*pEffect->Particles), 1);
-				pEffect->ParticlesSize -= 1;
-				i--;
-				aa--;
-			}
-		}
-	}
-	if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_C)
-	{
+		//fucking just turn off multithreading for the game engine im done with this bs 
+
+		//update only once at a time bro 
+		//Engine_Ref_FunctionError("0", "AA  ", pEffect->AllocationParticles0.SizeBytes);
+		//Engine_Ref_FunctionError("1", "AA  ", pEffect->AllocationParticles1.SizeBytes);
+		
+		//PARTICLES BUFFER HASNT UPDATED TO GPU YET BUT PUSHCONSTANTS SIZE IS INSTANT 
+
+		//Engine_Ref_FunctionError("start", "AA  ", pEffect->ParticlesSize);
+		//sync doesnt cover the whole thing; / 
+		//this whole thing leaks memmory 
+
+
+		GPU_Particle* Particles = NULL;
+		uint64_t ParticlesSize = NULL;
+		Chemistry_Ref_ReadParticles_Simplified(pGraphicsWindow, pElement, pEffect, &ParticlesSize, &Particles, ThreadIndex);
+		//Particles = pEffect->Particles;
+		//ParticlesSize = pEffect->ParticlesSize;
+
 		GPU_Particle* oldparticles = pEffect->Particles;
 		size_t oldsize = pEffect->ParticlesSize;
-		pEffect->Particles = calloc(pEffect->ParticlesSize, sizeof(*pEffect->Particles));
-		memcpy(pEffect->Particles, oldparticles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
-		for (size_t i = 0; i < oldsize; i++)
+
+		pEffect->Particles = Particles;
+		pEffect->ParticlesSize = ParticlesSize;
+		//pEffect->Particles = calloc(oldsize, sizeof(*pEffect->Particles));
+		//memcpy(pEffect->Particles, oldparticles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+		
+		if (pGraphicsWindow->pWindow->STATE_KEY_DELETE == KeyPress)
 		{
-			if (pEffect->Particles[i].Acceleration[3] == 1.0f)
+			GPU_Particle* oldparticles = Particles;
+			size_t oldsize = ParticlesSize;
+
+			pEffect->Particles = calloc(pEffect->ParticlesSize, sizeof(*pEffect->Particles));
+			memcpy(pEffect->Particles, Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+
+			size_t aa = pEffect->ParticlesSize;
+			for (size_t i = 0; i < aa; i++)
 			{
-				GPU_Particle* pParticle = &oldparticles[i];
-
-				Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
-				memcpy(&pEffect->Particles[pEffect->ParticlesSize], pParticle, sizeof(*pEffect->Particles));
-				pEffect->ParticlesSize += 1;
-
-				pEffect->Particles[i].Acceleration[3] = 0.0f;
+				if (pEffect->Particles[i].Acceleration[3] == 1.0f)
+				{
+					RemoveMember_Array(&pEffect->Particles, pEffect->ParticlesSize, i, sizeof(*pEffect->Particles), 1);
+					pEffect->ParticlesSize -= 1;
+					i--;
+					aa--;
+				}
 			}
 		}
-	}
-	//mayby add cut and stuff too 
 
-	size_t aa = pEffect->ParticlesSize;
-	for (size_t i = 0; i < aa; i++)
-	{
-		if (pEffect->Particles[i].Acceleration[3] == 1.0f)
-		{
-			//manipulation
-			float speed = 0.4f;
-			if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress)
-				speed = 0.01f;
-			if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress)
-				pEffect->Particles[i].Position[0] += speed;
-			if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress)
-				pEffect->Particles[i].Position[0] -= speed;
-			if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress)
-				pEffect->Particles[i].Position[1] += speed;
-			if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress)
-				pEffect->Particles[i].Position[1] -= speed;
-			if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress)
-				pEffect->Particles[i].Position[2] += speed;
-			if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
-				pEffect->Particles[i].Position[2] -= speed;
-		}
-	}
-
-	Object_Ref_ReCreate_Element(iMolecularSimulation, ThreadIndex);
-	Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
-
-
-
-	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
+		//mayby add cut and stuff too 
 	
+		if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress ||
+			pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress ||
+			pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
+		{
+			GPU_Particle* oldparticles = Particles;
+			size_t oldsize = ParticlesSize;
+
+			pEffect->Particles = calloc(pEffect->ParticlesSize, sizeof(*pEffect->Particles));
+			memcpy(pEffect->Particles, Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+
+			for (size_t i = 0; i < pEffect->ParticlesSize; i++)
+			{
+				if (pEffect->Particles[i].Acceleration[3] == 1.0f)
+				{
+					//manipulation
+					float speed = 0.4f;
+					if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress)
+						speed = 0.01f;
+					if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress)
+						pEffect->Particles[i].Position[0] += speed;
+					if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress)
+						pEffect->Particles[i].Position[0] -= speed;
+					if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress)
+						pEffect->Particles[i].Position[1] += speed;
+					if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress)
+						pEffect->Particles[i].Position[1] -= speed;
+					if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress)
+						pEffect->Particles[i].Position[2] += speed;
+					if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
+						pEffect->Particles[i].Position[2] -= speed;
+				}
+			}
+		}
+		if ((pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_RIGHT_CONTROL == KeyPress) && pGraphicsWindow->pWindow->STATE_KEY_C)
+		{
+			for (size_t i = 0; i < ParticlesSize; i++)
+			{
+				if (pEffect->Particles[i].Acceleration[3] == 1.0f)
+				{
+					GPU_Particle* pParticle = &Particles[i];
+					//Resize_Array(&pEffect->Particles, pEffect->ParticlesSize, pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
+					//memcpy(&pEffect->Particles[pEffect->ParticlesSize], pParticle, sizeof(*pEffect->Particles));
+					pEffect->ParticlesSize += 1;
+
+					//glm_vec3_zero(pEffect->Particles[i].PositionVelocity);
+					//pEffect->Particles[i].MagnitudeVelocity[3] = 0.0f;
+
+					//pEffect->Particles[i].Acceleration[3] = 0.0f;
+
+				}
+			}
+			GPU_Particle* oldparticles = Particles;
+			size_t oldsize = ParticlesSize;
+
+			pEffect->Particles = calloc(pEffect->ParticlesSize, sizeof(*pEffect->Particles));
+			memcpy(pEffect->Particles, Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+			uint64_t it = 0;
+			for (size_t i = 0; i < oldsize; i++)
+			{
+				if (pEffect->Particles[i].Acceleration[3] == 1.0f)
+				{
+					memcpy(&pEffect->Particles[oldsize + it], &pEffect->Particles[i], sizeof(*pEffect->Particles));
+					pEffect->Particles[i].Acceleration[3] = 0.0f;
+					//pEffect->Particles[oldsize + it].Acceleration[3] = 0.0f;
+					//pEffect->Particles[oldsize + it].Acceleration[3] = 0.0f;
+					it++;
+				}
+			}
+
+		}
+
+		Object_Ref_ReCreate_Element(iMolecularSimulation, ThreadIndex);
+
+		Object_Ref_End_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+	}
+	Engine_Ref_Unlock_Mutex(&pGraphicsWindow->SwapChainAccessMutex);
+	Object_Ref_End_ResourceHeaderPointer(iGraphicsWindow, false, false, ThreadIndex);
 	return (Success);
 }
 
@@ -1962,81 +2034,171 @@ TEXRESULT Update_Chat()
 	}
 	cpufps++;
 
-	if (pGraphicsWindow->pWindow->STATE_KEY_R == KeyPress)
+
+
+	if (pGraphicsWindow->pWindow->STATE_KEY_P == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_R == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_F == KeyPress ||
+		pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress || pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress)
 	{
-		float Multiplier = 0.0f;
+		ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
+		ChemistryEffectSimplified* pEffect = NULL;
+		Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
+
+		if (pGraphicsWindow->pWindow->STATE_KEY_R == KeyPress)
 		{
-			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
-			ChemistryEffectSimplified* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
-			pEffect->Multiplier += 0.05f;
-			Multiplier = pEffect->Multiplier;
-			Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
+			pEffect->Multiplier += 0.15f;
 		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_F == KeyPress)
 		{
-			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
-			GraphicsEffectText* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
-			//free(pEffect->UTF8_Text);
-			char buffer[128 + 19];
-			snprintf(&buffer, 128 + 19, "Multiplier: %f", Multiplier);
-			pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
-			Object_Ref_ReCreate_Element(iMultiplierText, ThreadIndex);
-			Object_Ref_End_ElementPointer(iMultiplierText, true, false, ThreadIndex);
-		}
-	}
-	if (pGraphicsWindow->pWindow->STATE_KEY_F == KeyPress)
-	{
-		float Multiplier = 0.0f;
-		{
-			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
-			ChemistryEffectSimplified* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
-			pEffect->Multiplier -= 0.05f;
+			pEffect->Multiplier -= 0.15f;
 			if (pEffect->Multiplier < 0.0f)
 				pEffect->Multiplier = 0.0f;
-			Multiplier = pEffect->Multiplier;
-			Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_P == KeyPress)
 		{
-			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
-			GraphicsEffectText* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
-			//free(pEffect->UTF8_Text);
-			char buffer[128 + 19];
-			snprintf(&buffer, 128 + 19, "Multiplier: %f", Multiplier);
-			pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
-			Object_Ref_ReCreate_Element(iMultiplierText, ThreadIndex);
-			Object_Ref_End_ElementPointer(iMultiplierText, true, false, ThreadIndex);
-		}
-	}
-
-	if (pGraphicsWindow->pWindow->STATE_KEY_P == KeyPress)
-	{
-		float Multiplier = 0.0f;
-		{
-			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
-			ChemistryEffectSimplified* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
 			pEffect->Multiplier = 0.0f;
 			if (pEffect->Multiplier < 0.0f)
 				pEffect->Multiplier = 0.0f;
-			Multiplier = pEffect->Multiplier;
-			Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 		}
+
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_0 == KeyPress)
 		{
-			ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
-			GraphicsEffectText* pEffect = NULL;
-			Graphics_Effects_Ref_Get_GraphicsEffect(pElement, GUIEffect_Text, &pEffect);
+			pEffect->maxpairing += 0.005f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_0 == KeyPress)
+		{
+			pEffect->maxpairing -= 0.005f;
+			if (pEffect->maxpairing < 0.0f)
+				pEffect->maxpairing = 0.0f;
+		}
+
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_PLUS == KeyPress)
+		{
+			pEffect->exponent += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_PLUS == KeyPress)
+		{
+			pEffect->exponent -= 0.1f;
+			if (pEffect->exponent < 0.0f)
+				pEffect->exponent = 0.0f;
+		}
+
+
+
+
+		//electrostaitc
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_1 == KeyPress)
+		{
+			pEffect->ElectrostaticOffset += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_1 == KeyPress)
+		{
+			pEffect->ElectrostaticOffset -= 0.1f;
+			if (pEffect->ElectrostaticOffset < 0.0f)
+				pEffect->ElectrostaticOffset = 0.0f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_2 == KeyPress)
+		{
+			pEffect->ElectrostaticStrength += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_2 == KeyPress)
+		{
+			pEffect->ElectrostaticStrength -= 0.1f;
+			if (pEffect->ElectrostaticStrength < 0.0f)
+				pEffect->ElectrostaticStrength = 0.0f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_3 == KeyPress)
+		{
+			pEffect->ElectrostaticAlignmentStrength += 0.01f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_3 == KeyPress)
+		{
+			pEffect->ElectrostaticAlignmentStrength -= 0.01f;
+			if (pEffect->ElectrostaticAlignmentStrength < 0.0f)
+				pEffect->ElectrostaticAlignmentStrength = 0.0f;
+		}
+
+
+		//diamagnetic
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_4 == KeyPress)
+		{
+			pEffect->DiamagneticOffset += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_4 == KeyPress)
+		{
+			pEffect->DiamagneticOffset -= 0.1f;
+			if (pEffect->DiamagneticOffset < 0.0f)
+				pEffect->DiamagneticOffset = 0.0f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_5 == KeyPress)
+		{
+			pEffect->DiamagneticStrength += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_5 == KeyPress)
+		{
+			pEffect->DiamagneticStrength -= 0.1f;
+			if (pEffect->DiamagneticStrength < 0.0f)
+				pEffect->DiamagneticStrength = 0.0f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_6 == KeyPress)
+		{
+			pEffect->DiamagneticAlignmentStrength += 0.01f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_6 == KeyPress)
+		{
+			pEffect->DiamagneticAlignmentStrength -= 0.01f;
+			if (pEffect->DiamagneticAlignmentStrength < 0.0f)
+				pEffect->DiamagneticAlignmentStrength = 0.0f;
+		}
+
+		//magnetic
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_7 == KeyPress)
+		{
+			pEffect->MagneticOffset += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_7 == KeyPress)
+		{
+			pEffect->MagneticOffset -= 0.1f;
+			if (pEffect->MagneticOffset < 0.0f)
+				pEffect->MagneticOffset = 0.0f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_8 == KeyPress)
+		{
+			pEffect->MagneticStrength += 0.1f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_8 == KeyPress)
+		{
+			pEffect->MagneticStrength -= 0.1f;
+			if (pEffect->MagneticStrength < 0.0f)
+				pEffect->MagneticStrength = 0.0f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_9 == KeyPress)
+		{
+			pEffect->MagneticAlignmentStrength += 0.01f;
+		}
+		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_9 == KeyPress)
+		{
+			pEffect->MagneticAlignmentStrength -= 0.01f;
+			if (pEffect->MagneticAlignmentStrength < 0.0f)
+				pEffect->MagneticAlignmentStrength = 0.0f;
+		}
+		
+		{
+			ElementGraphics* pElementText = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
+			GraphicsEffectText* pEffectText = NULL;
+			Graphics_Effects_Ref_Get_GraphicsEffect(pElementText, GUIEffect_Text, &pEffectText);
 			//free(pEffect->UTF8_Text);
-			char buffer[128 + 19];
-			snprintf(&buffer, 128 + 19, "Multiplier: %f", Multiplier);
-			pEffect->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
+			char buffer[512 + 19];
+			snprintf(&buffer, 512 + 19, "Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
+				pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
+				pEffect->ElectrostaticOffset, pEffect->ElectrostaticStrength, pEffect->ElectrostaticAlignmentStrength,
+				pEffect->DiamagneticOffset, pEffect->DiamagneticStrength, pEffect->DiamagneticAlignmentStrength,
+				pEffect->MagneticOffset, pEffect->MagneticStrength, pEffect->MagneticAlignmentStrength);
+			pEffectText->UTF8_Text = CopyData(buffer); //this is why its error in debug mode.
 			Object_Ref_ReCreate_Element(iMultiplierText, ThreadIndex);
 			Object_Ref_End_ElementPointer(iMultiplierText, true, false, ThreadIndex);
 		}
+		Object_Ref_End_ElementPointer(iMolecularSimulation, false, false, ThreadIndex);
 	}
-
 	/*
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1.0)
 	{
@@ -2080,6 +2242,15 @@ TEXRESULT Update_Chat()
 		reactorpercentage -= 0.01f;
 	}
 	*/
+
+	//struct timespec spec;
+	//spec.tv_nsec = 100;
+
+	//struct timespec spec1;
+	//spec.tv_nsec = 1;
+
+	//Engine_Ref_Sleep_Thread(&spec, &spec1);
+
 
 	RHeaderCamera* pCameraHeader = Object_Ref_Get_ResourceHeaderPointer(iCameraHeader, false, false, ThreadIndex);
 	ResourceHeaderAllocation iPositionHeader = Object_Ref_Scan_ObjectResourceHeadersSingle(pCameraHeader->Header.iObjects[0], GraphicsHeader_Position, ThreadIndex);	
@@ -2266,7 +2437,7 @@ TEXRESULT Initialise_Chat() {
 			memset(&CreateInfo, 0, sizeof(CreateInfo));
 			CreateInfo.TargetExtentWidth = 1024;
 			CreateInfo.TargetExtentHeight = 1024;
-			CreateInfo.TargetFrameBuffersSize = 2;
+			CreateInfo.TargetFrameBuffersSize = 1;
 			ResourceHeaderCreateInfo MainCreateInfo;
 			memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
 			MainCreateInfo.Identifier = (uint32_t)GraphicsHeader_GraphicsWindow;
@@ -2316,7 +2487,6 @@ TEXRESULT Initialise_Chat() {
 			}
 			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 		}
-
 		{
 			RHeaderScene* pScene = Object_Ref_Get_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 			for (size_t i = 0; i < pScene->Header.iObjectsSize; i++)
@@ -2340,7 +2510,6 @@ TEXRESULT Initialise_Chat() {
 			}
 			Object_Ref_End_ResourceHeaderPointer(iScene, false, false, ThreadIndex);
 		}
-
 		//autistic but it will do
 		for (size_t i = 0; i < ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.BufferSize; i++) {
 			AllocationData* pAllocationData = &ObjectsRes.pUtils->InternalResourceHeaderBuffer.AllocationDatas.Buffer[i];
@@ -3145,20 +3314,9 @@ TEXRESULT Initialise_Chat() {
 				uint64_t it = 0;
 				vec3 Position;
 				glm_vec3_zero(Position);
-				Add_ChemistryElement(7, Position, Info.Particles, &it, -1, true);
-				//Position[0] +=  10;
-				//Add_ChemistryElement(6, Position, Info.Particles, &it, -1, true);
-
-
-				for (size_t i = 1; i < 1; i++)
-				{
-					Position[0] += (i) * 5;
-					Position[1] += ((i / 10) % 2) * 5;
-					
-					//Add_ChemistryElement(i, Position, Info.Particles, &it, -1, true);
-				}
-
-
+				Add_ChemistryElement(9, Position, Info.Particles, &it, -1, false);
+				Position[0] += 9;
+				//Add_ChemistryElement(4, Position, Info.Particles, &it, -1, false);
 				//dont forget to add magnetismw field shit here too;
 
 				Info.ParticlesSize = it;
@@ -3213,6 +3371,15 @@ TEXRESULT Initialise_Chat() {
 		}
 
 		{
+			ObjectAllocation iObject;
+			{
+				ObjectCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)Object_Generic;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_Object(&iObject, MainCreateInfo, NULL, ThreadIndex);
+				Object_Ref_Add_Object_ResourceHeaderChild(iScene, iObject, ThreadIndex);
+			}
 			ResourceHeaderAllocation iMaterial;
 			{
 				RHeaderMaterialCreateInfo CreateInfoMaterial;
@@ -3302,7 +3469,7 @@ TEXRESULT Initialise_Chat() {
 				glm_vec3_zero(Translation);
 
 				Translation[0] = 0.93f;
-				Translation[1] = 0.032f;
+				Translation[1] = 0.13f;
 				Translation[2] = 0.001f;
 
 				glm_mat4_identity(CreateInfo.Matrix);
@@ -3361,8 +3528,8 @@ TEXRESULT Initialise_Chat() {
 					free(CreateInfoFont.Data.pData);
 				}
 
-				InfoText.Size[0] = 0.51f;
-				InfoText.Size[1] = 0.05f;
+				InfoText.Size[0] = 0.0f;
+				InfoText.Size[1] = 0.0f;
 
 				//InfoText.Position[0] = 0.4f;
 				//InfoText.Position[1] = 1.0f;
@@ -3384,6 +3551,15 @@ TEXRESULT Initialise_Chat() {
 			}
 		}
 		{
+			ObjectAllocation iObject;
+			{
+				ObjectCreateInfo MainCreateInfo;
+				memset(&MainCreateInfo, 0, sizeof(MainCreateInfo));
+				MainCreateInfo.Identifier = (uint32_t)Object_Generic;
+				MainCreateInfo.Name = NULL;
+				Object_Ref_Create_Object(&iObject, MainCreateInfo, NULL, ThreadIndex);
+				Object_Ref_Add_Object_ResourceHeaderChild(iScene, iObject, ThreadIndex);
+			}
 			ResourceHeaderAllocation iMaterial;
 			{
 				RHeaderMaterialCreateInfo CreateInfoMaterial;
@@ -3473,8 +3649,8 @@ TEXRESULT Initialise_Chat() {
 				vec3 Translation;
 				glm_vec3_zero(Translation);
 
-				Translation[0] = 0.0f;
-				Translation[1] = 0.0f;
+				Translation[0] = 0.50f;
+				Translation[1] = 0.8f;
 
 				glm_mat4_identity(CreateInfo.Matrix);
 
@@ -3532,8 +3708,8 @@ TEXRESULT Initialise_Chat() {
 					free(CreateInfoFont.Data.pData);
 				}
 
-				InfoText.Size[0] = 0.15f;
-				InfoText.Size[1] = 0.05f;
+				InfoText.Size[0] = 0.5f;
+				InfoText.Size[1] = 0.15f;
 
 				//InfoText.Position[0] = 0.4f;
 				//InfoText.Position[1] = 0.95f;

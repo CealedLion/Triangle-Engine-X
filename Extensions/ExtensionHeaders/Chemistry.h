@@ -400,8 +400,8 @@ typedef struct GPU_Particle {
 	vec4 Position;
 	vec4 PositionVelocity;
 	vec4 Magnitude;
+	vec4 MagnitudeVelocity;
 	vec4 Acceleration;
-	vec4 Special0;
 	//int Info0[2][2][2];
 	//int level;
 }GPU_Particle;
@@ -424,7 +424,6 @@ typedef enum ChemistryEffectsType {
 typedef struct PushConstantsSimplified {
 	mat4 VP;
 	int Particles;
-	int SimulationResolution;
 }PushConstantsSimplified;
 /*
 * Added in 1.0.0
@@ -432,15 +431,23 @@ typedef struct PushConstantsSimplified {
 typedef struct PushConstantsComputeSimplified {
 	int Part;
 	int Particles;
-	int SimulationResolution;
 	float Multiplier;
 
-	mat4 Rotation;
-	vec4 Position;
-	int ResolutionX;
-	int ResolutionY;
-	int PingPongIndex;
-	float FieldOfView;
+	float ElectrostaticOffset;
+	float DiamagneticOffset;
+	float MagneticOffset;
+
+	float ElectrostaticStrength;
+	float DiamagneticStrength;
+	float MagneticStrength;
+
+	float ElectrostaticAlignmentStrength;
+	float DiamagneticAlignmentStrength;
+	float MagneticAlignmentStrength;
+
+	float maxpairing;
+	float exponent;
+
 }PushConstantsComputeSimplified;
 /*
 * Added in 1.0.0
@@ -493,11 +500,24 @@ typedef struct ChemistryEffectSimplified {
 	uint64_t ParticlesSize;
 	GPU_Particle* Particles;
 
-
 	float Multiplier;
 
+	float ElectrostaticOffset;
+	float DiamagneticOffset;
+	float MagneticOffset;
+
+	float ElectrostaticStrength;
+	float DiamagneticStrength;
+	float MagneticStrength;
+
+	float ElectrostaticAlignmentStrength;
+	float DiamagneticAlignmentStrength;
+	float MagneticAlignmentStrength;
+
+	float maxpairing;
+	float exponent;
+
 	//every reinit
-	vec3 Offset;
 
 	GPU_Allocation AllocationParticles0;
 	GPU_Allocation AllocationParticles1;
@@ -529,33 +549,6 @@ typedef struct ChemistryEffectSimplified {
 	void* VkShaderVertex;
 	void* VkShaderFragment;
 #endif
-
-	//MAGNETISM RELATED
-	struct {
-	uint32_t SimulationResolution;
-
-	//every reinit
-#ifdef TEX_EXPOSE_GRAPHICS
-	VkPipeline VkPipelineComputeField;
-	VkShaderModule VkShaderComputeField;
-
-	//VkPipelineLayout VkPipelineLayout;
-#else
-	void* VkPipelineComputeField;
-	void* VkShaderComputeField;
-
-	//void* VkPipelineLayout;
-#endif
-#ifdef TEX_EXPOSE_GRAPHICS
-	//VkPipeline VkPipeline;
-	//VkShaderModule VkShaderVertex;
-	//VkShaderModule VkShaderFragment;
-#else
-	//void* VkPipeline;
-	//void* VkShaderVertex;
-	//void* VkShaderFragment;
-#endif
-	}Magnetism;
 }ChemistryEffectSimplified;
 /*
 * Added in 1.0.0
@@ -662,7 +655,6 @@ typedef struct ChemistryEffectFundamental {
 
 #ifdef TEX_EXPOSE_CHEMISTRY
 #define ChemistrySimplifiedBuffersCount 2
-#define ChemistrySimplifiedImagesCount 2
 
 #define ChemistryFullModelBuffersCount 2
 #define ChemistryFullModelImagesCount 2
