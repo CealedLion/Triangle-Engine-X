@@ -5193,17 +5193,17 @@ TEXRESULT Create_Simplified(ElementGraphics* pElement, ChemistryEffectSimplified
 
 		pEffect->ElectrostaticOffset = 0.00f;
 		pEffect->DiamagneticOffset = 0.0f;
-		pEffect->MagneticOffset = 1.17f;
+		pEffect->MagneticOffset = 1.20f;
 
-		pEffect->ElectrostaticStrength = 40.00f; //strength of the electostatic interaction. //can get real value.
-		pEffect->DiamagneticStrength = 7.10f;
+		pEffect->ElectrostaticStrength = 20.00f; //strength of the electostatic interaction. //can get real value.
+		pEffect->DiamagneticStrength = 7.30f;
 		pEffect->MagneticStrength = 100.0f;
 
 		pEffect->ElectrostaticAlignmentStrength = 0.0f;
-		pEffect->DiamagneticAlignmentStrength = 0.2f;
-		pEffect->MagneticAlignmentStrength = 0.24f;
+		pEffect->DiamagneticAlignmentStrength = 3.2f;
+		pEffect->MagneticAlignmentStrength = 1.3f;
 
-		pEffect->maxpairing = 1.0f;
+		pEffect->maxpairing = 0.9f;
 		pEffect->exponent = 15.0f;
 
 		if (pEffectCreateInfo->ParticlesSize != 0)

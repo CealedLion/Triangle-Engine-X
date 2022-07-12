@@ -102,9 +102,10 @@ ElementAllocation iMultiplierText;
 ElementAllocation iMolecularSimulation;
 
 
-
 typedef struct PrefabIconStruct {
 	UTF8* Name;
+	uint64_t ParticlesSize;
+	GPU_Particle* Particles;
 }PrefabIconStruct;
 uint64_t PrefabIconsSize = 0;
 PrefabIconStruct* PrefabIcons = NULL;
@@ -116,6 +117,13 @@ typedef struct CategoryIconStruct {
 }CategoryIconStruct;
 uint64_t CategoryIconsSize = 0;
 CategoryIconStruct* CategoryIcons = NULL;
+
+
+
+
+
+
+
 
 
 typedef struct PreviousTextInstance{
@@ -205,11 +213,11 @@ void Add_ChemistryElement(ChemistryElementType Element, vec3 Position, GPU_Parti
 * @param IsNavigation makes it a navigation icon
 * @param CategoryOffset is only for navigation icon
 * @param CategoryReverseIndex is only for navigation icon
+* particles data is copied. 
 */
-void Add_ChemistryIcon(ObjectAllocation iParent, const UTF8* Name, const UTF8* filepath, const UTF8* mimetype, bool IsNavigation, float CategoryOffset, int CategoryReverseIndex)
+void Add_ChemistryIcon(ObjectAllocation iParent, const UTF8* Name, const UTF8* filepath, const UTF8* mimetype, bool IsNavigation, float CategoryOffset, int CategoryReverseIndex, uint64_t ParticlesSize, GPU_Particle* Particles)
 {
 	uint32_t ThreadIndex = 0;
-
 	uint64_t xindex = 0;
 	{
 		Object* pParent = Object_Ref_Get_ObjectPointer(iParent, false, false, ThreadIndex);
@@ -373,6 +381,12 @@ void Add_ChemistryIcon(ObjectAllocation iParent, const UTF8* Name, const UTF8* f
 	{ 
 		Resize_Array(&PrefabIcons, PrefabIconsSize, PrefabIconsSize + 1, sizeof(*PrefabIcons));
 		PrefabIcons[PrefabIconsSize].Name = CopyData(Name);
+
+		PrefabIcons[PrefabIconsSize].Particles = calloc(ParticlesSize, sizeof(*Particles));
+		memcpy(PrefabIcons[PrefabIconsSize].Particles, Particles, ParticlesSize * sizeof(*Particles));
+
+		PrefabIcons[PrefabIconsSize].ParticlesSize = ParticlesSize;
+
 		PrefabIconsSize++;
 	}
 }
@@ -667,7 +681,7 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 		for (size_t i = 0; i < PrefabIconsSize; i++)
 		{
 			if (strcmp(pElement->Header.Name, PrefabIcons[i].Name) == 0)
-			{			
+			{		
 				ElementGraphics* pElement = Object_Ref_Get_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);
 				ChemistryEffectSimplified* pEffect = NULL;
 				Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
@@ -677,14 +691,20 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 
 				//free(pEffect->Particles);
 
-				pEffect->ParticlesSize = ParticlesSize;
-				pEffect->Particles = calloc(pEffect->ParticlesSize + 1, sizeof(*pEffect->Particles));
-				memcpy(pEffect->Particles, Particles, pEffect->ParticlesSize * sizeof(*pEffect->Particles));
+
+				if (PrefabIcons[i].ParticlesSize != NULL)
+				{
+
+					pEffect->ParticlesSize = ParticlesSize + PrefabIcons[i].ParticlesSize;
+					pEffect->Particles = calloc(ParticlesSize + PrefabIcons[i].ParticlesSize, sizeof(*pEffect->Particles));
+					memcpy(pEffect->Particles, Particles, ParticlesSize * sizeof(*pEffect->Particles));
 
 
+					memcpy(&pEffect->Particles[ParticlesSize], &PrefabIcons[i].Particles[0], PrefabIcons[i].ParticlesSize * sizeof(*pEffect->Particles));
+				}
 				//Add_ChemistryElement(ChemistryElementType_Titanium, Position, Info.Particles, &it);
 
-
+				/*
 				int32_t flip = -1;
 				if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress)
 				{
@@ -706,7 +726,7 @@ void IconClick_Callback(ElementAllocation ClickedElement, ResourceHeaderAllocati
 
 				pEffect->Particles[pEffect->ParticlesSize].Acceleration[3] = 1.0f;
 				pEffect->ParticlesSize++;
-
+				*/
 
 				Object_Ref_ReCreate_Element(iMolecularSimulation, ThreadIndex);
 				Object_Ref_End_ElementPointer(iMolecularSimulation, true, false, ThreadIndex);		
@@ -2009,6 +2029,8 @@ TEXRESULT Update_Chat()
 		Object_Ref_End_ElementPointer(CurClickedElement, true, false, ThreadIndex);
 	}
 	*/
+	static float size = 0.0f;
+	static float bondsize = 0.0f;
 	static int cpufps = 0;
 	/**/
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1)
@@ -2041,31 +2063,141 @@ TEXRESULT Update_Chat()
 		ChemistryEffectSimplified* pEffect = NULL;
 		Graphics_Effects_Ref_Get_GraphicsEffect(pElement, ChemistryEffects_Simplified, &pEffect);
 
-		float size = 0;
+		//add feature to hover over with mouyse to see radius;
 		{
-			GPU_Particle* Particles = NULL;
-			uint64_t ParticlesSize = NULL;
-			Chemistry_Ref_ReadParticles_Simplified(pGraphicsWindow, pElement, pEffect, &ParticlesSize, &Particles, ThreadIndex);
+			/*
+			static vec2 clickpos = { 0.0f, 0.0f };
 
-			vec3 nucleusposition;
-			glm_vec3_zero(nucleusposition);
-
-			for (size_t i = 0; i < ParticlesSize; i++)
+			static bool clicked = false;
+			if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyPress && clicked == false)
 			{
-				if (Particles[i].PositionVelocity[3] > 0.0f)
-				{
-					glm_vec3_copy(Particles[i].Position, nucleusposition);
-				}
+				clickpos[0] = ((((EngineRes.pUtils->MousePos_Callback_state.X_Position / (float)pGraphicsWindow->CurrentExtentWidth) - 0.5f)) * 2);
+				clickpos[1] = ((((EngineRes.pUtils->MousePos_Callback_state.Y_Position / (float)pGraphicsWindow->CurrentExtentHeight) - 0.5f)) * 2);
+
+				clicked = true;
 			}
-
-			for (size_t i = 0; i < ParticlesSize; i++)
+			if (pGraphicsWindow->pWindow->STATE_MOUSE_BUTTON_1 == KeyRelease)
+			*/
 			{
-				if (Particles[i].PositionVelocity[3] < 0.0f && glm_vec3_distance(nucleusposition, Particles[i].Position) > size)
-				{
-					size = glm_vec3_distance(nucleusposition, Particles[i].Position);
+				vec2 endclickpos = { 0.0f, 0.0f };
+				endclickpos[0] = ((((EngineRes.pUtils->MousePos_Callback_state.X_Position / (float)pGraphicsWindow->CurrentExtentWidth) - 0.5f)) * 2);
+				endclickpos[1] = ((((EngineRes.pUtils->MousePos_Callback_state.Y_Position / (float)pGraphicsWindow->CurrentExtentHeight) - 0.5f)) * 2);
+				//calculating camera
+				RHeaderCamera* pCameraHeader = Object_Ref_Get_ResourceHeaderPointer(iCameraHeader, false, false, ThreadIndex);
+				mat4 VP;
+				mat4 CameraPositionMatrix;
+				glm_mat4_identity(CameraPositionMatrix);
+				Graphics_Ref_Calculate_TotalMatrix(&CameraPositionMatrix, pCameraHeader->Header.iObjects[0], ThreadIndex);
+				//multiple position headers is undefined
+				mat4 vmat;
+				mat4 pmat;
+				glm_mat4_identity(vmat);
+				glm_mat4_identity(pmat);
+				glm_mat4_inv_precise_sse2(CameraPositionMatrix, vmat);
+				if (pCameraHeader != NULL) {
+					switch (pCameraHeader->Type) {
+					case CameraType_Perspective:
+						glm_perspective((float)pCameraHeader->CameraU.Perspective.y_fov, (float)pCameraHeader->CameraU.Perspective.AspectRatio,
+							(float)pCameraHeader->CameraU.Perspective.z_near, (float)pCameraHeader->CameraU.Perspective.z_far, pmat);
+						break;
+					case CameraType_Orthographic:
+						glm_ortho(-(float)pCameraHeader->CameraU.Orthographic.x_mag, (float)pCameraHeader->CameraU.Orthographic.x_mag,
+							-(float)pCameraHeader->CameraU.Orthographic.y_mag, (float)pCameraHeader->CameraU.Orthographic.y_mag,
+							(float)pCameraHeader->CameraU.Orthographic.z_near, (float)pCameraHeader->CameraU.Orthographic.z_far, pmat);
+						break;
+					}
 				}
+				else {
+					glm_mat4_identity(pmat);
+				}
+				glm_mul_sse2(pmat, vmat, VP);
+				Object_Ref_End_ResourceHeaderPointer(iCameraHeader, false, false, ThreadIndex);
+
+				//actual collider calc
+				GPU_Particle* Particles = NULL;
+				uint64_t ParticlesSize = NULL;
+				Chemistry_Ref_ReadParticles_Simplified(pGraphicsWindow, pElement, pEffect, &ParticlesSize, &Particles, ThreadIndex);
+
+				int nucleusindex = -1;
+				vec3 nucleusposition;
+				glm_vec3_zero(nucleusposition);
+				for (size_t i = 0; i < ParticlesSize; i++)
+				{
+					/*
+					vec4 product;
+					glm_vec3_copy(Particles[i].Position, product);
+					product[3] = 1.0f;
+					glm_mat4_mulv(VP, product, product);
+
+					product[0] /= product[3];
+					product[1] /= product[3];
+					product[2] /= product[3];
+
+					if (glm_vec2_distance(endclickpos, product) < 0.015f)
+					{
+						glm_vec3_copy(Particles[i].Position, nucleusposition);
+						nucleusindex = i;
+					}*/
+
+					if (Particles[i].PositionVelocity[3] > 0.0f && Particles[i].Acceleration[3] == 1.0f)
+					{
+						glm_vec3_copy(Particles[i].Position, nucleusposition);
+						nucleusindex = i;
+					}
+				}
+				//this is all electrons how do we define its own electrons;
+				//closest nucleus..;
+				size = 0.0f;
+
+				for (size_t i = 0; i < ParticlesSize; i++)
+				{
+					if (Particles[i].PositionVelocity[3] < 0.0f)
+					{
+						int closestIndex = -1;
+						float closest = FLT_MAX;
+						for (size_t i1 = 0; i1 < ParticlesSize; i1++)
+						{
+							if (glm_vec3_distance(Particles[i].Position, Particles[i1].Position) < closest && Particles[i1].PositionVelocity[3] > 0.0f)
+							{
+								closestIndex = i1;
+								closest = glm_vec3_distance(Particles[i].Position, Particles[i1].Position);
+							}
+						}
+						if (closestIndex == nucleusindex && nucleusindex != -1 && closestIndex != -1)
+						{
+							if (glm_vec3_distance(nucleusposition, Particles[i].Position) > size && Particles[i].PositionVelocity[3] < 0.0f)
+							{
+								size = glm_vec3_distance(nucleusposition, Particles[i].Position);
+							}
+						}
+					}
+				}
+				bondsize = 0.0f;
+				if (nucleusindex != -1)
+				{
+					if (Particles[nucleusindex].PositionVelocity[3] > 0.0f)
+					{
+						int closestIndex = -1;
+						float closest = FLT_MAX;
+						for (size_t i1 = 0; i1 < ParticlesSize; i1++)
+						{
+							if (glm_vec3_distance(Particles[nucleusindex].Position, Particles[i1].Position) < closest && Particles[i1].PositionVelocity[3] > 0.0f && i1 != nucleusindex)
+							{
+								closestIndex = i1;
+								closest = glm_vec3_distance(Particles[nucleusindex].Position, Particles[i1].Position);
+							}
+						}
+						if (closestIndex != -1)
+						{
+							bondsize = glm_vec3_distance(nucleusposition, Particles[closestIndex].Position);
+						}
+					}
+				}
+
+				//clicked = false;
 			}
 		}
+		//aa;
 
 		{
 			ElementGraphics* pElementText = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
@@ -2073,8 +2205,8 @@ TEXRESULT Update_Chat()
 			Graphics_Effects_Ref_Get_GraphicsEffect(pElementText, GUIEffect_Text, &pEffectText);
 			//free(pEffect->UTF8_Text);
 			char buffer[512 + 19];
-			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
-				size, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
+			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f BondSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
+				size, bondsize, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
 				pEffect->ElectrostaticOffset, pEffect->ElectrostaticStrength, pEffect->ElectrostaticAlignmentStrength,
 				pEffect->DiamagneticOffset, pEffect->DiamagneticStrength, pEffect->DiamagneticAlignmentStrength,
 				pEffect->MagneticOffset, pEffect->MagneticStrength, pEffect->MagneticAlignmentStrength);
@@ -2102,9 +2234,8 @@ TEXRESULT Update_Chat()
 		}
 		if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_CONTROL == KeyPress)
 		{
-			addspeed = 1.0f;
+			addspeed = 10.0f;
 		}
-
 
 		if (pGraphicsWindow->pWindow->STATE_KEY_R == KeyPress)
 		{
@@ -2155,8 +2286,8 @@ TEXRESULT Update_Chat()
 		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_1 == KeyPress)
 		{
 			pEffect->ElectrostaticOffset -= addspeed;
-			if (pEffect->ElectrostaticOffset < 0.0f)
-				pEffect->ElectrostaticOffset = 0.0f;
+			//if (pEffect->ElectrostaticOffset < 0.0f)
+			//	pEffect->ElectrostaticOffset = 0.0f;
 		}
 		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_2 == KeyPress)
 		{
@@ -2188,8 +2319,8 @@ TEXRESULT Update_Chat()
 		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_4 == KeyPress)
 		{
 			pEffect->DiamagneticOffset -= addspeed;
-			if (pEffect->DiamagneticOffset < 0.0f)
-				pEffect->DiamagneticOffset = 0.0f;
+			//if (pEffect->DiamagneticOffset < 0.0f)
+			//	pEffect->DiamagneticOffset = 0.0f;
 		}
 		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_5 == KeyPress)
 		{
@@ -2220,8 +2351,8 @@ TEXRESULT Update_Chat()
 		if (pGraphicsWindow->pWindow->STATE_KEY_G == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_7 == KeyPress)
 		{
 			pEffect->MagneticOffset -= addspeed;
-			if (pEffect->MagneticOffset < 0.0f)
-				pEffect->MagneticOffset = 0.0f;
+			//if (pEffect->MagneticOffset < 0.0f)
+			//	pEffect->MagneticOffset = 0.0f;
 		}
 		if (pGraphicsWindow->pWindow->STATE_KEY_T == KeyPress && pGraphicsWindow->pWindow->STATE_KEY_8 == KeyPress)
 		{
@@ -2244,7 +2375,7 @@ TEXRESULT Update_Chat()
 				pEffect->MagneticAlignmentStrength = 0.0f;
 		}
 
-
+		/*
 		float size = 0;
 		{
 			GPU_Particle * Particles = NULL;
@@ -2269,7 +2400,7 @@ TEXRESULT Update_Chat()
 					size = glm_vec3_distance(nucleusposition, Particles[i].Position);
 				}
 			}
-		}
+		}*/
 		
 		{
 			ElementGraphics* pElementText = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
@@ -2277,8 +2408,8 @@ TEXRESULT Update_Chat()
 			Graphics_Effects_Ref_Get_GraphicsEffect(pElementText, GUIEffect_Text, &pEffectText);
 			//free(pEffect->UTF8_Text);
 			char buffer[512 + 19];
-			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
-				size, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
+			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f BondSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
+				size, bondsize, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
 				pEffect->ElectrostaticOffset, pEffect->ElectrostaticStrength, pEffect->ElectrostaticAlignmentStrength,
 				pEffect->DiamagneticOffset, pEffect->DiamagneticStrength, pEffect->DiamagneticAlignmentStrength,
 				pEffect->MagneticOffset, pEffect->MagneticStrength, pEffect->MagneticAlignmentStrength);
@@ -3429,7 +3560,19 @@ TEXRESULT Initialise_Chat() {
 					Object* pObject = Object_Ref_Get_ObjectPointer(pAllocationData->Allocation.Object, false, false, ThreadIndex);
 					if (strcmp(pObject->Header.Name, "Level:Hydrocarbons") == 0)
 					{
-						Add_ChemistryIcon(pObject->Header.Allocation, "Icon:Button:C4H10", "data\\GUI\\Textures\\C4H10.png", ".png", false, 0, 0);
+
+
+						uint64_t ParticlesSize = ;
+						GPU_Particle* Particles = ;
+
+
+
+
+
+
+
+
+						Add_ChemistryIcon(pObject->Header.Allocation, "Icon:Button:C4H10", "data\\GUI\\Textures\\C4H10.png", ".png", false, 0, 0, aaasize, aaapaerticles);
 					}
 					Object_Ref_End_ObjectPointer(pAllocationData->Allocation.Object, false, false, ThreadIndex);
 				}

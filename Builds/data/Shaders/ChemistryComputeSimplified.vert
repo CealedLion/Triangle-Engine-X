@@ -45,60 +45,38 @@ void main(void)
 
 
 
-	/*
-	if (gl_InstanceIndex < PushConstants.Particles)
-	{
 	if (gl_VertexIndex == 0)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
-	}	
+		gl_Position = PushConstants.VP * vec4(Position.xyz, 1.0f);
+	}
 	else if (gl_VertexIndex == 1)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.15), 1.0f));
-	}	
+		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.2f), 1.0f);
+	}
+
 	else if (gl_VertexIndex == 2)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
+		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.2f), 1.0f);
 	}
 	else if (gl_VertexIndex == 3)
 	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.15f), 1.0f));
+		gl_Position = PushConstants.VP * vec4(Position.xyz + ((Magnitude.xyz * 0.2f) * 0.9) + ((vec3(-Magnitude.z, Magnitude.x, -Magnitude.y)) * 0.1), 1.0f);
 	}
+	else if (gl_VertexIndex == 4)
+	{
+		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.2f).xyz, 1.0f);
 	}
-	else
+	else if (gl_VertexIndex == 5)
 	{
-	if (gl_VertexIndex == 0)
-	{
-		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033), 1.0f));
+		gl_Position = PushConstants.VP * vec4(Position.xyz + ((Magnitude.xyz * 0.2f).xyz * 0.9) + ((vec3(Magnitude.z, -Magnitude.x, Magnitude.y)) * 0.1), 1.0f);
 	}	
-	else if (gl_VertexIndex == 1)
+	else if (gl_VertexIndex == 6)
 	{
-		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033) + (direction.xyz * 0.05), 1.0f));
-	}	
-	else if (gl_VertexIndex == 2)
-	{
-		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033), 1.0f));
+		gl_Position = PushConstants.VP *  vec4(Position.xyz, 1.0f);
 	}
-	else if (gl_VertexIndex == 3)
+	else if (gl_VertexIndex == 7)
 	{
-		gl_Position = (PushConstants.VP * vec4((vec3(invoc - (PushConstants.SimulationResolution / 2)) * 0.033) + (direction.xyz * 0.05f), 1.0f));
+		gl_Position = PushConstants.VP * vec4(Position.xyz + PositionVelocity.xyz, 1.0f);
 	}
-	}
-	*/
-	if (gl_VertexIndex == 0)
-	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
-	}	
-	else if (gl_VertexIndex == 1)
-	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (PositionVelocity.xyz * 0.15), 1.0f));
-	}	
-	else if (gl_VertexIndex == 2)
-	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz, 1.0f));
-	}
-	else if (gl_VertexIndex == 3)
-	{
-		gl_Position = (PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.15f), 1.0f));
-	}
+
 }
