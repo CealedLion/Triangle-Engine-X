@@ -51,24 +51,24 @@ void main(void)
 	}
 	else if (gl_VertexIndex == 1)
 	{
-		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.2f), 1.0f);
+		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.1f), 1.0f);
 	}
 
 	else if (gl_VertexIndex == 2)
 	{
-		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.2f), 1.0f);
+		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.1f), 1.0f);
 	}
 	else if (gl_VertexIndex == 3)
 	{
-		gl_Position = PushConstants.VP * vec4(Position.xyz + ((Magnitude.xyz * 0.2f) * 0.9) + ((vec3(-Magnitude.z, Magnitude.x, -Magnitude.y)) * 0.1), 1.0f);
+		gl_Position = PushConstants.VP * vec4(Position.xyz + ((Magnitude.xyz * 0.1f) * 0.9) + ((vec3(-Magnitude.z, Magnitude.x, -Magnitude.y)) * 0.02), 1.0f);
 	}
 	else if (gl_VertexIndex == 4)
 	{
-		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.2f).xyz, 1.0f);
+		gl_Position = PushConstants.VP * vec4(Position.xyz + (Magnitude.xyz * 0.1f).xyz, 1.0f);
 	}
 	else if (gl_VertexIndex == 5)
 	{
-		gl_Position = PushConstants.VP * vec4(Position.xyz + ((Magnitude.xyz * 0.2f).xyz * 0.9) + ((vec3(Magnitude.z, -Magnitude.x, Magnitude.y)) * 0.1), 1.0f);
+		gl_Position = PushConstants.VP * vec4(Position.xyz + ((Magnitude.xyz * 0.1f).xyz * 0.9) + ((vec3(Magnitude.z, -Magnitude.x, Magnitude.y)) * 0.02), 1.0f);
 	}	
 	else if (gl_VertexIndex == 6)
 	{

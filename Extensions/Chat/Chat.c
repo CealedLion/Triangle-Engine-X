@@ -1051,18 +1051,42 @@ TEXRESULT ChemistryKey_Callback()
 					float speed = 0.4f;
 					if (pGraphicsWindow->pWindow->STATE_KEY_LEFT_SHIFT == KeyPress)
 						speed = 0.01f;
-					if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress)
-						pEffect->Particles[i].Position[0] += speed;
-					if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress)
-						pEffect->Particles[i].Position[0] -= speed;
-					if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress)
-						pEffect->Particles[i].Position[1] += speed;
-					if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress)
-						pEffect->Particles[i].Position[1] -= speed;
-					if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress)
-						pEffect->Particles[i].Position[2] += speed;
-					if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
-						pEffect->Particles[i].Position[2] -= speed;
+
+
+					if (pGraphicsWindow->pWindow->STATE_KEY_X)
+					{
+						if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress)
+							pEffect->Particles[i].Magnitude[0] += speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress)
+							pEffect->Particles[i].Magnitude[0] -= speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress)
+							pEffect->Particles[i].Magnitude[1] += speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress)
+							pEffect->Particles[i].Magnitude[1] -= speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress)
+							pEffect->Particles[i].Magnitude[2] += speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
+							pEffect->Particles[i].Magnitude[2] -= speed;
+
+						glm_vec3_normalize(pEffect->Particles[i].Magnitude);
+					}
+					else
+					{
+						if (pGraphicsWindow->pWindow->STATE_KEY_RIGHT == KeyPress)
+							pEffect->Particles[i].Position[0] += speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_LEFT == KeyPress)
+							pEffect->Particles[i].Position[0] -= speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_UP == KeyPress)
+							pEffect->Particles[i].Position[1] += speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_DOWN == KeyPress)
+							pEffect->Particles[i].Position[1] -= speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_UP == KeyPress)
+							pEffect->Particles[i].Position[2] += speed;
+						if (pGraphicsWindow->pWindow->STATE_KEY_PAGE_DOWN == KeyPress)
+							pEffect->Particles[i].Position[2] -= speed;
+
+					}
+
 				}
 			}
 		}
@@ -2031,6 +2055,8 @@ TEXRESULT Update_Chat()
 	*/
 	static float size = 0.0f;
 	static float bondsize = 0.0f;
+	static float electronsize = 0.0f;
+	static float electronbondsize = 0.0f;
 	static int cpufps = 0;
 	/**/
 	if (((double)clock() / (double)CLOCKS_PER_SEC) - lasttime > 1)
@@ -2119,8 +2145,9 @@ TEXRESULT Update_Chat()
 				Chemistry_Ref_ReadParticles_Simplified(pGraphicsWindow, pElement, pEffect, &ParticlesSize, &Particles, ThreadIndex);
 
 				int nucleusindex = -1;
-				vec3 nucleusposition;
-				glm_vec3_zero(nucleusposition);
+				int electronindex = -1;
+				//vec3 nucleusposition;
+				//glm_vec3_zero(nucleusposition);
 				for (size_t i = 0; i < ParticlesSize; i++)
 				{
 					/*
@@ -2141,14 +2168,19 @@ TEXRESULT Update_Chat()
 
 					if (Particles[i].PositionVelocity[3] > 0.0f && Particles[i].Acceleration[3] == 1.0f)
 					{
-						glm_vec3_copy(Particles[i].Position, nucleusposition);
+						//glm_vec3_copy(Particles[i].Position, nucleusposition);
 						nucleusindex = i;
+					}
+
+					if (Particles[i].PositionVelocity[3] < 0.0f && Particles[i].Acceleration[3] == 1.0f)
+					{
+						//glm_vec3_copy(Particles[i].Position, nucleusposition);
+						electronindex = i;
 					}
 				}
 				//this is all electrons how do we define its own electrons;
 				//closest nucleus..;
 				size = 0.0f;
-
 				for (size_t i = 0; i < ParticlesSize; i++)
 				{
 					if (Particles[i].PositionVelocity[3] < 0.0f)
@@ -2165,9 +2197,9 @@ TEXRESULT Update_Chat()
 						}
 						if (closestIndex == nucleusindex && nucleusindex != -1 && closestIndex != -1)
 						{
-							if (glm_vec3_distance(nucleusposition, Particles[i].Position) > size && Particles[i].PositionVelocity[3] < 0.0f)
+							if (glm_vec3_distance(Particles[nucleusindex].Position, Particles[i].Position) > size && Particles[i].PositionVelocity[3] < 0.0f)
 							{
-								size = glm_vec3_distance(nucleusposition, Particles[i].Position);
+								size = glm_vec3_distance(Particles[nucleusindex].Position, Particles[i].Position);
 							}
 						}
 					}
@@ -2175,29 +2207,61 @@ TEXRESULT Update_Chat()
 				bondsize = 0.0f;
 				if (nucleusindex != -1)
 				{
-					if (Particles[nucleusindex].PositionVelocity[3] > 0.0f)
+					int closestIndex = -1;
+					float closest = FLT_MAX;
+					for (size_t i1 = 0; i1 < ParticlesSize; i1++)
 					{
-						int closestIndex = -1;
-						float closest = FLT_MAX;
-						for (size_t i1 = 0; i1 < ParticlesSize; i1++)
+						if (glm_vec3_distance(Particles[nucleusindex].Position, Particles[i1].Position) < closest && Particles[i1].PositionVelocity[3] > 0.0f && i1 != nucleusindex)
 						{
-							if (glm_vec3_distance(Particles[nucleusindex].Position, Particles[i1].Position) < closest && Particles[i1].PositionVelocity[3] > 0.0f && i1 != nucleusindex)
-							{
-								closestIndex = i1;
-								closest = glm_vec3_distance(Particles[nucleusindex].Position, Particles[i1].Position);
-							}
+							closestIndex = i1;
+							closest = glm_vec3_distance(Particles[nucleusindex].Position, Particles[i1].Position);
 						}
-						if (closestIndex != -1)
+					}
+					if (closestIndex != -1)
+					{
+						bondsize = glm_vec3_distance(Particles[nucleusindex].Position, Particles[closestIndex].Position);
+					}
+				}
+				electronsize = 0.0f;
+				if (electronindex != -1)
+				{
+					int closestIndex = -1;
+					float closest = FLT_MAX;
+					for (size_t i1 = 0; i1 < ParticlesSize; i1++)
+					{
+						if (glm_vec3_distance(Particles[electronindex].Position, Particles[i1].Position) < closest && Particles[i1].PositionVelocity[3] > 0.0f && i1 != electronindex)
 						{
-							bondsize = glm_vec3_distance(nucleusposition, Particles[closestIndex].Position);
+							closestIndex = i1;
+							closest = glm_vec3_distance(Particles[electronindex].Position, Particles[i1].Position);
 						}
+					}
+					if (closestIndex != -1)
+					{
+						electronsize = glm_vec3_distance(Particles[electronindex].Position, Particles[closestIndex].Position);
 					}
 				}
 
+				electronbondsize = 0.0f;
+				if (electronindex != -1)
+				{
+					int closestIndex = -1;
+					float closest = FLT_MAX;
+					for (size_t i1 = 0; i1 < ParticlesSize; i1++)
+					{
+						if (glm_vec3_distance(Particles[electronindex].Position, Particles[i1].Position) < closest && Particles[i1].PositionVelocity[3] < 0.0f && i1 != electronindex)
+						{
+							closestIndex = i1;
+							closest = glm_vec3_distance(Particles[electronindex].Position, Particles[i1].Position);
+						}
+					}
+					if (closestIndex != -1)
+					{
+						electronbondsize = glm_vec3_distance(Particles[electronindex].Position, Particles[closestIndex].Position);
+					}
+				}
 				//clicked = false;
 			}
 		}
-		//aa;
 
 		{
 			ElementGraphics* pElementText = Object_Ref_Get_ElementPointer(iMultiplierText, true, false, ThreadIndex);
@@ -2205,8 +2269,8 @@ TEXRESULT Update_Chat()
 			Graphics_Effects_Ref_Get_GraphicsEffect(pElementText, GUIEffect_Text, &pEffectText);
 			//free(pEffect->UTF8_Text);
 			char buffer[512 + 19];
-			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f BondSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
-				size, bondsize, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
+			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f BondSize: %f ElectronSize: %f ElectronBondSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
+				size, bondsize, electronsize, electronbondsize, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
 				pEffect->ElectrostaticOffset, pEffect->ElectrostaticStrength, pEffect->ElectrostaticAlignmentStrength,
 				pEffect->DiamagneticOffset, pEffect->DiamagneticStrength, pEffect->DiamagneticAlignmentStrength,
 				pEffect->MagneticOffset, pEffect->MagneticStrength, pEffect->MagneticAlignmentStrength);
@@ -2408,8 +2472,8 @@ TEXRESULT Update_Chat()
 			Graphics_Effects_Ref_Get_GraphicsEffect(pElementText, GUIEffect_Text, &pEffectText);
 			//free(pEffect->UTF8_Text);
 			char buffer[512 + 19];
-			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f BondSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
-				size, bondsize, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
+			snprintf(&buffer, 512 + 19, "SPECS: AtomSize: %f BondSize: %f ElectronSize: %f ElectronBondSize: %f\nVARS: Multiplier: %f 0MaxPairing: %f +Exponent: %f\nElectrostatic: 1Offset: %f 2Strength: %f 3AlignmentStrength: %f\nDiamagnetic: 4Offset: %f 5Strength: %f 6AlignmentStrength: %f\nMagnetic: 7Offset: %f 8Strength: %f 9AlignmentStrength: %f\n",
+				size, bondsize, electronsize, electronbondsize, pEffect->Multiplier, pEffect->maxpairing, pEffect->exponent,
 				pEffect->ElectrostaticOffset, pEffect->ElectrostaticStrength, pEffect->ElectrostaticAlignmentStrength,
 				pEffect->DiamagneticOffset, pEffect->DiamagneticStrength, pEffect->DiamagneticAlignmentStrength,
 				pEffect->MagneticOffset, pEffect->MagneticStrength, pEffect->MagneticAlignmentStrength);
@@ -3525,7 +3589,7 @@ TEXRESULT Initialise_Chat() {
 				CreateInfo.EffectCreateInfos[0].Identifier = (uint32_t)ChemistryEffects_Simplified;
 				CreateInfo.EffectCreateInfos[0].pEffectCreateInfo = &Info;
 
-				Info.ParticlesSize = (1000);
+				Info.ParticlesSize = (4000);
 				Info.Particles = calloc(Info.ParticlesSize, sizeof(*Info.Particles));
 
 				Info.Multiplier = 0.0f;
@@ -3536,9 +3600,38 @@ TEXRESULT Initialise_Chat() {
 				vec3 Position;
 				glm_vec3_zero(Position);
 				Add_ChemistryElement(9, Position, Info.Particles, &it, -1, false);
-				Position[0] += 9;
-				//Add_ChemistryElement(4, Position, Info.Particles, &it, -1, false);
-				//dont forget to add magnetismw field shit here too;
+				/*
+				Position[0] -= 1;
+				Add_ChemistryElement(1, Position, Info.Particles, &it, -1, false);
+
+				for (size_t i = 0; i < 30; i++)
+				{
+					for (size_t i1 = 0; i1 < 30; i1++)
+					{
+						for (size_t i2 = 0; i2 < 1; i2++)
+						{
+
+							Info.Particles[it].Position[0] = i * 0.1;
+							Info.Particles[it].Position[1] = i1 * 0.1;
+							Info.Particles[it].Position[2] = i2 * 0.1;
+
+							Info.Particles[it].Position[3] = 1.0f; //mass
+							Info.Particles[it].PositionVelocity[0] = 0.0f;
+							Info.Particles[it].PositionVelocity[1] = 0.0f;
+							Info.Particles[it].PositionVelocity[2] = 0.0f;
+							Info.Particles[it].PositionVelocity[3] = -1.0f; //charge
+
+							Info.Particles[it].Magnitude[0] = 0.0f;
+							Info.Particles[it].Magnitude[1] = 1.0f;
+							Info.Particles[it].Magnitude[2] = 0.0f;
+							Info.Particles[it].Magnitude[3] = 1.0f; //spin
+							Info.Particles[it].Acceleration[1] = -1.0f;
+							it++;
+						}
+					}
+				}
+				*/
+
 
 				Info.ParticlesSize = it;
 
@@ -3562,8 +3655,8 @@ TEXRESULT Initialise_Chat() {
 					{
 
 
-						uint64_t ParticlesSize = ;
-						GPU_Particle* Particles = ;
+						uint64_t ParticlesSize = NULL;
+						GPU_Particle* Particles = NULL;
 
 
 
@@ -3572,7 +3665,7 @@ TEXRESULT Initialise_Chat() {
 
 
 
-						Add_ChemistryIcon(pObject->Header.Allocation, "Icon:Button:C4H10", "data\\GUI\\Textures\\C4H10.png", ".png", false, 0, 0, aaasize, aaapaerticles);
+						Add_ChemistryIcon(pObject->Header.Allocation, "Icon:Button:C4H10", "data\\GUI\\Textures\\C4H10.png", ".png", false, 0, 0, ParticlesSize, Particles);
 					}
 					Object_Ref_End_ObjectPointer(pAllocationData->Allocation.Object, false, false, ThreadIndex);
 				}
